@@ -38,7 +38,7 @@ If you downloaded manually, ensure all `.sh` files are in their respective direc
 >  **Do not run this script as root.** Use a normal user account and authorize via `sudo`.
 
 ```bash
-./post-install.sh
+./debianito.sh
 ```
 
 The script will perform initial checks, detect your system information (CPU, RAM, GPU), then present an interactive menu.
@@ -69,12 +69,12 @@ After running the script:
 
 | Directory/File | Description |
 |----------------|-------------|
-| `/post-install.sh` | Main entry point; handles menu navigation and system detection. |
+| `./debianito.sh` | Main entry point; handles menu navigation and system detection. |
 | `/modules/` | Modular scripts for specific tasks: `sudo_config`, `repos`, `firmware`, `gpu`, etc. |
 | `utils.sh` | Shared utility functions (CPU/RAM/GPU/WiFi detection, Debian version identification). |
 
 ```bash
-├── post-install.sh          # Main script & menu logic
+├── ./debianito.sh          # Main script & menu logic
 └── modules/
     ├── utils.sh             # System info helpers
     ├── sudo_config.sh       # User group + pwfeedback setup
