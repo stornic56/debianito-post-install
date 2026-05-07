@@ -22,6 +22,9 @@ if [ -f "${MODULES_DIR}/firmware.sh" ]; then
 fi
 if [ -f "${MODULES_DIR}/gpu.sh" ]; then
     source "${MODULES_DIR}/gpu.sh"
+if [ -f "${MODULES_DIR}/kernel.sh" ]; then
+    source "${MODULES_DIR}/kernel.sh"
+fi
 fi
 if [ -f "${MODULES_DIR}/gaming.sh" ]; then
     source "${MODULES_DIR}/gaming.sh"
@@ -48,12 +51,13 @@ else
 fi
 
 main_menu() {
-    PS3="Select an option (1-7): "
+    PS3="Select an option (1-8): "
     options=(
         "User Privileges & Feedback"
         "Configure repositories"
         "Setup Wireless & Firmware"
         "Configure Graphics Stack and Tools"
+        "Update Kernel to Backports"
         "Gaming Setup and Performance"
         "Install extra applications"
         "Exit"
@@ -78,9 +82,10 @@ main_menu() {
                 2) configure_repos ;;
                 3) install_firmware ;;
                 4) install_gpu_drivers ;;
-                5) install_gaming ;;
-                6) install_extras ;;
-                7) echo "Exiting."; exit 0 ;;
+                5) install_kernel_backports ;;
+                6) install_gaming ;;
+                7) install_extras ;;
+                8) echo "Exiting."; exit 0 ;;
                 *) echo "Invalid choice. Please try again." ;;
             esac
             break
