@@ -150,16 +150,11 @@ get_intel_generation() {
     fi
 }
 
-# ---------------------------------------------
-# Check if backports repository is enabled
-# ---------------------------------------------
+# ----------------------------------------------------------------------
+# Check if backports repository is enabled (active line without #)
+# ----------------------------------------------------------------------
 is_backports_enabled() {
-    if [ "$REPOS_CONFIGURED" != true ]; then
-        echo false
-        return
-    fi
-
-    # Check both classic and deb822 sources
+    # Check classic sources.list
     if [ -f /etc/apt/sources.list ]; then
         if grep -Eq '^[^#]*[ \t]+bookworm-backports[ \t]+' /etc/apt/sources.list 2>/dev/null; then
             echo true
@@ -171,12 +166,25 @@ is_backports_enabled() {
         fi
     fi
 
+    # Check deb822 .sources files
     if [ -d /etc/apt/sources.list.d ]; then
-        if grep -qr 'backports' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+        if grep -qr 'Suites:.*-backports' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
             echo true
             return
         fi
     fi
 
     echo false
+}
+
+
+get_backports_kernel_version() {
+    local ver
+    ver=$(apt-cache policy linux-image-amd64 2>/dev/null | \
+          grep -E '^[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+.*~bpo' | head -n1 | awk '{print $1}')
+    if [ -n "$ver" ]; then
+        echo "$ver"
+    else
+        echo "unknown"
+    fi
 }
