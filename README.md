@@ -27,8 +27,8 @@ Debianito is a user-friendly post-installation automation script for Debian 12 (
 
 ```bash
 git clone https://github.com/stornic56/debianito-post-install
-cd debianito
-chmod +x post-install.sh modules/*.sh # Make all scripts executable if needed
+cd debianito-post-install
+chmod +x ./debianito.sh
 ```
 
 If you downloaded manually, ensure all `.sh` files are in their respective directories.
