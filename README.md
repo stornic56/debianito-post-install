@@ -28,7 +28,7 @@ Debianito is a user-friendly post-installation automation script for Debian 12 (
 ```bash
 git clone https://github.com/stornic56/debianito-post-install
 cd debianito-post-install
-chmod +x ./debianito.sh
+chmod +x debianito.sh && ./debianito.sh
 ```
 
 If you downloaded manually, ensure all `.sh` files are in their respective directories.
@@ -49,7 +49,7 @@ The script will perform initial checks, detect your system information (CPU, RAM
 
 After running the script:
 
-1. **Select Option:** Use arrow keys or type `1-7`.
+1. **Select Option:** Use arrow keys or type `1-8`.
 2. **Confirm Actions:** For installation steps, you'll see a confirmation prompt (`whiptail`).
 3. **Review System Info:** The header displays your detected Debian version and hardware summary before each action.
 4. **Repeat as Needed:** Return to the main menu at any time or exit when done.
@@ -60,6 +60,7 @@ After running the script:
 |Repository Configuration|Setup official repos with/without backports|
 |Wireless Support|Install WiFi firmware for Broadcom, Intel, etc.|
 |Graphics Stack and Tools|AMD/Intel/NVIDIA drivers + monitoring tools (nvtop/radeontop)|
+|Update Kernel to Backports|Installs a newer kernel version available in Debian's "Backports" repository|
 |Gaming Setup|Steam installation + performance tools (gamemode/mangohud)|
 |Extra Applications|Select system utilities like htop, btop, neofetch|
 
@@ -71,7 +72,6 @@ After running the script:
 |----------------|-------------|
 | `./debianito.sh` | Main entry point; handles menu navigation and system detection. |
 | `/modules/` | Modular scripts for specific tasks: `sudo_config`, `repos`, `firmware`, `gpu`, etc. |
-| `utils.sh` | Shared utility functions (CPU/RAM/GPU/WiFi detection, Debian version identification). |
 
 ```bash
 ├── ./debianito.sh          # Main script & menu logic
@@ -81,6 +81,7 @@ After running the script:
     ├── repos.sh             # Repository configuration (classic/deb822)
     ├── firmware.sh          # WiFi microcode and chipset-specific support
     ├── gpu.sh               # AMD, Intel, NVIDIA driver/firmware handling
+    ├── kernel.sh            # Update Kernel to Backports
     └── gaming.sh            # Steam installation & performance tools
 ```
 > 🤖 AI-Assisted Development Note
