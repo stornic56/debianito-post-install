@@ -21,7 +21,7 @@ install_extras() {
         "fetch"      "System info (${fetch_pkg})"                ON  \
         "cpufetch"   "CPU info fetcher"                          ON  \
         "cpu-x"      "CPU-X (GUI alternative to CPU-Z)"          ON  \
-        "btop"       "Resource monitor (fancy top)"              ON  \
+        "btop"       "Resource monitor (fancy top)"              OFF  \
         "htop"       "Interactive process viewer"                ON  \
         "vlc"        "VLC media player"                          ON  \
         "mpv"        "Lightweight media player"                  OFF \
