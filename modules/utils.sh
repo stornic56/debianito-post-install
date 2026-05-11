@@ -8,9 +8,10 @@ CPU_SUMMARY=""
 RAM_SUMMARY=""
 GPU_TYPE=""
 GPU_DESC=""
+GPU_VERSION=""
 INTEL_GPU_DEVICE_ID=""
 NVIDIA_GPU_DEVICE_ID=""
-WIFI_SUMMARY="Not detected"
+KERNEL_VERSION=""
 WIFI_CHIPSET=""
 
 # --------------------------
@@ -31,19 +32,44 @@ check_sudo() {
 }
 
 # --------------------------------
+# Time sync before network ops
+# --------------------------------
+sync_system_time() {
+    if command -v timedatectl &> /dev/null; then
+        local ntp_active
+        ntp_active=$(timedatectl show --property=NTP --value 2>/dev/null || echo "no")
+        if [ "$ntp_active" != "yes" ]; then
+            echo -e "${YELLOW}NTP not active. Attempting to enable time sync...${NC}"
+            sudo timedatectl set-ntp true 2>/dev/null || true
+            sleep 2
+        fi
+    elif command -v hwclock &> /dev/null && command -v ntpd &> /dev/null; then
+        sudo hwclock --hctosys 2>/dev/null || true
+    fi
+}
+
+# --------------------------------
 # Debian version detection
 # --------------------------------
 detect_debian_version() {
     if ! command -v lsb_release &> /dev/null; then
-        echo -e "${YELLOW}Installing lsb-release...${NC}"
-        sudo apt update -qq && sudo apt install -y -qq lsb-release
+        if [ -f /etc/os-release ]; then
+            DEBIAN_CODENAME=$(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "")
+        fi
+        if [ -z "$DEBIAN_CODENAME" ]; then
+            echo -e "${YELLOW}Installing lsb-release...${NC}"
+            sync_system_time
+            sudo apt update -qq 2>/dev/null && sudo apt install -y -qq lsb-release
+        fi
     fi
-    DEBIAN_CODENAME=$(lsb_release -cs)
+    if [ -z "$DEBIAN_CODENAME" ]; then
+        DEBIAN_CODENAME=$(lsb_release -cs 2>/dev/null || echo "")
+    fi
     case "$DEBIAN_CODENAME" in
         bookworm) DEBIAN_VERSION="12" ;;
         trixie)   DEBIAN_VERSION="13" ;;
         *)
-            echo -e "${RED}Unsupported Debian version: $DEBIAN_CODENAME. Only 12 (bookworm) and 13 (trixie) are supported.${NC}"
+            echo -e "${RED}Unsupported Debian version: '$DEBIAN_CODENAME'. Only 12 (bookworm) and 13 (trixie) are supported.${NC}"
             exit 1
             ;;
     esac
@@ -55,7 +81,7 @@ detect_debian_version() {
 detect_cpu_ram() {
     CPU_SUMMARY=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //')
     RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
-    RAM_GB=$((RAM_KB / 1024 / 1024))
+    RAM_GB=$(awk -v kb="$RAM_KB" 'BEGIN { printf "%.2f", kb / 1048576 }')
     RAM_SUMMARY="${RAM_GB} GB"
 }
 
@@ -65,6 +91,13 @@ get_cpu_summary() {
 
 get_ram_summary() {
     echo "$RAM_SUMMARY"
+}
+
+# ----------------------------------
+# Kernel version
+# ----------------------------------
+detect_kernel() {
+    KERNEL_VERSION=$(uname -r)
 }
 
 # ----------------------------------
@@ -96,6 +129,21 @@ detect_gpu() {
     else
         GPU_TYPE="unknown"
     fi
+
+    if [ "$GPU_TYPE" = "nvidia" ]; then
+        local nv_ver
+        nv_ver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
+        if [ -z "$nv_ver" ]; then
+            nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//')
+        fi
+        [ -n "$nv_ver" ] && GPU_VERSION="NVIDIA $nv_ver"
+    fi
+
+    if [ -z "$GPU_VERSION" ]; then
+        local mesa_ver
+        mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//')
+        [ -n "$mesa_ver" ] && GPU_VERSION="Mesa $mesa_ver"
+    fi
 }
 
 get_gpu_summary() {
@@ -107,28 +155,25 @@ get_gpu_summary() {
 }
 
 # -------------------------------------
-# WiFi chipset detection
+# Network adapter detection
 # -------------------------------------
-WIFI_SUMMARY="Not detected"
 WIFI_CHIPSET=""
 WIFI_DESC=""
+ETH_DESC=""
 
-detect_wifi_chipset() {
-    local net_line
-    net_line=$(lspci -nn | grep -i 'Network controller' | head -n1) || true
-    if [ -z "$net_line" ]; then
-        WIFI_SUMMARY="No WiFi adapter found"
-        WIFI_CHIPSET=""
-        WIFI_DESC=""
-        return
+detect_network() {
+    local eth_line
+    eth_line=$(lspci -nn | grep -i 'Ethernet controller' | head -n1) || true
+    if [ -n "$eth_line" ]; then
+        ETH_DESC=$(echo "$eth_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
     fi
-    WIFI_CHIPSET="$net_line"
-    WIFI_DESC=$(echo "$net_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
-    WIFI_SUMMARY="$WIFI_DESC"
-}
 
-get_wifi_summary() {
-    echo "$WIFI_SUMMARY"
+    local wifi_line
+    wifi_line=$(lspci -nn | grep -i 'Network controller' | head -n1) || true
+    if [ -n "$wifi_line" ]; then
+        WIFI_CHIPSET="$wifi_line"
+        WIFI_DESC=$(echo "$wifi_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
+    fi
 }
 
 # ---------------------------------------

@@ -22,9 +22,9 @@ if [ -f "${MODULES_DIR}/firmware.sh" ]; then
 fi
 if [ -f "${MODULES_DIR}/gpu.sh" ]; then
     source "${MODULES_DIR}/gpu.sh"
+fi
 if [ -f "${MODULES_DIR}/kernel.sh" ]; then
     source "${MODULES_DIR}/kernel.sh"
-fi
 fi
 if [ -f "${MODULES_DIR}/gaming.sh" ]; then
     source "${MODULES_DIR}/gaming.sh"
@@ -58,22 +58,39 @@ main_menu() {
         "Setup Wireless & Firmware"
         "Configure Graphics Stack and Tools"
         "Update Kernel to Backports"
-        "Gaming Setup and Performance"
+        "Gaming Setup"
         "Install extra applications"
         "Exit"
     )
 
     while true; do
         echo ""
-        printf "${RED}╔═══════ DEBIANITO ═══════════╗\n" >&2
-        printf "║ Debian Post-Install Setup\n${NC}"
+        printf "${RED}╔═══════════════════════════════╗\n" >&2
+        printf "║          DEBIANITO            ║\n" >&2
+        printf "║   Debian Post-Install Setup   ║\n" >&2
+        printf "╚═══════════════════════════════╝\n${NC}" >&2
 
         echo -e "\033[1;97m║─────────── SYSTEM INFO ─────┤\n${NC}\033[0m"
         echo "Detected: Debian ${DEBIAN_VERSION} (${DEBIAN_CODENAME})"
+        echo "Kernel: ${KERNEL_VERSION}"
         echo "CPU: $(get_cpu_summary)"
         echo "RAM: $(get_ram_summary)"
-        echo "GPU: $(get_gpu_summary)"
-        echo "WiFi: $(get_wifi_summary)"
+        if [ -n "$GPU_VERSION" ]; then
+            echo "GPU: ${GPU_DESC} (${GPU_VERSION})"
+        else
+            echo "GPU: ${GPU_DESC}"
+        fi
+        if [ -n "$ETH_DESC" ] && [ -n "$WIFI_DESC" ]; then
+            echo "Network:"
+            echo "  Ethernet: ${ETH_DESC}"
+            echo "  WiFi: ${WIFI_DESC}"
+        elif [ -n "$ETH_DESC" ]; then
+            echo "Network: ${ETH_DESC}"
+        elif [ -n "$WIFI_DESC" ]; then
+            echo "Network: ${WIFI_DESC}"
+        else
+            echo "Network: No adapters detected"
+        fi
         echo ""
 
         select opt in "${options[@]}"; do
@@ -101,7 +118,8 @@ check_sudo
 
 detect_debian_version
 detect_cpu_ram
+detect_kernel
 detect_gpu
-detect_wifi_chipset
+detect_network
 
 main_menu
