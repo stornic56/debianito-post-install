@@ -50,12 +50,12 @@ finalize_deb822() {
 configure_repos() {
     echo -e "${YELLOW}Repository configuration...${NC}"
 
-    local use_deb822
-    if whiptail --title "Repository Format" --defaultno \
-        --yesno "Use the modern .sources (deb822) format?\n(default is classic one-line style)" 10 60; then
-        use_deb822=true
-    else
-        use_deb822=false
+    local use_deb822=false
+    if [ "$DEBIAN_CODENAME" = "trixie" ]; then
+        if whiptail --title "Repository Format" --defaultno \
+            --yesno "Use the modern .sources (deb822) format?\n(default is classic one-line style)" 10 60; then
+            use_deb822=true
+        fi
     fi
 
     local enable_backports

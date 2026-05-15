@@ -13,11 +13,16 @@ install_gpu_drivers() {
             ;;
     esac
 
-    echo ""
-    echo "Installing nvtop (GPU monitor) and vainfo (VA-API check)..."
-    sudo apt install -y nvtop vainfo
-    echo ""
-    vainfo
+    local tool_pkgs
+    tool_pkgs=$(pkg_versions nvtop vainfo)
+    if whiptail --title "GPU Tools" --yesno \
+        "Install the following packages?\n\n${tool_pkgs}\nProceed?" 14 65; then
+        sudo apt install -y nvtop vainfo
+        echo ""
+        vainfo
+    else
+        echo "Skipping GPU monitoring tools."
+    fi
     echo -e "${GREEN}GPU setup complete.${NC}"
 }
 
@@ -25,6 +30,13 @@ install_gpu_drivers() {
 # AMD GPU
 # ----------------------------------------------------------------------
 install_amd() {
+    local pkgs
+    pkgs=$(pkg_versions firmware-amd-graphics radeontop)
+    if ! whiptail --title "AMD GPU" --yesno \
+        "Install the following packages?\n\n${pkgs}\nProceed?" 14 65; then
+        echo "Skipping AMD GPU drivers."
+        return
+    fi
     echo -e "${YELLOW}Installing AMD GPU drivers and firmware...${NC}"
     sudo apt install -y firmware-amd-graphics radeontop
     echo -e "${GREEN}AMD drivers installed.${NC}"
@@ -34,23 +46,30 @@ install_amd() {
 # Intel GPU
 # ----------------------------------------------------------------------
 install_intel() {
-    echo -e "${YELLOW}Installing Intel GPU firmware and drivers...${NC}"
-
-    # Base firmware
-    sudo apt install -y firmware-intel-graphics
-
-    # Determine VA-API driver based on generation
     local gen
     gen=$(get_intel_generation)
-    echo "Detected Intel GPU generation: $gen"
-
+    local va_driver
     if [ "$gen" = "gen7-" ]; then
-        echo "Gen 7 or older: installing i965-va-driver-shaders"
-        sudo apt install -y i965-va-driver-shaders
+        va_driver="i965-va-driver-shaders"
     else
-        echo "Gen 8 or newer: installing intel-media-va-driver-non-free"
-        sudo apt install -y intel-media-va-driver-non-free
+        va_driver="intel-media-va-driver-non-free"
     fi
+
+    local pkgs
+    pkgs=$(pkg_versions firmware-intel-graphics "$va_driver")
+    if ! whiptail --title "Intel GPU" --yesno \
+        "Install the following packages?\n\n${pkgs}\nProceed?" 14 65; then
+        echo "Skipping Intel GPU drivers."
+        return
+    fi
+
+    echo -e "${YELLOW}Installing Intel GPU firmware and drivers...${NC}"
+
+    sudo apt install -y firmware-intel-graphics
+
+    echo "Detected Intel GPU generation: $gen"
+    echo "Installing ${va_driver}..."
+    sudo apt install -y "$va_driver"
 
     echo -e "${GREEN}Intel GPU drivers installed.${NC}"
 }
@@ -117,7 +136,6 @@ install_nvidia() {
             echo "No driver will be installed."
             return 1
         else
-            # On Debian 12, tesla-470 is available; 390/340 are not in any supported Debian release
             if [[ "$recommended" =~ legacy-390|legacy-340 ]]; then
                 echo -e "${RED}Your GPU requires $recommended, which is not available.${NC}"
                 echo "No driver will be installed."
@@ -126,7 +144,14 @@ install_nvidia() {
         fi
     fi
 
-    # If we reach here, the recommended driver is installable
+    local nv_pkgs
+    nv_pkgs=$(pkg_versions "$recommended" firmware-misc-nonfree nvidia-vaapi-driver)
+    if ! whiptail --title "NVIDIA Driver" --yesno \
+        "Install the following packages?\n\n${nv_pkgs}\nA reboot will be required.\n\nProceed?" 14 65; then
+        echo "Skipping NVIDIA driver installation."
+        return 0
+    fi
+
     sudo apt install -y "$recommended" firmware-misc-nonfree nvidia-vaapi-driver
 
     echo -e "${GREEN}NVIDIA drivers installed.${NC}"
