@@ -4,7 +4,7 @@
 
 Debianito is a user-friendly post-installation automation script for Debian 12 (Bookworm) and Debian 13 (Trixie). It streamlines system configuration, driver installation, repository setup, gaming tools integration, and more with an interactive menu-driven interface.
 
-[![License: AGPL v3](https://img.shields.io/badge/License--AGPLv3-green.svg "GNU Affero GPL 3.0")](https://github.com/stornic56/debianito-post-install/blob/main/LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://github.com/stornic56/debianito-post-install/blob/main/LICENSE)
 
 </div>
 
