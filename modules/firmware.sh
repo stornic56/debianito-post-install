@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 
 install_firmware() {
+    local fw_pkgs
+    fw_pkgs=$(pkg_versions firmware-linux-nonfree)
+    if ! whiptail --title "Base Firmware" --yesno \
+        "Install the following package?\n\n${fw_pkgs}\nProvides firmware for various hardware components.\n\nProceed?" 14 65; then
+        echo "Skipping base firmware."
+        return
+    fi
+
     echo -e "${YELLOW}Installing base firmware...${NC}"
     local pkg="firmware-linux-nonfree"
     if [ "$(is_backports_enabled)" == true ]; then

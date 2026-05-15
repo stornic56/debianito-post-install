@@ -94,6 +94,30 @@ get_ram_summary() {
 }
 
 # ----------------------------------
+# Package installed check
+# ----------------------------------
+is_installed() {
+    dpkg -l "$1" 2>/dev/null | grep -q '^ii'
+}
+
+# ----------------------------------
+# Package version lookup
+# ----------------------------------
+pkg_versions() {
+    local result=""
+    for pkg in "$@"; do
+        local ver
+        ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        if [ -n "$ver" ] && [ "$ver" != "(none)" ]; then
+            result+="  - ${pkg}  ${ver}\n"
+        else
+            result+="  - ${pkg}\n"
+        fi
+    done
+    echo -e "$result"
+}
+
+# ----------------------------------
 # Kernel version
 # ----------------------------------
 detect_kernel() {

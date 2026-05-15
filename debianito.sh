@@ -32,6 +32,9 @@ fi
 if [ -f "${MODULES_DIR}/extras.sh" ]; then
     source "${MODULES_DIR}/extras.sh"
 fi
+if [ -f "${MODULES_DIR}/zram.sh" ]; then
+    source "${MODULES_DIR}/zram.sh"
+fi
 
 # --------------------------
 # Global state
@@ -39,6 +42,14 @@ fi
 REPOS_CONFIGURED=false
 DEBIAN_VERSION=""
 DEBIAN_CODENAME=""
+
+# ---------------------------------
+# Pause helper
+# ---------------------------------
+pause() {
+    echo ""
+    read -p "Press Enter to continue..."
+}
 
 # ---------------------------------
 # menu
@@ -51,14 +62,15 @@ else
 fi
 
 main_menu() {
-    PS3="Select an option (1-8): "
+    PS3="Select an option (1-9): "
     options=(
         "User Privileges & Feedback"
         "Configure repositories"
         "Setup Wireless & Firmware"
         "Configure Graphics Stack and Tools"
         "Update Kernel to Backports"
-        "Gaming Setup"
+        "Gaming Setup and Performance"
+        "Install ZRAM (compressed swap)"
         "Install extra applications"
         "Exit"
     )
@@ -95,16 +107,18 @@ main_menu() {
 
         select opt in "${options[@]}"; do
             case $REPLY in
-                1) config_sudo ;;
-                2) configure_repos ;;
-                3) install_firmware ;;
-                4) install_gpu_drivers ;;
-                5) install_kernel_backports ;;
-                6) install_gaming ;;
-                7) install_extras ;;
-                8) echo "Exiting."; exit 0 ;;
+                1) config_sudo || true ;;
+                2) configure_repos || true ;;
+                3) install_firmware || true ;;
+                4) install_gpu_drivers || true ;;
+                5) install_kernel_backports || true ;;
+                6) install_gaming || true ;;
+                7) install_zram || true ;;
+                8) install_extras || true ;;
+                9) echo "Exiting."; exit 0 ;;
                 *) echo "Invalid choice. Please try again." ;;
             esac
+            [ "$REPLY" != "9" ] && [ "$REPLY" != "" ] && pause
             break
         done
     done
