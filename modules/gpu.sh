@@ -13,6 +13,16 @@ install_gpu_drivers() {
             ;;
     esac
 
+    if [ "$GPU_TYPE" != "nvidia" ] && [ "$(is_backports_enabled)" == true ]; then
+        local mesa_pkgs
+        mesa_pkgs=$(pkg_versions libgl1-mesa-dri mesa-vulkan-drivers)
+        if whiptail --title "Mesa Backports" --yesno \
+            "Install newer Mesa GPU drivers from backports?\n\n${mesa_pkgs}\n\nRecommended for better GPU performance and gaming." 14 65; then
+            echo "Installing Mesa from backports..."
+            sudo apt install -y -t "${DEBIAN_CODENAME}-backports" libgl1-mesa-dri mesa-vulkan-drivers
+        fi
+    fi
+
     local tool_pkgs
     tool_pkgs=$(pkg_versions nvtop vainfo)
     if whiptail --title "GPU Tools" --yesno \
