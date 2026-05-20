@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
 
 install_firmware() {
-    local fw_pkgs
-    fw_pkgs=$(pkg_versions firmware-linux-nonfree)
+    local fw_pkgs=""
+    local fw_bpo
+    fw_bpo=$(apt-cache madison firmware-linux-nonfree 2>/dev/null | \
+        grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+    if [ -n "$fw_bpo" ]; then
+        local fw_stable
+        fw_stable=$(apt-cache policy firmware-linux-nonfree 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        fw_pkgs="  - firmware-linux-nonfree  ${fw_bpo} (backports) / ${fw_stable} (stable)\n"
+    else
+        local fw_ver
+        fw_ver=$(apt-cache policy firmware-linux-nonfree 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        fw_pkgs="  - firmware-linux-nonfree  ${fw_ver}\n"
+    fi
     if ! whiptail --title "Base Firmware" --yesno \
         "Install the following package?\n\n${fw_pkgs}\nProvides firmware for various hardware components.\n\nProceed?" 14 65; then
         echo "Skipping base firmware."
@@ -11,13 +22,8 @@ install_firmware() {
 
     echo -e "${YELLOW}Installing base firmware...${NC}"
     local pkg="firmware-linux-nonfree"
-    if [ "$(is_backports_enabled)" == true ]; then
-        if whiptail --title "Firmware Backports" \
-            --yesno "Backports is enabled.\nInstall firmware-linux-nonfree from backports (newer version)?" 10 60; then
-            sudo apt install -y -t "${DEBIAN_CODENAME}-backports" $pkg
-        else
-            sudo apt install -y $pkg
-        fi
+    if [ "$(is_backports_enabled)" == true ] && [ -n "$fw_bpo" ]; then
+        sudo apt install -y -t "${DEBIAN_CODENAME}-backports" $pkg
     else
         sudo apt install -y $pkg
     fi
