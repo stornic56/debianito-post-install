@@ -247,6 +247,41 @@ is_backports_enabled() {
 }
 
 
+install_backports_or_stable() {
+    local pkg="$1"
+
+    local bpo_ver=""
+    if [ "$(is_backports_enabled)" == true ]; then
+        bpo_ver=$(apt-cache madison "$pkg" 2>/dev/null | \
+            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+    fi
+
+    if is_installed "$pkg"; then
+        if [ -n "$bpo_ver" ]; then
+            local current_ver
+            current_ver=$(dpkg -l "$pkg" 2>/dev/null | awk '/^ii/{print $3}')
+            if whiptail --title "Backports: ${pkg}" --yesno \
+                "${pkg} is installed (${current_ver}).\n\nUpgrade to backports version ${bpo_ver}?" 12 62; then
+                sudo apt install -y -t "${DEBIAN_CODENAME}-backports" "$pkg"
+                return
+            fi
+        fi
+        echo "$pkg already installed."
+        return
+    fi
+
+    if [ -n "$bpo_ver" ]; then
+        local stable_ver
+        stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        if whiptail --title "Backports: ${pkg}" --yesno \
+            "Install ${pkg} from backports?\n\nBackports: ${bpo_ver}\nStable:    ${stable_ver:-N/A}\n\nChoose Yes for backports, No for stable." 12 62; then
+            sudo apt install -y -t "${DEBIAN_CODENAME}-backports" "$pkg"
+            return
+        fi
+    fi
+    sudo apt install -y "$pkg"
+}
+
 get_backports_kernel_version() {
     local ver
     ver=$(apt-cache policy linux-image-amd64 2>/dev/null | \

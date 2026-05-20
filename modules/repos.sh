@@ -100,6 +100,8 @@ configure_repos() {
                 sudo apt-mark hold tzdata 2>/dev/null || true
                 sudo apt upgrade -y
                 sudo apt-mark unhold tzdata 2>/dev/null || true
+                sudo apt autoremove -y
+                sudo apt autoclean
                 echo -e "${GREEN}System upgraded.${NC}"
             else
                 echo "Skipping upgrade."
