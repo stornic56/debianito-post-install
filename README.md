@@ -60,7 +60,7 @@ After running the script:
 | **2** | Configure Repositories | Setup official repos with/without backports (deb822 or classic format) |
 | **3** | Setup Wireless & Firmware | Install WiFi firmware for Broadcom, Intel, and other chipsets |
 | **4** | Configure Graphics Stack | AMD/Intel/NVIDIA drivers + monitoring tools (`nvtop`, `radeontop`) |
-| **5** | Update Kernel to Backports | Install latest stable kernel from Debian backports (6.19+) |
+| **5** | Update Kernel to Backports | Install latest stable kernel from Debian backports (7.0+) |
 | **6** | Gaming Setup and Performance | Steam, GameMode, MangoHud, Heroic Games Launcher |
 | **7** | Install ZRAM (compressed swap) | Configure compressed RAM for memory optimization |
 | **8** | Install Extra Applications | Select from 10+ categories: System Tools, Development, Media Players, Web Browsers, GTK/Icon Themes, Downloaders, Design Software |
