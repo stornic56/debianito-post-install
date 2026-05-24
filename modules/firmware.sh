@@ -14,8 +14,7 @@ install_firmware() {
         fw_ver=$(apt-cache policy firmware-linux-nonfree 2>/dev/null | awk 'NR==3 {print $2; exit}')
         fw_pkgs="  - firmware-linux-nonfree  ${fw_ver}\n"
     fi
-    if ! whiptail --title "Base Firmware" --yesno \
-        "Install the following package?\n\n${fw_pkgs}\nProvides firmware for various hardware components.\n\nProceed?" 14 65; then
+    if ! _confirm "Base Firmware" "Install firmware?\n\n${fw_pkgs}"; then
         echo "Skipping base firmware."
         return
     fi
@@ -23,9 +22,9 @@ install_firmware() {
     echo -e "${YELLOW}Installing base firmware...${NC}"
     local pkg="firmware-linux-nonfree"
     if [ "$(is_backports_enabled)" == true ] && [ -n "$fw_bpo" ]; then
-        sudo apt install -y -t "${DEBIAN_CODENAME}-backports" $pkg
+        _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $pkg" "Installing firmware from backports..."
     else
-        sudo apt install -y $pkg
+        _run_cmd "Firmware" "sudo apt install -y $pkg" "Installing firmware..."
     fi
 
     echo -e "${GREEN}Base firmware installed.${NC}"
@@ -57,12 +56,11 @@ handle_wifi_firmware() {
 
         if echo "$supported_ids" | grep -qw "$device_id"; then
             echo "Chipset supported by firmware-brcm80211. Installing..."
-            sudo apt install -y firmware-brcm80211
+            _run_cmd "WiFi" "sudo apt install -y firmware-brcm80211" "Installing Broadcom firmware..."
         else
             # Offer to install broadcom-sta-dkms for older chips
-            if whiptail --title "Broadcom WiFi" \
-                --yesno "Your Broadcom chipset may require the proprietary driver (broadcom-sta-dkms).\nThis will also install linux-headers and compile a kernel module.\n\nInstall broadcom-sta-dkms?" 12 70; then
-                sudo apt install -y linux-headers-$(uname -r) broadcom-sta-dkms
+            if _confirm "Broadcom WiFi" "Install broadcom-sta-dkms?\n\nRequired for this Broadcom chipset.\nCompiles a kernel module (needs linux-headers)."; then
+                _run_cmd "Broadcom" "sudo apt install -y linux-headers-$(uname -r) broadcom-sta-dkms" "Installing Broadcom driver..."
                 echo "Broadcom proprietary driver installed. A reboot may be required."
             else
                 echo "Skipping Broadcom driver installation."

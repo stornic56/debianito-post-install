@@ -17,11 +17,7 @@ config_sudo() {
         fi
     fi
 
-    local answer
-    answer=$(whiptail --title "Sudo Password Feedback" \
-        --yesno "Show asterisks when typing the sudo password?" 8 60 3>&1 1>&2 2>&3)
-    local exitstatus=$?
-    if [ $exitstatus -eq 0 ]; then
+    if _confirm "Sudo Password Feedback" "Show asterisks when typing the sudo password?"; then
         echo 'Defaults pwfeedback' | sudo tee /etc/sudoers.d/pwfeedback > /dev/null
         if [ $? -eq 0 ]; then
             echo -e "${GREEN}Password feedback enabled.${NC}"

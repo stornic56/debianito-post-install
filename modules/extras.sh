@@ -15,68 +15,60 @@ install_extras() {
         fetch_pkg="fastfetch"
     fi
 
-    ! command -v dialog &>/dev/null && sudo apt install -y dialog 2>/dev/null || true
-
-    if dialog --title "Quick Install" --yesno \
-        "Install recommended tools?\n\n  - Compression tools (zip, unzip, rar, 7z)\n  - ${fetch_pkg} (system info)\n  - htop (process viewer)\n  - VLC (media player)\n  - inxi (system information)\n  - Microsoft fonts (Times New Roman, Arial)\n\n[Yes - Quick Install]  [No - Select individually]" 16 65; then
-        echo "Installing recommended tools..."
-        local quick_pkgs=()
-        ! is_installed "zip" && quick_pkgs+=("zip")
-        ! is_installed "unzip" && quick_pkgs+=("unzip")
-        ! is_installed "rar" && quick_pkgs+=("rar")
-        ! is_installed "unrar" && quick_pkgs+=("unrar")
-        ! is_installed "p7zip-full" && quick_pkgs+=("p7zip-full")
-        ! is_installed "p7zip-rar" && quick_pkgs+=("p7zip-rar")
-        ! is_installed "$fetch_pkg" && quick_pkgs+=("$fetch_pkg")
-        ! is_installed "htop" && quick_pkgs+=("htop")
-        ! is_installed "vlc" && quick_pkgs+=("vlc")
-        ! is_installed "inxi" && quick_pkgs+=("inxi")
-        ! is_installed "ttf-mscorefonts-installer" && quick_pkgs+=("ttf-mscorefonts-installer")
-        if [ ${#quick_pkgs[@]} -gt 0 ]; then
-            sudo apt install -y "${quick_pkgs[@]}"
-        else
-            echo "All recommended tools are already installed."
-        fi
-        echo -e "${GREEN}Recommended tools installed.${NC}"
-        return
+    if _is_headless; then
+        _msg "Headless Mode" "No graphical display detected.\n\nOnly terminal-friendly packages will be shown.\nGUI applications (browsers, media players, design tools)\nwill be skipped automatically." 12 60
     fi
 
     while true; do
         local cat_choice
-        cat_choice=$(dialog --title "Extra Software" --menu \
-            "Select a category:" 20 68 9 \
+        cat_choice=$(whiptail --title "Extra Software" --menu \
+            "Select a category:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "0" "Essential Pack" \
             "1" "System Tools" \
             "2" "Development & Servers" \
             "3" "Media Players" \
             "4" "Web Browsers" \
-            "5" "GTK Themes" \
-            "6" "Icon Themes" \
-            "7" "Fetch / System Info" \
-            "8" "Download & Network" \
-            "9" "Multimedia & Design" \
-            "10" "Back to main menu" \
+            "5" "Customization System" \
+            "6" "Fetch / System Info" \
+            "7" "Download & Network" \
+            "8" "Multimedia & Design" \
+            "9" "Back to main menu" \
             3>&1 1>&2 2>&3)
 
         [ -z "$cat_choice" ] && return
-        tput reset 2>/dev/null || clear
+        clear
 
         case "$cat_choice" in
+            0) _quick_install ;;
             1) _cat_general ;;
             2) _cat_dev ;;
             3) _cat_players ;;
             4) _cat_browsers ;;
-            5) _cat_themes ;;
-            6) _cat_icons ;;
-            7) _cat_fetch ;;
-            8) _cat_download ;;
-            9) _cat_design ;;
-            10) return ;;
+            5) _cat_customization ;;
+            6) _cat_fetch ;;
+            7) _cat_download ;;
+            8) _cat_design ;;
+            9) return ;;
         esac
         clear
     done
 }
 
+_quick_install() {
+    _msg "Essential Pack" \
+        "Install basic programs:\n\n  - Compression (zip, unrar, 7z)\n  - System tools (htop, inxi, fastfetch)\n  - VLC media player\n  - Microsoft fonts" 13 60
+
+    local quick_pkgs=(
+        zip unzip rar unrar p7zip-full p7zip-rar
+        "$fetch_pkg" htop vlc inxi ttf-mscorefonts-installer
+    )
+    _run_install_batch "${quick_pkgs[@]}"
+    echo -e "${GREEN}Essential Pack installed.${NC}"
+}
+
 _cat_general() {
+    local headless=false
+    _is_headless && headless=true
     local alacritty_state="OFF"; is_installed "alacritty" && alacritty_state="ON"
     local btop_state="OFF";  is_installed "btop" && btop_state="ON"
     local compress_state="OFF"; is_installed "zip" && is_installed "unzip" && is_installed "p7zip-full" && compress_state="ON"
@@ -104,9 +96,10 @@ _cat_general() {
     local tmux_state="OFF";  is_installed "tmux" && tmux_state="ON"
     local ttf_state="OFF";   is_installed "ttf-mscorefonts-installer" && ttf_state="ON"
 
+    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(dialog --title "System Tools" --checklist \
-        "Select system utilities to install:" 30 72 26 \
+    choices=$(whiptail --title "System Tools" --checklist \
+        "Select system utilities to install (26 items, ↑↓ scroll):" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "alacritty"       "GPU-accelerated terminal$(_inst alacritty)"            "$alacritty_state" \
         "btop"            "Resource monitor (fancy top)$(_inst btop)"             "$btop_state" \
         "compress"        "Compression tools (zip, unrar, 7z)$(_inst zip)"        "$compress_state" \
@@ -151,8 +144,7 @@ _cat_general() {
                 ! is_installed "p7zip-full" && need+=("p7zip-full")
                 ! is_installed "p7zip-rar" && need+=("p7zip-rar")
                 if [ ${#need[@]} -gt 0 ]; then
-                    echo "Installing compression utilities..."
-                    sudo apt install -y "${need[@]}"
+                    _run_install_batch "${need[@]}"
                     echo -e "${GREEN}Compression utilities installed.${NC}"
                 fi
                 ;;
@@ -161,21 +153,19 @@ _cat_general() {
                 ! is_installed "curl" && need+=("curl")
                 ! is_installed "wget" && need+=("wget")
                 if [ ${#need[@]} -gt 0 ]; then
-                    echo "Installing HTTP tools..."
-                    sudo apt install -y "${need[@]}"
+                    _run_install_batch "${need[@]}"
                 else
                     echo "curl and wget already installed."
                 fi
                 ;;
             flatpak)
                 if ! is_installed "flatpak"; then
-                    echo "Installing Flatpak..."
-                    sudo apt install -y flatpak
+                    _run_cmd "Flatpak" "sudo apt install -y flatpak" "Installing Flatpak..."
                     if command -v plasma-discover &>/dev/null; then
-                        sudo apt install -y plasma-discover-backend-flatpak
+                        _run_cmd "Flatpak" "sudo apt install -y plasma-discover-backend-flatpak" "Installing Flatpak backend..."
                         echo "Flatpak backend for Discover installed."
                     elif command -v gnome-software &>/dev/null; then
-                        sudo apt install -y gnome-software-plugin-flatpak
+                        _run_cmd "Flatpak" "sudo apt install -y gnome-software-plugin-flatpak" "Installing Flatpak plugin..."
                         echo "Flatpak plugin for GNOME Software installed."
                     fi
                 else
@@ -188,9 +178,7 @@ _cat_general() {
                 ;;
             kvm)
                 if ! is_installed "virt-manager"; then
-                    echo "Installing QEMU/KVM virtualization..."
-                    sudo apt install -y qemu-system-x86 qemu-utils libvirt-daemon-system \
-                        libvirt-clients bridge-utils virt-manager
+                    _run_cmd "KVM" "sudo apt install -y qemu-system-x86 qemu-utils libvirt-daemon-system libvirt-clients bridge-utils virt-manager" "Installing KVM..."
                     sudo adduser "$USER" libvirt 2>/dev/null || true
                     sudo adduser "$USER" kvm 2>/dev/null || true
                     echo -e "${GREEN}QEMU/KVM installed. A reboot is recommended.${NC}"
@@ -199,8 +187,12 @@ _cat_general() {
                 fi
                 ;;
             *)
+                if $headless; then
+                    echo "Skipping $pkg (headless mode)"
+                    continue
+                fi
                 if ! is_installed "$pkg"; then
-                    sudo apt install -y "$pkg"
+                    _run_install "$pkg"
                 else
                     echo "$pkg already installed."
                 fi
@@ -212,6 +204,8 @@ _cat_general() {
 }
 
 _cat_dev() {
+    local headless=false
+    _is_headless && headless=true
     local apache_state="OFF"; is_installed "apache2" && apache_state="ON"
     local build_state="OFF";  is_installed "build-essential" && build_state="ON"
     local certbot_state="OFF"; is_installed "certbot" && certbot_state="ON"
@@ -231,9 +225,9 @@ _cat_dev() {
     local ufw_state="OFF";     is_installed "ufw" && ufw_state="ON"
     local zenmap_state="OFF"; is_installed "zenmap" && zenmap_state="ON"
 
-    local choices
-    choices=$(dialog --title "Development & Servers" --checklist \
-        "Select development tools and servers:" 26 72 18 \
+    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    choices=$(whiptail --title "Development & Servers" --checklist \
+        "Select development tools and servers (18 items, ↑↓ scroll):" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "apache2"                   "Apache web server$(_inst apache2)"                            "$apache_state" \
         "build-essential"           "C/C++ build tools (gcc, make)$(_inst build-essential)"        "$build_state" \
         "certbot"                   "Let's Encrypt TLS certificates$(_inst certbot)"               "$certbot_state" \
@@ -267,8 +261,7 @@ _cat_dev() {
                 ! is_installed "python3-venv" && need+=("python3-venv")
                 ! is_installed "python3-dev" && need+=("python3-dev")
                 if [ ${#need[@]} -gt 0 ]; then
-                    echo "Installing Python 3 development tools..."
-                    sudo apt install -y "${need[@]}"
+                    _run_install_batch "${need[@]}"
                 else
                     echo "Python 3 tools already installed."
                 fi
@@ -278,8 +271,7 @@ _cat_dev() {
                 ! is_installed "docker.io" && need+=("docker.io")
                 ! is_installed "docker-compose" && need+=("docker-compose")
                 if [ ${#need[@]} -gt 0 ]; then
-                    echo "Installing Docker..."
-                    sudo apt install -y "${need[@]}"
+                    _run_install_batch "${need[@]}"
                 else
                     echo "Docker already installed."
                 fi
@@ -289,7 +281,7 @@ _cat_dev() {
                 ;;
             *)
                 if ! is_installed "$pkg"; then
-                    sudo apt install -y "$pkg"
+                    _run_install "$pkg"
                 else
                     echo "$pkg already installed."
                 fi
@@ -301,13 +293,16 @@ _cat_dev() {
 }
 
 _cat_players() {
+    local headless=false
+    _is_headless && headless=true
     local handbrake_state="OFF"; is_installed "handbrake" && handbrake_state="ON"
     local mpv_state="OFF";       is_installed "mpv" && mpv_state="ON"
     local vlc_state="OFF";       is_installed "vlc" && vlc_state="ON"
 
+    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(dialog --title "Media Players" --checklist \
-        "Select media players:" 12 72 3 \
+    choices=$(whiptail --title "Media Players" --checklist \
+        "Select media players:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "handbrake"  "Video transcoder (DVD ripper)$(_inst handbrake)"    "$handbrake_state" \
         "mpv"        "Lightweight media player$(_inst mpv)"               "$mpv_state" \
         "vlc"        "VLC media player$(_inst vlc)"                       "$vlc_state" \
@@ -319,8 +314,12 @@ _cat_players() {
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
     for pkg in $cleaned; do
+        if $headless; then
+            echo "Skipping $pkg (headless mode)"
+            continue
+        fi
         if ! is_installed "$pkg"; then
-            sudo apt install -y "$pkg"
+            _run_install "$pkg"
         else
             echo "$pkg already installed."
         fi
@@ -330,6 +329,8 @@ _cat_players() {
 }
 
 _cat_browsers() {
+    local headless=false
+    _is_headless && headless=true
     local chromium_state="OFF";     is_installed "chromium" && chromium_state="ON"
     local dillo_state="OFF";        is_installed "dillo" && dillo_state="ON"
     local elinks_state="OFF";       is_installed "elinks" && elinks_state="ON"
@@ -349,8 +350,8 @@ _cat_browsers() {
     local w3m_state="OFF";          is_installed "w3m" && w3m_state="ON"
 
     local choices
-    choices=$(dialog --title "Web Browsers" --checklist \
-        "Select web browsers:" 24 72 14 \
+    choices=$(whiptail --title "Web Browsers" --checklist \
+        "Select web browsers:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "chromium"          "Chromium web browser$(_inst chromium)"                  "$chromium_state" \
         "dillo"             "Lightweight graphical browser$(_inst dillo)"            "$dillo_state" \
         "elinks"            "Text-mode web browser$(_inst elinks)"                   "$elinks_state" \
@@ -380,8 +381,8 @@ _cat_browsers() {
             floorp)
                 if ! is_installed "floorp"; then
                     echo "Setting up Floorp repository..."
-                    ! is_installed "curl" && sudo apt install -y curl
-                    ! is_installed "gpg" && sudo apt install -y gpg
+                    ! is_installed "curl" && _run_install curl
+                    ! is_installed "gpg" && _run_install gpg
                     sudo install -d -m 0755 /etc/apt/keyrings
                     curl -fsSL https://ppa.floorp.app/KEY.gpg | \
                         sudo gpg --dearmor -o /usr/share/keyrings/Floorp.gpg
@@ -392,8 +393,8 @@ Package: *
 Pin: origin ppa.floorp.app
 Pin-Priority: 1000
 EOF
-                    sudo apt update
-                    sudo apt install -y floorp
+                    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+                    _run_install floorp
                     echo -e "${GREEN}Floorp installed.${NC}"
                 else
                     echo "Floorp already installed."
@@ -402,10 +403,10 @@ EOF
             librewolf)
                 if ! is_installed "librewolf"; then
                     echo "Installing LibreWolf..."
-                    sudo apt install -y extrepo
+                    _run_install extrepo
                     sudo extrepo enable librewolf 2>/dev/null || true
-                    sudo apt update
-                    sudo apt install -y librewolf
+                    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+                    _run_install librewolf
                     echo -e "${GREEN}LibreWolf installed.${NC}"
                 else
                     echo "LibreWolf already installed."
@@ -418,15 +419,18 @@ EOF
                 ! is_installed "ca-certificates" && need+=("ca-certificates")
                 ! is_installed "xsel" && need+=("xsel")
                 if [ ${#need[@]} -gt 0 ]; then
-                    echo "Installing w3m and dependencies..."
-                    sudo apt install -y "${need[@]}"
+                    _run_install_batch w3m w3m-img ca-certificates xsel
                 else
                     echo "w3m already installed."
                 fi
                 ;;
             *)
+                if $headless; then
+                    echo "Skipping $pkg (headless mode)"
+                    continue
+                fi
                 if ! is_installed "$pkg"; then
-                    sudo apt install -y "$pkg"
+                    _run_install "$pkg"
                 else
                     echo "$pkg already installed."
                 fi
@@ -437,7 +441,24 @@ EOF
     echo -e "${GREEN}Web browsers installed.${NC}"
 }
 
+_cat_customization() {
+    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local sub
+    sub=$(whiptail --title "Customization System" --menu \
+        "Select type:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+        "1" "GTK Themes" \
+        "2" "Icon Themes" \
+        3>&1 1>&2 2>&3)
+    [ -z "$sub" ] && return
+    case $sub in
+        1) _cat_themes ;;
+        2) _cat_icons ;;
+    esac
+}
+
 _cat_themes() {
+    local headless=false
+    _is_headless && headless=true
     local arc_state="OFF";         is_installed "arc-theme" && arc_state="ON"
     local blackbird_state="OFF";   is_installed "blackbird-gtk-theme" && blackbird_state="ON"
     local bluebird_state="OFF";    is_installed "bluebird-gtk-theme" && bluebird_state="ON"
@@ -447,8 +468,8 @@ _cat_themes() {
     local orchis_state="OFF";      is_installed "orchis-gtk-theme" && orchis_state="ON"
 
     local choices
-    choices=$(dialog --title "GTK Themes" --checklist \
-        "Select GTK themes to install:" 16 72 7 \
+    choices=$(whiptail --title "GTK Themes" --checklist \
+        "Select GTK themes to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "arc-theme"          "Arc GTK theme$(_inst arc-theme)"                 "$arc_state" \
         "blackbird-gtk-theme" "Blackbird GTK theme$(_inst blackbird-gtk-theme)" "$blackbird_state" \
         "bluebird-gtk-theme"  "Bluebird GTK theme$(_inst bluebird-gtk-theme)"   "$bluebird_state" \
@@ -464,8 +485,12 @@ _cat_themes() {
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
     for pkg in $cleaned; do
+        if $headless; then
+            echo "Skipping $pkg (headless mode)"
+            continue
+        fi
         if ! is_installed "$pkg"; then
-            sudo apt install -y "$pkg"
+            _run_install "$pkg"
         else
             echo "$pkg already installed."
         fi
@@ -475,6 +500,8 @@ _cat_themes() {
 }
 
 _cat_icons() {
+    local headless=false
+    _is_headless && headless=true
     local breeze_state="OFF";  is_installed "breeze-icon-theme" && breeze_state="ON"
     local deepin_state="OFF";  is_installed "deepin-icon-theme" && deepin_state="ON"
     local ele_state="OFF";     is_installed "elementary-icon-theme" && ele_state="ON"
@@ -494,8 +521,6 @@ _cat_icons() {
         has_kf6=true
     fi
 
-    local height=18
-    local list_height=11
     local items=(
         "breeze-icon-theme"     "Breeze icon theme$(_inst breeze-icon-theme)"           "$breeze_state"
         "deepin-icon-theme"     "Deepin icon theme$(_inst deepin-icon-theme)"           "$deepin_state"
@@ -511,13 +536,11 @@ _cat_icons() {
     )
     if $has_kf6; then
         items+=("kf6-breeze-icon-theme" "KF6 Breeze icon theme$(_inst kf6-breeze-icon-theme)" "$kf6_state")
-        height=20
-        list_height=12
     fi
 
     local choices
-    choices=$(dialog --title "Icon Themes" --checklist \
-        "Select icon themes to install:" "$height" 72 "$list_height" \
+    choices=$(whiptail --title "Icon Themes" --checklist \
+        "Select icon themes to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "${items[@]}" \
         3>&1 1>&2 2>&3)
     clear
@@ -527,8 +550,12 @@ _cat_icons() {
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
     for pkg in $cleaned; do
+        if $headless; then
+            echo "Skipping $pkg (headless mode)"
+            continue
+        fi
         if ! is_installed "$pkg"; then
-            sudo apt install -y "$pkg"
+            _run_install "$pkg"
         else
             echo "$pkg already installed."
         fi
@@ -555,14 +582,11 @@ _cat_fetch() {
     fi
 
     local items=()
-    local height=14
-    local list_height=3
 
     if [ "$fetch_pkg" = "fastfetch" ]; then
         items+=("fastfetch" "System info fetcher$(_inst fastfetch)" "$fetch_state")
         if [ "$DEBIAN_CODENAME" = "trixie" ]; then
             items+=("hyfetch" "Neofetch with pride flags$(_inst hyfetch)" "$hyfetch_state")
-            height=16; list_height=4
         fi
     fi
     items+=("linuxlogo" "Linux logo + system info$(_inst linuxlogo)" "$linuxlogo_state")
@@ -570,14 +594,14 @@ _cat_fetch() {
         items+=("neofetch" "System info fetcher$(_inst neofetch)" "$fetch_state")
         if [ "$DEBIAN_CODENAME" = "trixie" ]; then
             items+=("hyfetch" "Neofetch with pride flags$(_inst hyfetch)" "$hyfetch_state")
-            height=16; list_height=4
         fi
     fi
     items+=("screenfetch" "System info (BSD/Linux)$(_inst screenfetch)" "$screenfetch_state")
 
+    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(dialog --title "Fetch Tools" --checklist \
-        "Select system info tools:" "$height" 72 "$list_height" \
+    choices=$(whiptail --title "Fetch Tools" --checklist \
+        "Select system info tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "${items[@]}" \
         3>&1 1>&2 2>&3)
     clear
@@ -590,14 +614,14 @@ _cat_fetch() {
         case $pkg in
             neofetch|fastfetch)
                 if ! is_installed "$pkg"; then
-                    sudo apt install -y "$pkg"
+                    _run_install "$pkg"
                 else
                     echo "$pkg already installed."
                 fi
                 ;;
             *)
                 if ! is_installed "$pkg"; then
-                    sudo apt install -y "$pkg"
+                    _run_install "$pkg"
                 else
                     echo "$pkg already installed."
                 fi
@@ -609,6 +633,8 @@ _cat_fetch() {
 }
 
 _cat_download() {
+    local headless=false
+    _is_headless && headless=true
     local aria2_state="OFF";       is_installed "aria2" && aria2_state="ON"
     local filezilla_state="OFF";   is_installed "filezilla" && filezilla_state="ON"
     local riseupvpn_state="OFF";   is_installed "riseup-vpn" && riseupvpn_state="ON"
@@ -624,10 +650,11 @@ _cat_download() {
     local tr_gtk_state="OFF";      is_installed "transmission-gtk" && tr_gtk_state="ON"
     local tr_qt_state="OFF";       is_installed "transmission-qt" && tr_qt_state="ON"
 
+    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices1 choices2=""
 
-    choices1=$(dialog --title "Download & Network — Downloaders" --checklist \
-        "Select download tools:" 16 72 5 \
+    choices1=$(whiptail --title "Download & Network — Downloaders" --checklist \
+        "Select download tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "aria2"             "Multiprotocol downloader (CLI)$(_inst aria2)"               "$aria2_state" \
         "filezilla"         "FTP/SFTP client (GUI)$(_inst filezilla)"                    "$filezilla_state" \
         "riseup-vpn"        "Riseup VPN client$(_inst riseup-vpn)"                        "$riseupvpn_state" \
@@ -636,8 +663,8 @@ _cat_download() {
         3>&1 1>&2 2>&3)
     clear
 
-    choices2=$(dialog --title "Download & Network — Torrent Clients" --checklist \
-        "Select torrent clients:" 18 72 8 \
+    choices2=$(whiptail --title "Download & Network — Torrent Clients" --checklist \
+        "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "deluge"            "BitTorrent client (GTK)$(_inst deluge)"                      "$deluge_state" \
         "deluged"           "BitTorrent daemon/server$(_inst deluged)"                    "$deluged_state" \
         "mktorrent"         "Torrent metainfo creator (CLI)$(_inst mktorrent)"            "$mktorrent_state" \
@@ -669,8 +696,12 @@ _cat_download() {
                 install_backports_or_stable qbittorrent-nox
                 ;;
             *)
+                if $headless; then
+                    echo "Skipping $pkg (headless mode)"
+                    continue
+                fi
                 if ! is_installed "$pkg"; then
-                    sudo apt install -y "$pkg"
+                    _run_install "$pkg"
                 else
                     echo "$pkg already installed."
                 fi
@@ -682,6 +713,8 @@ _cat_download() {
 }
 
 _cat_design() {
+    local headless=false
+    _is_headless && headless=true
     local audacity_state="OFF";  is_installed "audacity" && audacity_state="ON"
     local ardour_state="OFF";    is_installed "ardour" && ardour_state="ON"
     local blender_state="OFF";   is_installed "blender" && blender_state="ON"
@@ -696,8 +729,8 @@ _cat_design() {
     local shotcut_state="OFF";   is_installed "shotcut" && shotcut_state="ON"
 
     local choices
-    choices=$(dialog --title "Multimedia & Design" --checklist \
-        "Select multimedia and design tools:" 20 72 12 \
+    choices=$(whiptail --title "Multimedia & Design" --checklist \
+        "Select multimedia and design tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "audacity"   "Audio editor/recorder$(_inst audacity)"         "$audacity_state" \
         "ardour"     "Digital audio workstation$(_inst ardour)"       "$ardour_state" \
         "blender"    "3D modeling/animation suite$(_inst blender)"    "$blender_state" \
@@ -718,8 +751,12 @@ _cat_design() {
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
     for pkg in $cleaned; do
+        if $headless; then
+            echo "Skipping $pkg (headless mode)"
+            continue
+        fi
         if ! is_installed "$pkg"; then
-            sudo apt install -y "$pkg"
+            _run_install "$pkg"
         else
             echo "$pkg already installed."
         fi
@@ -737,8 +774,7 @@ install_firefox_mozilla() {
     echo "Setting up Mozilla APT repository for Firefox..."
 
     if is_installed "firefox-esr"; then
-        if whiptail --title "Firefox ESR" --yesno \
-            "Firefox ESR is installed.\n\nRemove it before installing Mozilla Firefox?\n\nChoose No to keep both Firefox versions." 11 60; then
+        if _confirm "Firefox ESR" "Firefox ESR is installed.\nRemove it before installing Mozilla Firefox?"; then
             echo "Removing Firefox ESR..."
             sudo apt remove -y firefox-esr
         else
@@ -746,8 +782,8 @@ install_firefox_mozilla() {
         fi
     fi
 
-    ! is_installed "wget" && sudo apt install -y wget
-    ! is_installed "gpg" && sudo apt install -y gpg
+    ! is_installed "wget" && _run_install wget
+    ! is_installed "gpg" && _run_install gpg
 
     sudo install -d -m 0755 /etc/apt/keyrings
 
@@ -784,8 +820,8 @@ Pin: origin packages.mozilla.org
 Pin-Priority: 1000
 EOF
 
-    sudo apt update
-    sudo apt install -y firefox
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _run_install firefox
 
     echo -e "${GREEN}Firefox (Mozilla) installed.${NC}"
 }

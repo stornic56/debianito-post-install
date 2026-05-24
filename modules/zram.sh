@@ -13,10 +13,16 @@ install_zram() {
 
     local algo
     algo=$(whiptail --title "ZRAM Compression" --menu \
-        "ZRAM compresses a portion of RAM to use as\nswap, effectively increasing available memory.\n\nChoose the compression algorithm:\n\nlz4:  Very fast, low CPU usage. Minimal latency.\n      Recommended for most users.\n\nzstd: Better compression ratio (10-20% more),\n      slightly higher CPU usage.\n\nPress Cancel to abort." \
-        18 65 2 \
-        "lz4"  "Fastest, lowest CPU usage (recommended)" \
-        "zstd" "Best ratio, slightly more CPU" \
+        "ZRAM compresses a portion of RAM into compressed swap,\
+ effectively increasing available memory.
+
+Useful for systems with limited RAM or when you need
+more swap space without disk writes.
+
+Choose compression algorithm:" \
+        $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "lz4"  "Fastest, low CPU (recommended)" \
+        "zstd" "Better ratio, more CPU" \
         3>&1 1>&2 2>&3)
 
     if [ -z "$algo" ]; then
@@ -25,8 +31,7 @@ install_zram() {
     fi
 
     local zram_size
-    if whiptail --title "ZRAM Size" --yesno \
-        "Use 50% of RAM for ZRAM? (${half_ram_mb} MB out of ${RAM_SUMMARY})\n\nChoose No to enter a custom size." 10 60; then
+    if _confirm "ZRAM Size" "Use 50% of RAM for ZRAM? (${half_ram_mb} MB out of ${RAM_SUMMARY})"; then
         zram_size=$half_ram_mb
     else
         zram_size=$(whiptail --title "ZRAM Size" --inputbox \
@@ -37,14 +42,12 @@ install_zram() {
         fi
     fi
 
-    if ! whiptail --title "ZRAM Summary" --yesno \
-        "Algorithm:  ${algo}\nSize:       ${zram_size} MB (${RAM_SUMMARY} total)\nPriority:   100\n\nApply ZRAM configuration?" 13 60; then
+    if ! _confirm "ZRAM Summary" "Algorithm: ${algo}\nSize: ${zram_size} MB\nPriority: 100\n\nApply?"; then
         echo "ZRAM configuration cancelled."
         return 0
     fi
 
-    echo -e "${YELLOW}Installing zram-tools...${NC}"
-    sudo apt install -y zram-tools
+    _run_cmd "ZRAM" "sudo apt install -y zram-tools" "Installing zram-tools..."
 
     echo "Writing configuration..."
     sudo tee /etc/default/zramswap > /dev/null <<EOF

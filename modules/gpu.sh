@@ -7,8 +7,7 @@ install_gpu_drivers() {
         intel)  install_intel ;;
         nvidia) install_nvidia ;;
         *)
-            echo -e "${YELLOW}No supported GPU detected or unknown GPU type.${NC}"
-            echo "You can install GPU drivers manually later."
+            _msg "GPU" "No dedicated GPU detected.\n\nIf you are in a virtual machine, GPU acceleration\ndepends on VM configuration (SPICE, VirtIO).\n\nNo additional drivers will be installed." 12 60
             return
             ;;
     esac
@@ -25,19 +24,17 @@ install_gpu_drivers() {
                 mesa_pkgs+="  - ${mpkg}  (from stable)\n"
             fi
         done
-        if whiptail --title "Mesa Backports" --yesno \
-            "Install newer Mesa GPU drivers from backports?\n\n${mesa_pkgs}\nRecommended for better GPU performance and gaming." 14 65; then
-            echo "Installing Mesa from backports..."
-            sudo apt install -y -t "${DEBIAN_CODENAME}-backports" libgl1-mesa-dri mesa-vulkan-drivers
+        if _confirm_custom "Mesa Backports" "Install Mesa?\n${mesa_pkgs}" "Backports" "Stable"; then
+            _run_cmd "Mesa" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports libgl1-mesa-dri mesa-vulkan-drivers" "Installing Mesa from backports..."
+        else
+            _run_cmd "Mesa" "sudo apt install -y libgl1-mesa-dri mesa-vulkan-drivers" "Installing Mesa from stable..."
         fi
     fi
 
     local tool_pkgs
     tool_pkgs=$(pkg_versions nvtop vainfo)
-    if whiptail --title "GPU Tools" --yesno \
-        "Install the following packages?\n\n${tool_pkgs}\nProceed?" 14 65; then
-        sudo apt install -y nvtop vainfo
-        echo ""
+    if _confirm "GPU Tools" "Install monitoring tools?\n${tool_pkgs}"; then
+        _run_cmd "GPU Tools" "sudo apt install -y nvtop vainfo" "Installing GPU tools..."
         vainfo
     else
         echo "Skipping GPU monitoring tools."
@@ -51,13 +48,11 @@ install_gpu_drivers() {
 install_amd() {
     local pkgs
     pkgs=$(pkg_versions firmware-amd-graphics radeontop)
-    if ! whiptail --title "AMD GPU" --yesno \
-        "Install the following packages?\n\n${pkgs}\nProceed?" 14 65; then
+    if ! _confirm "AMD GPU" "Install AMD drivers?\n${pkgs}"; then
         echo "Skipping AMD GPU drivers."
         return
     fi
-    echo -e "${YELLOW}Installing AMD GPU drivers and firmware...${NC}"
-    sudo apt install -y firmware-amd-graphics radeontop
+    _run_cmd "AMD" "sudo apt install -y firmware-amd-graphics radeontop" "Installing AMD drivers..."
     echo -e "${GREEN}AMD drivers installed.${NC}"
 }
 
@@ -76,19 +71,16 @@ install_intel() {
 
     local pkgs
     pkgs=$(pkg_versions firmware-intel-graphics "$va_driver")
-    if ! whiptail --title "Intel GPU" --yesno \
-        "Install the following packages?\n\n${pkgs}\nProceed?" 14 65; then
+    if ! _confirm "Intel GPU" "Install Intel drivers?\n${pkgs}"; then
         echo "Skipping Intel GPU drivers."
         return
     fi
 
-    echo -e "${YELLOW}Installing Intel GPU firmware and drivers...${NC}"
-
-    sudo apt install -y firmware-intel-graphics
+    _run_cmd "Intel" "sudo apt install -y firmware-intel-graphics" "Installing Intel firmware..."
 
     echo "Detected Intel GPU generation: $gen"
     echo "Installing ${va_driver}..."
-    sudo apt install -y "$va_driver"
+    _run_cmd "Intel" "sudo apt install -y $va_driver" "Installing Intel VA driver..."
 
     echo -e "${GREEN}Intel GPU drivers installed.${NC}"
 }
@@ -113,16 +105,13 @@ install_nvidia() {
         echo "NVIDIA driver. The script will now install the recommended driver"
         echo "from the STABLE repositories only, NOT from backports."
 
-        if ! whiptail --title "NVIDIA + Backports Warning" \
-            --yesno "You have backports enabled.\n\nThere is a known conflict between backports kernels (6.19+) and the NVIDIA driver.\n\nDo you want to continue using the stable NVIDIA driver?\n\n(Choose No to skip NVIDIA installation)" 15 70; then
+        if ! _confirm "NVIDIA + Backports" "Backports kernel (6.19+) may break NVIDIA driver.\nContinue with stable NVIDIA driver?"; then
             echo "Skipping NVIDIA driver installation."
             return 0
         fi
     fi
 
-    # Install nvidia-detect
-    echo "Installing nvidia-detect..."
-    sudo apt install -y nvidia-detect
+    _run_cmd "NVIDIA" "sudo apt install -y nvidia-detect" "Installing nvidia-detect..."
 
     # Run nvidia-detect and parse the recommended package
     echo "Detecting recommended NVIDIA driver..."
@@ -165,15 +154,11 @@ install_nvidia() {
 
     local nv_pkgs
     nv_pkgs=$(pkg_versions "$recommended" firmware-misc-nonfree nvidia-vaapi-driver)
-    if ! whiptail --title "NVIDIA Driver" --yesno \
-        "Install the following packages?\n\n${nv_pkgs}\nA reboot will be required.\n\nProceed?" 14 65; then
+    if ! _confirm "NVIDIA Driver" "Install NVIDIA driver?\n${nv_pkgs}\nReboot required."; then
         echo "Skipping NVIDIA driver installation."
         return 0
     fi
 
-    sudo apt install -y "$recommended" firmware-misc-nonfree nvidia-vaapi-driver
-
-    echo -e "${GREEN}NVIDIA drivers installed.${NC}"
-    echo "A reboot is required to load the NVIDIA kernel module."
-    echo "After reboot, run 'nvidia-smi' to verify the installation."
+    _run_cmd "NVIDIA" "sudo apt install -y $recommended firmware-misc-nonfree nvidia-vaapi-driver" "Installing NVIDIA driver..."
+    echo -e "${GREEN}NVIDIA drivers installed. Reboot required.${NC}"
 }
