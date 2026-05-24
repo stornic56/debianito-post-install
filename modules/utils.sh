@@ -260,9 +260,11 @@ install_backports_or_stable() {
         if [ -n "$bpo_ver" ]; then
             local current_ver
             current_ver=$(dpkg -l "$pkg" 2>/dev/null | awk '/^ii/{print $3}')
-            if whiptail --title "Backports: ${pkg}" --yesno \
-                "${pkg} is installed (${current_ver}).\n\nUpgrade to backports version ${bpo_ver}?" 12 62; then
-                sudo apt install -y -t "${DEBIAN_CODENAME}-backports" "$pkg"
+            if _confirm "Backports: ${pkg}" \
+                "${pkg} ${current_ver} installed.\nUpgrade to backports ${bpo_ver}?"; then
+                _run_cmd "Backports" \
+                    "sudo DEBIAN_FRONTEND=noninteractive apt install -y -t ${DEBIAN_CODENAME}-backports $pkg" \
+                    "Upgrading $pkg..."
                 return
             fi
         fi
@@ -273,13 +275,94 @@ install_backports_or_stable() {
     if [ -n "$bpo_ver" ]; then
         local stable_ver
         stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-        if whiptail --title "Backports: ${pkg}" --yesno \
-            "Install ${pkg} from backports?\n\nBackports: ${bpo_ver}\nStable:    ${stable_ver:-N/A}\n\nChoose Yes for backports, No for stable." 12 62; then
-            sudo apt install -y -t "${DEBIAN_CODENAME}-backports" "$pkg"
+        if _confirm_custom "${pkg}" "Install from backports?\n\nBackports: ${bpo_ver}\nStable:    ${stable_ver:-N/A}" "Backports" "Stable"; then
+            _run_cmd "Backports" \
+                "sudo DEBIAN_FRONTEND=noninteractive apt install -y -t ${DEBIAN_CODENAME}-backports $pkg" \
+                "Installing $pkg from backports..."
             return
         fi
+        # User chose "Stable" — install stable directly, no re-prompt
+        _run_cmd "APT" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg from stable..."
+        return
     fi
-    sudo apt install -y "$pkg"
+    local stable_ver
+    stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    if _confirm "Install: ${pkg}" "Install ${pkg} ${stable_ver:-} from stable?"; then
+        _run_cmd "APT" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
+    fi
+}
+
+# ----------------------------------------------------------------------
+# Whiptail helpers (4-block pattern)
+# ----------------------------------------------------------------------
+
+_confirm() {
+    whiptail --title "$1" --yes-button "Execute" --no-button "Skip" \
+        --yesno "$2" "${3:-10}" "${4:-65}"
+}
+
+_confirm_custom() {
+    local title="$1" text="$2" yes_btn="$3" no_btn="$4"
+    shift 4
+    whiptail --title "$title" --yes-button "$yes_btn" --no-button "$no_btn" \
+        --yesno "$text" "${@:-10 65}"
+}
+
+_msg() {
+    whiptail --title "$1" --msgbox "$2" "${3:-10}" "${4:-65}"
+}
+
+# Blocks 2-4: clear → run → pause
+_run_cmd() {
+    local title="$1" command="$2" success_msg="${3:-Running...}"
+    clear
+    echo -e "${GREEN}[+]${NC} $success_msg"
+    echo "──────────────────────────────────────────────"
+    eval "$command"
+    local rc=$?
+    echo "──────────────────────────────────────────────"
+    if [ $rc -eq 0 ]; then
+        echo -e "${GREEN}[+]${NC} Done."
+    else
+        echo -e "${RED}[-]${NC} Failed (exit code: $rc)."
+    fi
+    echo "Press [ENTER] to continue..."
+    read -r
+}
+
+# Blocks 1-4: confirm → clear → run → pause
+_run() {
+    if _confirm "$1" "$2"; then
+        _run_cmd "$1" "$3" "$4"
+    fi
+}
+
+_is_headless() {
+    [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]
+}
+
+_run_install() {
+    local pkg="$1"
+    local ver
+    ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    [ -z "$ver" ] && ver="(version unknown)"
+    if _confirm "Install: ${pkg}" "Install ${pkg}\nVersion: ${ver}?"; then
+        _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
+    fi
+}
+
+_run_install_batch() {
+    local pkgs=("$@")
+    [ ${#pkgs[@]} -eq 0 ] && return 0
+    local ver_list=""
+    for pkg in "${pkgs[@]}"; do
+        local ver
+        ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        ver_list+="  - ${pkg}  ${ver:-unknown}\n"
+    done
+    if _confirm "Install" "Install these packages?\n${ver_list}"; then
+        _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y ${pkgs[*]}" "Installing..."
+    fi
 }
 
 get_backports_kernel_version() {

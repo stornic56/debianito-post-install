@@ -52,18 +52,14 @@ configure_repos() {
 
     local use_deb822=false
     if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-        if whiptail --title "Repository Format" --defaultno \
-            --yesno "Use the modern .sources (deb822) format?\n(default is classic one-line style)" 10 60; then
+        if whiptail --title "Repository Format" --defaultno --yesno "Use deb822 format (modern .sources)?" 8 60; then
             use_deb822=true
         fi
     fi
 
-    local enable_backports
-    if whiptail --title "Backports" \
-        --yesno "Enable backports?\nBackports provide newer versions of some software (kernel, drivers, Mesa) for better hardware support.\nIt is recommended to enable it (default: Yes)." 12 70; then
+    local enable_backports=false
+    if _confirm "Backports" "Enable backports repository?\n\nProvides newer kernel, drivers, Mesa."; then
         enable_backports=true
-    else
-        enable_backports=false
     fi
 
     if [ -z "$DEBIAN_CODENAME" ]; then
@@ -82,7 +78,9 @@ configure_repos() {
     fi
 
     echo "Updating package lists..."
-    if sudo apt update; then
+    sudo apt update
+    local apt_rc=$?
+    if [ $apt_rc -eq 0 ]; then
         REPOS_CONFIGURED=true
         echo -e "${GREEN}Repositories configured and updated successfully.${NC}"
 
@@ -95,10 +93,9 @@ configure_repos() {
         local upgradable
         upgradable=$(apt list --upgradable 2>/dev/null | grep -c /)
         if [ "$upgradable" -gt 0 ]; then
-            if whiptail --title "Upgrade System" \
-                --yesno "There are $upgradable packages that can be upgraded.\n\nDo you want to upgrade them now?" 10 60; then
+            if _confirm "Upgrade System" "$upgradable packages can be upgraded. Upgrade now?"; then
                 sudo apt-mark hold tzdata 2>/dev/null || true
-                sudo apt upgrade -y
+                _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading system..."
                 sudo apt-mark unhold tzdata 2>/dev/null || true
                 sudo apt autoremove -y
                 sudo apt autoclean

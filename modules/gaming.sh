@@ -6,8 +6,7 @@ install_gaming() {
 
     # 1. 32-bit support prompt FIRST
     local enable_32bit=false
-    if whiptail --title "32-bit Support" --yesno \
-        "Enable 32-bit architecture for gaming?\n\nThis enables i386 support and installs 32-bit\ngraphics drivers needed by Steam and Proton\nfor running 32-bit games with GPU acceleration.\n\nRequired for: Steam\nRecommended for: old games via Wine/Proton\n\nProceed?" 15 65; then
+    if _confirm "32-bit Support" "Enable i386 for 32-bit games?\n\nRequired by Steam/Proton.\nInstalls matching 32-bit graphics drivers."; then
         enable_32bit=true
     fi
 
@@ -16,26 +15,26 @@ install_gaming() {
         if ! dpkg --print-foreign-architectures | grep -q i386; then
             sudo dpkg --add-architecture i386
         fi
-        sudo apt update
+        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
 
         echo "Installing 32-bit graphics drivers..."
         if [ "$GPU_TYPE" = "nvidia" ]; then
-            sudo apt install -y nvidia-driver-libs:i386
+            _run_cmd "32-bit" "sudo apt install -y nvidia-driver-libs:i386" "Installing 32-bit NVIDIA drivers..."
         else
-            sudo apt install -y mesa-vulkan-drivers libglx-mesa0:i386 mesa-vulkan-drivers:i386 libgl1-mesa-dri:i386
+            _run_cmd "32-bit" "sudo apt install -y mesa-vulkan-drivers libglx-mesa0:i386 mesa-vulkan-drivers:i386 libgl1-mesa-dri:i386" "Installing 32-bit Mesa drivers..."
         fi
     fi
 
     # 2. Gaming packages checklist
     local choices
     choices=$(whiptail --title "Gaming Setup" --checklist \
-        "Select gaming packages to install:" 16 72 6 \
-        "steam" "Steam (official .deb from Valve, requires 32-bit)" ON \
-        "gamemode" "Optimise system for gaming" ON \
-        "mangohud" "Vulkan/OpenGL performance overlay" ON \
-        "heroic" "Heroic Games Launcher (Epic Games, GOG) - .deb" OFF \
-        "goverlay" "GUI for configuring MangoHud" ON \
-        "lutris" "Game launcher/runner" OFF \
+        "Select gaming packages to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "steam"    "Steam (official .deb, needs 32-bit)" ON \
+        "gamemode" "Game performance optimization" ON \
+        "mangohud" "Performance overlay (Vulkan/GL)" ON \
+        "heroic"   "Heroic Launcher (Epic/GOG) .deb" OFF \
+        "goverlay" "MangoHud config GUI" ON \
+        "lutris"   "Game launcher/manager" OFF \
         3>&1 1>&2 2>&3)
 
     if [ -z "$choices" ]; then
@@ -56,37 +55,36 @@ install_gaming() {
     for pkg in $cleaned; do
         case $pkg in
             steam)
-                echo "Downloading official Steam .deb..."
                 local steam_deb="/tmp/steam_latest.deb"
-                wget -O "$steam_deb" "https://cdn.fastly.steamstatic.com/client/installer/steam.deb"
-                sudo apt install -y "$steam_deb"
+                _run_cmd "Steam" "wget -O $steam_deb https://cdn.fastly.steamstatic.com/client/installer/steam.deb" "Downloading Steam..."
+                _run_cmd "Steam" "sudo apt install -y $steam_deb" "Installing Steam..."
+                echo -e "${GREEN}Steam installed.${NC}"
                 ;;
             mangohud)
-                sudo apt install -y mangohud
+                _run_cmd "MangoHud" "sudo apt install -y mangohud" "Installing MangoHud..."
                 if $enable_32bit; then
                     echo "Installing 32-bit MangoHud..."
-                    sudo apt install -y mangohud:i386
+                    _run_cmd "MangoHud" "sudo apt install -y mangohud:i386" "Installing 32-bit MangoHud..."
                 fi
                 ;;
             heroic)
-                echo "Downloading Heroic Games Launcher..."
-                sudo apt install -y curl wget 2>/dev/null || true
                 local heroic_deb="/tmp/heroic.deb"
+                _run_cmd "Heroic" "sudo apt install -y curl wget" "Installing dependencies..."
                 local gh_url
-                gh_url=$(curl -s https://api.github.com/repos/Heroic-Games-Launcher/\
+                gh_url=$(curl -s --connect-timeout 10 https://api.github.com/repos/Heroic-Games-Launcher/\
 HeroicGamesLauncher/releases/latest | \
                     grep -oP 'https://[^"]+amd64\.deb' | head -1)
                 if [ -z "$gh_url" ]; then
                     echo -e "${RED}Could not determine latest Heroic release.${NC}"
                 else
-                    wget -O "$heroic_deb" "$gh_url"
-                    sudo apt install -y "$heroic_deb"
+                    _run_cmd "Heroic" "wget -O $heroic_deb $gh_url" "Downloading Heroic..."
+                    _run_cmd "Heroic" "sudo apt install -y $heroic_deb" "Installing Heroic..."
                     rm -f "$heroic_deb"
                     echo -e "${GREEN}Heroic Games Launcher installed.${NC}"
                 fi
                 ;;
             *)
-                sudo apt install -y "$pkg"
+                _run_install "$pkg"
                 ;;
         esac
     done
