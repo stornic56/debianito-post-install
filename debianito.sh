@@ -96,6 +96,7 @@ Network:  ${network_info}" 13 65
 
 check_root
 check_sudo
+check_system_time
 
 detect_debian_version
 detect_cpu_ram
