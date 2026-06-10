@@ -1,12 +1,57 @@
 #!/usr/bin/env bash
-# Install gaming tools (Steam, gamemode, mangohud, etc.)
+# Gaming dispatcher — sources submodules and provides install_gaming()
+
+_GAMING_DIR="${MODULES_DIR}/gaming"
+source "${_GAMING_DIR}/_helpers.sh"
+source "${_GAMING_DIR}/steam.sh"
+source "${_GAMING_DIR}/heroic.sh"
+source "${_GAMING_DIR}/tools.sh"
+
+# Check if 'contrib' component is enabled; offer to add if missing
+ensure_contrib_repo() {
+    local contrib_found=false
+
+    if [ -f /etc/apt/sources.list ]; then
+        if grep -Eq '^[^#]*\bcontrib\b' /etc/apt/sources.list 2>/dev/null; then
+            contrib_found=true
+        fi
+    fi
+
+    if ! $contrib_found && [ -d /etc/apt/sources.list.d ]; then
+        if grep -qr 'Components:.*\bcontrib\b' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+            contrib_found=true
+        fi
+    fi
+
+    if $contrib_found; then
+        return 0
+    fi
+
+    if _confirm "contrib Repository" "Component 'contrib' is required for Steam.\n\nAdd 'contrib' to your APT repositories?"; then
+        if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '/^deb / { /contrib/! s/main/main contrib/ }' /etc/apt/sources.list
+        fi
+        if [ -d /etc/apt/sources.list.d ]; then
+            for f in /etc/apt/sources.list.d/*.sources; do
+                [ -f "$f" ] || continue
+                sudo sed -i '/^Components:/ { /contrib/! s/$/ contrib/ }' "$f"
+            done
+        fi
+        sudo apt update
+        echo -e "${GREEN}contrib repository enabled.${NC}"
+        return 0
+    fi
+
+    echo -e "${YELLOW}contrib repository not enabled. Steam installation may fail.${NC}"
+    return 1
+}
 
 install_gaming() {
     echo -e "${YELLOW}Gaming setup...${NC}"
 
     # 1. 32-bit support prompt FIRST
     local enable_32bit=false
-    if _confirm "32-bit Support" "Enable i386 for 32-bit games?\n\nRequired by Steam/Proton.\nInstalls matching 32-bit graphics drivers."; then
+    if _confirm "32-bit Support" "Enable i386 architecture for 32-bit games?\n\nRequired by Steam/Proton for 32-bit games.\nInstalls matching 32-bit graphics drivers."; then
         enable_32bit=true
     fi
 
@@ -19,9 +64,59 @@ install_gaming() {
 
         echo "Installing 32-bit graphics drivers..."
         if [ "$GPU_TYPE" = "nvidia" ]; then
-            _run_cmd "32-bit" "sudo apt install -y nvidia-driver-libs:i386" "Installing 32-bit NVIDIA drivers..."
+            case "${NVIDIA_DRIVER_MODE:-stable}" in
+                cuda-repo)
+                    _msg "NVIDIA 32-bit" \
+                        "32-bit NVIDIA CUDA libraries already deployed.\n\nThe complete multiarch stack was installed\nwith the v590 driver from the official CUDA repo." 10 70
+                    ;;
+                backports)
+                    local nv32_pkg="nvidia-driver-libs:i386"
+                    local nv32_ver
+                    nv32_ver=$(apt-cache policy "$nv32_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+                    local msg="Source: Debian ${DEBIAN_CODENAME^}-Backports\n"
+                    msg+="NVIDIA 32-bit Libraries ${nv32_ver:-unknown}\n\n"
+                    msg+="[+] nvidia-driver-libs:i386"
+                    if _confirm "NVIDIA 32-bit" "$msg" 12 70; then
+                        _run_cmd "32-bit NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${nv32_pkg}" \
+                            "Installing 32-bit NVIDIA drivers from backports..."
+                    fi
+                    ;;
+                stable)
+                    local nv32_pkg="nvidia-driver-libs:i386"
+                    local nv32_ver
+                    nv32_ver=$(apt-cache policy "$nv32_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+                    local use_bpo32=false
+                    if [ "$(is_backports_enabled)" == "true" ]; then
+                        local bpo_nv32_ver
+                        bpo_nv32_ver=$(apt-cache madison "$nv32_pkg" 2>/dev/null | \
+                            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+                        if [ -n "$bpo_nv32_ver" ]; then
+                            local msg="Source: Debian ${DEBIAN_CODENAME^} (Backports available)\n"
+                            msg+="NVIDIA 32-bit Libraries: ${nv32_pkg}\n\n"
+                            msg+="  Backports: ${bpo_nv32_ver}\n"
+                            msg+="  Stable:    ${nv32_ver:-unknown}\n\n"
+                            msg+="Choose version:"
+                            if _confirm_custom "NVIDIA 32-bit" "$msg" "Backports" "Stable" 14 70; then
+                                use_bpo32=true
+                            fi
+                        fi
+                    fi
+                    if $use_bpo32; then
+                        _run_cmd "32-bit NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${nv32_pkg}" \
+                            "Installing 32-bit NVIDIA drivers from backports..."
+                    else
+                        local msg="Source: Debian ${DEBIAN_CODENAME^} Stable\n"
+                        msg+="NVIDIA 32-bit Libraries ${nv32_ver:-unknown}\n\n"
+                        msg+="[+] nvidia-driver-libs:i386"
+                        if _confirm "NVIDIA 32-bit" "$msg" 12 70; then
+                            _run_cmd "32-bit NVIDIA" "sudo apt install -y ${nv32_pkg}" \
+                                "Installing 32-bit NVIDIA drivers..."
+                        fi
+                    fi
+                    ;;
+            esac
         else
-            _run_cmd "32-bit" "sudo apt install -y mesa-vulkan-drivers libglx-mesa0:i386 mesa-vulkan-drivers:i386 libgl1-mesa-dri:i386" "Installing 32-bit Mesa drivers..."
+            _install_mesa_32bit
         fi
     fi
 
@@ -29,10 +124,10 @@ install_gaming() {
     local choices
     choices=$(whiptail --title "Gaming Setup" --checklist \
         "Select gaming packages to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "steam"    "Steam (official .deb, needs 32-bit)" ON \
+        "steam"    "Steam (requires 32-bit support)" ON \
         "gamemode" "Game performance optimization" ON \
-        "mangohud" "Performance overlay (Vulkan/GL)" ON \
-        "heroic"   "Heroic Launcher (Epic/GOG) .deb" OFF \
+        "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
+        "heroic"   "Heroic Launcher (Epic/GOG)" OFF \
         "goverlay" "MangoHud config GUI" ON \
         "lutris"   "Game launcher/manager" OFF \
         3>&1 1>&2 2>&3)
@@ -55,37 +150,18 @@ install_gaming() {
     for pkg in $cleaned; do
         case $pkg in
             steam)
-                local steam_deb="/tmp/steam_latest.deb"
-                _run_cmd "Steam" "wget -O $steam_deb https://cdn.fastly.steamstatic.com/client/installer/steam.deb" "Downloading Steam..."
-                _run_cmd "Steam" "sudo apt install -y $steam_deb" "Installing Steam..."
-                echo -e "${GREEN}Steam installed.${NC}"
-                ;;
-            mangohud)
-                _run_cmd "MangoHud" "sudo apt install -y mangohud" "Installing MangoHud..."
-                if $enable_32bit; then
-                    echo "Installing 32-bit MangoHud..."
-                    _run_cmd "MangoHud" "sudo apt install -y mangohud:i386" "Installing 32-bit MangoHud..."
-                fi
-                ;;
-            heroic)
-                local heroic_deb="/tmp/heroic.deb"
-                _run_cmd "Heroic" "sudo apt install -y curl wget" "Installing dependencies..."
-                local gh_url
-                gh_url=$(curl -s --connect-timeout 10 https://api.github.com/repos/Heroic-Games-Launcher/\
-HeroicGamesLauncher/releases/latest | \
-                    grep -oP 'https://[^"]+amd64\.deb' | head -1)
-                if [ -z "$gh_url" ]; then
-                    echo -e "${RED}Could not determine latest Heroic release.${NC}"
+                if ensure_contrib_repo; then
+                    install_steam
                 else
-                    _run_cmd "Heroic" "wget -O $heroic_deb $gh_url" "Downloading Heroic..."
-                    _run_cmd "Heroic" "sudo apt install -y $heroic_deb" "Installing Heroic..."
-                    rm -f "$heroic_deb"
-                    echo -e "${GREEN}Heroic Games Launcher installed.${NC}"
+                    echo -e "${YELLOW}Skipping Steam installation (contrib repository not enabled).${NC}"
                 fi
                 ;;
-            *)
-                _run_install "$pkg"
-                ;;
+            heroic)   install_heroic ;;
+            mangohud) install_mangohud ;;
+            gamemode) install_gamemode ;;
+            goverlay) install_goverlay ;;
+            lutris)   install_lutris ;;
+            *)        _run_install "$pkg" ;;
         esac
     done
 

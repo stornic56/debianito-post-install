@@ -32,8 +32,33 @@ check_sudo() {
 }
 
 # --------------------------------
-# Time sync before network ops
+# Time sync detection + NTP
 # --------------------------------
+check_system_time() {
+    if ! command -v timedatectl &> /dev/null; then
+        return
+    fi
+    local year
+    year=$(date +%Y)
+    if [ "$year" -lt 2024 ]; then
+        echo -e "${YELLOW}System date appears incorrect: $(date '+%Y-%m-%d %H:%M')${NC}"
+        echo -e "${YELLOW}This can cause apt update to fail with sync/GPG errors.${NC}"
+        if _confirm "System Date" "The system date is set to $(date '+%Y-%m-%d %H:%M'),\nwhich is before 2024.\n\nSync time via NTP?"; then
+            sudo timedatectl set-ntp true 2>/dev/null || true
+            echo -e "${YELLOW}Waiting a few seconds for time sync...${NC}"
+            sleep 5
+            local new_year
+            new_year=$(date +%Y)
+            if [ "$new_year" -ge 2024 ]; then
+                echo -e "${GREEN}Time synced: $(date '+%Y-%m-%d %H:%M')${NC}"
+            else
+                echo -e "${RED}Could not sync time automatically.${NC}"
+                echo "You may need to set it manually: sudo date --set \"YYYY-MM-DD HH:MM:SS\""
+            fi
+        fi
+    fi
+}
+
 sync_system_time() {
     if command -v timedatectl &> /dev/null; then
         local ntp_active
@@ -41,7 +66,7 @@ sync_system_time() {
         if [ "$ntp_active" != "yes" ]; then
             echo -e "${YELLOW}NTP not active. Attempting to enable time sync...${NC}"
             sudo timedatectl set-ntp true 2>/dev/null || true
-            sleep 2
+            sleep 3
         fi
     elif command -v hwclock &> /dev/null && command -v ntpd &> /dev/null; then
         sudo hwclock --hctosys 2>/dev/null || true
@@ -91,6 +116,19 @@ get_cpu_summary() {
 
 get_ram_summary() {
     echo "$RAM_SUMMARY"
+}
+
+# ----------------------------------
+# Check if running backports kernel
+# ----------------------------------
+is_backports_kernel() {
+    local kver
+    kver=$(uname -r)
+    if echo "$kver" | grep -q 'bpo'; then
+        echo true
+    else
+        echo false
+    fi
 }
 
 # ----------------------------------
@@ -249,6 +287,7 @@ is_backports_enabled() {
 
 install_backports_or_stable() {
     local pkg="$1"
+    local pkg_desc="${2:-$pkg}"
 
     local bpo_ver=""
     if [ "$(is_backports_enabled)" == true ]; then
@@ -275,19 +314,18 @@ install_backports_or_stable() {
     if [ -n "$bpo_ver" ]; then
         local stable_ver
         stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-        if _confirm_custom "${pkg}" "Install from backports?\n\nBackports: ${bpo_ver}\nStable:    ${stable_ver:-N/A}" "Backports" "Stable"; then
+        if _confirm_custom "${pkg}" "Install ${pkg_desc}?\n\n  Backports: ${bpo_ver} (newer, recommended for gaming/newer HW)\n  Stable:    ${stable_ver:-N/A}\n\nChoose version:" "Backports" "Stable"; then
             _run_cmd "Backports" \
                 "sudo DEBIAN_FRONTEND=noninteractive apt install -y -t ${DEBIAN_CODENAME}-backports $pkg" \
                 "Installing $pkg from backports..."
             return
         fi
-        # User chose "Stable" — install stable directly, no re-prompt
         _run_cmd "APT" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg from stable..."
         return
     fi
     local stable_ver
     stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-    if _confirm "Install: ${pkg}" "Install ${pkg} ${stable_ver:-} from stable?"; then
+    if _confirm "Install: ${pkg}" "Install ${pkg} ${stable_ver:-}?"; then
         _run_cmd "APT" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
     fi
 }
@@ -297,15 +335,17 @@ install_backports_or_stable() {
 # ----------------------------------------------------------------------
 
 _confirm() {
-    whiptail --title "$1" --yes-button "Execute" --no-button "Skip" \
+    whiptail --title "$1" --yes-button "Yes" --no-button "No" \
         --yesno "$2" "${3:-10}" "${4:-65}"
 }
 
 _confirm_custom() {
     local title="$1" text="$2" yes_btn="$3" no_btn="$4"
     shift 4
+    local height="${1:-20}"
+    local width="${2:-78}"
     whiptail --title "$title" --yes-button "$yes_btn" --no-button "$no_btn" \
-        --yesno "$text" "${@:-10 65}"
+        --yesno "$text" "$height" "$width"
 }
 
 _msg() {
@@ -362,6 +402,16 @@ _run_install_batch() {
     done
     if _confirm "Install" "Install these packages?\n${ver_list}"; then
         _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y ${pkgs[*]}" "Installing..."
+    fi
+}
+
+_run_install_pkg() {
+    local pkg="$1"
+    local ver
+    ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    [ -z "$ver" ] && ver="(unknown)"
+    if _confirm "Install: ${pkg}" "Package: ${pkg}\nVersion: ${ver}\n\nProceed with installation?"; then
+        _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
     fi
 }
 
