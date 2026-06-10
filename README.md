@@ -59,7 +59,7 @@ After running the script:
 
 ### Extra Applications Categories (Option 9)
 
-The submenu offers 11 categories (`0-9` + Back):
+The submenu offers 11 categories:
 
 | Option | Category | Description |
 |--------|----------|-------------|
