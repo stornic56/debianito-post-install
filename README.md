@@ -129,5 +129,3 @@ The submenu offers 11 categories:
 
 > 🤖 **AI-Assisted Development Note**  
 > This project was developed with assistance from large language models for code generation, documentation and testing suggestions. The author takes full responsibility for the accuracy of all scripts included in this repository. All modifications have been reviewed manually before inclusion to ensure compatibility with Debian systems.
-> 🤖 AI-Assisted Development Note
-This project was developed with assistance from large language models for code generation, documentation and testing suggestions. The author takes full responsibility for the accuracy of all scripts included in this repository. All modifications have been reviewed manually before inclusion to ensure compatibility with Debian systems.
