@@ -25,6 +25,13 @@ source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/extras.sh" ]    && source "${MODULES_DIR}/extras.sh"
 [ -f "${MODULES_DIR}/zram.sh" ]      && source "${MODULES_DIR}/zram.sh"
 
+# ── Bullseye-specific modules (loaded only on Debian 11) ──
+if [ -d "${MODULES_DIR}/bullseye" ]; then
+    [ -f "${MODULES_DIR}/bullseye/legacy.sh" ] && source "${MODULES_DIR}/bullseye/legacy.sh"
+    [ -f "${MODULES_DIR}/bullseye/repos.sh" ]  && source "${MODULES_DIR}/bullseye/repos.sh"
+    [ -f "${MODULES_DIR}/bullseye/extras.sh" ] && source "${MODULES_DIR}/bullseye/extras.sh"
+fi
+
 REPOS_CONFIGURED=false
 DEBIAN_VERSION=""
 DEBIAN_CODENAME=""
@@ -58,13 +65,46 @@ main_menu() {
         case "$choice" in
             1)  _show_sysinfo ;;
             2)  config_sudo || true ;;
-            3)  configure_repos || true ;;
-            4)  install_firmware || true ;;
+            3)
+                if [ "$DEBIAN_VERSION" = "11" ] && type configure_repos_bullseye &>/dev/null; then
+                    configure_repos_bullseye || true
+                else
+                    configure_repos || true
+                fi
+                ;;
+            4)
+                if [ "$DEBIAN_VERSION" = "11" ] && type install_firmware_bullseye &>/dev/null; then
+                    install_firmware_bullseye || true
+                else
+                    install_firmware || true
+                fi
+                ;;
             5)  install_gpu_drivers || true ;;
-            6)  install_kernel_backports || true ;;
-            7)  install_gaming || true ;;
+            6)
+                if [ "$DEBIAN_VERSION" = "11" ]; then
+                    _msg "Not Available" \
+                        "Backports Kernel is not available on Debian 11 Bullseye.\n\n\
+Ultra Minimalist Rescue Mode does not include third-party\n\
+kernels. Use the stable kernel provided by Bullseye." 10 60
+                else
+                    install_kernel_backports || true
+                fi
+                ;;
+            7)
+                if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
+                    install_gaming_bullseye || true
+                else
+                    install_gaming || true
+                fi
+                ;;
             8)  install_zram || true ;;
-            9)  install_extras || true ;;
+            9)
+                if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
+                    install_extras_bullseye || true
+                else
+                    install_extras || true
+                fi
+                ;;
             10) echo "Exiting."; exit 0 ;;
         esac
     done
@@ -97,11 +137,17 @@ Network:  ${network_info}" 13 65
 check_root
 check_sudo
 check_system_time
+sync_system_time
 
 detect_debian_version
 detect_cpu_ram
 detect_kernel
 detect_gpu
 detect_network
+
+# ── Bullseye-specific init (archive phase) ──
+if [ "$DEBIAN_VERSION" = "11" ] && type check_bullseye_archive_phase &>/dev/null; then
+    check_bullseye_archive_phase
+fi
 
 main_menu

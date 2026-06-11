@@ -99,7 +99,47 @@ install_gpu_drivers() {
         case "$GPU_TYPE" in
             amd)    install_amd_firmware ;;
             intel)  install_intel_firmware ;;
-            nvidia) install_nvidia_driver ;;
+            nvidia)
+                if [ "$DEBIAN_VERSION" = "11" ]; then
+                    # Bullseye: solo Fermi check, resto → nvidia-driver directo
+                    if type install_nvidia_bullseye &>/dev/null; then
+                        install_nvidia_bullseye
+                    else
+                        install_nvidia_driver
+                    fi
+                elif [ "$DEBIAN_VERSION" = "12" ]; then
+                    # Bookworm: Kepler intercepción → legacy, sin nvidia-detect
+                    if [ "$(is_nvidia_kepler)" = "true" ]; then
+                        if type _install_nvidia_bookworm_kepler &>/dev/null; then
+                            _install_nvidia_bookworm_kepler
+                        else
+                            install_nvidia_driver
+                        fi
+                    else
+                        install_nvidia_driver
+                    fi
+                elif [ "$DEBIAN_VERSION" = "13" ]; then
+                    # Trixie: Kepler → advertencia Nouveau, sin driver
+                    if [ "$(is_nvidia_kepler)" = "true" ]; then
+                        _msg "NVIDIA Kepler — Trixie" \
+                            "Su GPU es arquitectura Kepler (GKxxx).\n\n\
+Los drivers privativos NVIDIA para Kepler (rama 470)\n\
+NO están disponibles en Debian 13 (Trixie).\n\n\
+Se recomienda usar el driver libre Nouveau:\n\
+  - Soporte básico de display\n\
+  - Sin aceleración 3D completa\n\
+  - Sin Optimus/PRIME\n\n\
+Si necesita driver privativo, use Debian 12 (Bookworm)\n\
+con nvidia-legacy-470xx-driver." 16 70
+                        NVIDIA_DRIVER_MODE=""
+                        return 1
+                    else
+                        install_nvidia_driver
+                    fi
+                else
+                    install_nvidia_driver
+                fi
+                ;;
         esac
 
         # Mesa (backports / stable)

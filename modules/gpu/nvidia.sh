@@ -190,6 +190,60 @@ _install_nvidia_bookworm_bpo() {
 }
 
 # -------------------------------------------------------------------
+# Bookworm Kepler intercepción — fuerza nvidia-legacy-470xx-driver
+# sin pasar por nvidia-detect (evita falsa recomendación rama 535)
+# -------------------------------------------------------------------
+_install_nvidia_bookworm_kepler() {
+    local nv_pkg="nvidia-legacy-470xx-driver"
+    local nv_ver
+    nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+
+    echo -e "${YELLOW}Kepler GPU detected — forcing ${nv_pkg}.${NC}"
+
+    local msg="Kepler GPU detectada (GKxxx).\n\n"
+    msg+="En Debian 12 Bookworm, Kepler requiere el driver legacy\n"
+    msg+="en lugar del moderno. Se usará el paquete:\n"
+    msg+="  ${nv_pkg}  ${nv_ver:-unknown}\n"
+    msg+="para evitar fallos de pantalla negra.\n\n"
+    msg+="  [SKIP] nvidia-detect (omitido — evita rama 535)\n"
+    msg+="  [USE]  ${nv_pkg}\n"
+    msg+="  [+]   firmware-misc-nonfree\n"
+    msg+="  [+]   nvidia-settings\n\n"
+    msg+="Instalar driver legacy para Kepler?"
+
+    if ! _confirm_custom "NVIDIA Kepler — Bookworm" "$msg" "Install" "Skip" 14 70; then
+        echo "Omitiendo driver Kepler."
+        NVIDIA_DRIVER_MODE=""
+        return 0
+    fi
+
+    _run_cmd "NVIDIA Kepler" \
+        "sudo apt install -y $nv_pkg firmware-misc-nonfree nvidia-settings" \
+        "Instalando nvidia-legacy-470xx-driver..."
+
+    # Si backports está habilitado, ofrecer actualización
+    if [ "$(is_backports_enabled)" == "true" ]; then
+        local bpo_ver
+        bpo_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | \
+            grep "bookworm-backports" | awk '{print $3}' | head -1)
+        if [ -n "$bpo_ver" ]; then
+            local msg="Hay una versión en backports: ${bpo_ver}\n"
+            msg+="Instalar desde bookworm-backports?"
+            if _confirm "Kepler Backports" "$msg"; then
+                _run_cmd "NVIDIA Kepler" \
+                    "sudo apt install -y -t bookworm-backports $nv_pkg" \
+                    "Actualizando Kepler driver desde backports..."
+                NVIDIA_DRIVER_MODE="backports"
+                echo -e "${GREEN}Kepler driver actualizado desde backports.${NC}"
+            fi
+        fi
+    fi
+
+    NVIDIA_DRIVER_MODE="${NVIDIA_DRIVER_MODE:-stable}"
+    echo -e "${GREEN}Kepler driver (${nv_pkg}) installed. Reboot required.${NC}"
+}
+
+# -------------------------------------------------------------------
 # CASE C: Kernel stable (any distro) → Debian stable, optional backports
 # -------------------------------------------------------------------
 _install_nvidia_standard() {

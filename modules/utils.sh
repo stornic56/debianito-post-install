@@ -40,21 +40,24 @@ check_system_time() {
     fi
     local year
     year=$(date +%Y)
-    if [ "$year" -lt 2024 ]; then
-        echo -e "${YELLOW}System date appears incorrect: $(date '+%Y-%m-%d %H:%M')${NC}"
-        echo -e "${YELLOW}This can cause apt update to fail with sync/GPG errors.${NC}"
-        if _confirm "System Date" "The system date is set to $(date '+%Y-%m-%d %H:%M'),\nwhich is before 2024.\n\nSync time via NTP?"; then
-            sudo timedatectl set-ntp true 2>/dev/null || true
-            echo -e "${YELLOW}Waiting a few seconds for time sync...${NC}"
-            sleep 5
+    if [ "$year" -lt 2026 ]; then
+        local msg="Se ha detectado que la fecha/hora de su sistema está desconfigurada\n"
+        msg+="($(date '+%Y-%m-%d %H:%M')), lo que impedirá que los repositorios\n"
+        msg+="de Debian funcionen correctamente.\n\n"
+        msg+="¿Desea que el script intente sincronizar la hora automáticamente\n"
+        msg+="mediante la red (NTP) y configurar timedatectl?"
+        if _confirm "System Date" "$msg"; then
+            sync_system_time
             local new_year
             new_year=$(date +%Y)
-            if [ "$new_year" -ge 2024 ]; then
+            if [ "$new_year" -ge 2026 ]; then
                 echo -e "${GREEN}Time synced: $(date '+%Y-%m-%d %H:%M')${NC}"
             else
                 echo -e "${RED}Could not sync time automatically.${NC}"
                 echo "You may need to set it manually: sudo date --set \"YYYY-MM-DD HH:MM:SS\""
             fi
+        else
+            echo -e "${YELLOW}Warning: System time is incorrect. Package installations may fail.${NC}"
         fi
     fi
 }
@@ -66,7 +69,7 @@ sync_system_time() {
         if [ "$ntp_active" != "yes" ]; then
             echo -e "${YELLOW}NTP not active. Attempting to enable time sync...${NC}"
             sudo timedatectl set-ntp true 2>/dev/null || true
-            sleep 3
+            sleep 4
         fi
     elif command -v hwclock &> /dev/null && command -v ntpd &> /dev/null; then
         sudo hwclock --hctosys 2>/dev/null || true
@@ -91,10 +94,11 @@ detect_debian_version() {
         DEBIAN_CODENAME=$(lsb_release -cs 2>/dev/null || echo "")
     fi
     case "$DEBIAN_CODENAME" in
+        bullseye) DEBIAN_VERSION="11" ;;
         bookworm) DEBIAN_VERSION="12" ;;
         trixie)   DEBIAN_VERSION="13" ;;
         *)
-            echo -e "${RED}Unsupported Debian version: '$DEBIAN_CODENAME'. Only 12 (bookworm) and 13 (trixie) are supported.${NC}"
+            echo -e "${RED}Unsupported Debian version: '$DEBIAN_CODENAME'. Only 11 (bullseye), 12 (bookworm) and 13 (trixie) are supported.${NC}"
             exit 1
             ;;
     esac

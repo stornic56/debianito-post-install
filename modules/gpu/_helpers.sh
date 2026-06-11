@@ -9,13 +9,14 @@ is_nvidia_kepler() {
     local dev_int
     dev_int=$((16#${dev_id,,}))
 
-    # Known Kepler device ID ranges (GKxxx)
-    if [ "$dev_int" -ge $((16#0FC0)) ] && [ "$dev_int" -le $((16#0FCF)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#1180)) ] && [ "$dev_int" -le $((16#118F)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#11C0)) ] && [ "$dev_int" -le $((16#11CF)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#0FE0)) ] && [ "$dev_int" -le $((16#0FEF)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#1280)) ] && [ "$dev_int" -le $((16#129F)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#0EB0)) ] && [ "$dev_int" -le $((16#0EBF)) ]; then echo true; return; fi
+    # Bloque 1: GK107 (escritorio + móvil) — 0x0FC0..0x0FFF
+    if [ "$dev_int" -ge $((16#0FC0)) ] && [ "$dev_int" -le $((16#0FFF)) ]; then echo true; return; fi
+    # Bloque 2: GK110/GK110B/GK210 acotado puro — 0x1000..0x103F
+    if [ "$dev_int" -ge $((16#1000)) ] && [ "$dev_int" -le $((16#103F)) ]; then echo true; return; fi
+    # Bloque 3: GK104/GK106 (completo) — 0x1180..0x11FF
+    if [ "$dev_int" -ge $((16#1180)) ] && [ "$dev_int" -le $((16#11FF)) ]; then echo true; return; fi
+    # Bloque 4: GK208/GK208B acotado — 0x1280..0x12BF
+    if [ "$dev_int" -ge $((16#1280)) ] && [ "$dev_int" -le $((16#12BF)) ]; then echo true; return; fi
 
     echo false
 }
