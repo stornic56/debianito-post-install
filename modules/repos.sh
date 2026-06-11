@@ -67,8 +67,6 @@ configure_repos() {
         return 1
     fi
 
-    sync_system_time
-
     backup_current_repos
 
     if $use_deb822; then

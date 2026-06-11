@@ -2,7 +2,7 @@
 
 <div align="center">
 
-Debianito is a user-friendly post-installation automation script for Debian 12 (Bookworm) and Debian 13 (Trixie). It streamlines system configuration, driver installation (including NVIDIA drivers), repository setup with backports support, gaming tools integration, and more with an interactive menu-driven interface.
+Debianito is a user-friendly post-installation automation script for Debian 11 (Bullseye), Debian 12 (Bookworm) and Debian 13 (Trixie). It streamlines system configuration, driver installation (including NVIDIA drivers with legacy support via rescue environment), repository setup with backports support, gaming tools integration, and more with an interactive menu-driven interface.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-red.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://github.com/stornic56/debianito-post-install/blob/main/LICENSE)
 
@@ -14,8 +14,8 @@ Debianito is a user-friendly post-installation automation script for Debian 12 (
 
 | Requirement | Specification |
 |-------------|---------------|
-| **OS**      | Debian 12 (Bookworm), Debian 13 (Trixie) |
-| **Privileges** | Normal user with `sudo` access, script validates root/sudo in `utils.sh`|
+| **OS**      | Debian 11 (Bullseye), Debian 12 (Bookworm), Debian 13 (Trixie) |
+| **Privileges** | Normal user with `sudo` access, script validates root/sudo in utils.sh |
 | **Terminal**   | Any modern terminal emulator supporting ANSI colors and UTF-8 box-drawing characters |
 | **Dependencies**     | Standard Debian packages (`whiptail`, `lsb-release`); auto-installed if missing |
 
@@ -39,10 +39,11 @@ chmod +x debianito.sh && ./debianito.sh
 
 After running the script:
 
-1. **Select Option:** Use arrow keys or type `1-10`.
-2. **Confirm Actions:** Installation prompts use `whiptail` for TUI confirmations.
-3. **Review System Info:** Header displays detected Debian version `DEBIAN_CODENAME`, `DEBIAN_VERSION` and hardware summary before each action.
-4. **Repeat as Needed:** Return to main menu at any time or exit when done.
+1. **Select Option:** Use arrow keys or type 1-10.
+2. **Navigation:** Use Arrow Keys (Up↑/Down↓) to move between list options and ENTER key to confirm selection.
+3. **Confirm Actions:** Installation prompts use whiptail for TUI confirmations.
+4. **Review System Info:** Header displays detected Debian version and hardware summary before each action.
+5. **Repeat as Needed:** Return to main menu at any time or exit when done.
 
 | Option | Description | What it does |
 |--------|-------------|--------------|
@@ -87,44 +88,50 @@ The submenu offers 11 categories:
 
 ```bash
 ├── debianito.sh                  # Main entry point; TUI menu + system detection
-└── modules/
-    ├── utils.sh                  # System info helpers: CPU/RAM/GPU/WiFi detection, Debian version check ([`detect_debian_version()`](utils.sh#L79))
-    ├── sudo_config.sh            # User group + pwfeedback setup
-    ├── repos.sh                  # Repository configuration (deb822/classic format) with backup/restore
-    ├── firmware.sh               # WiFi microcode and chipset-specific support via [`firmware-linux-nonfree`](modules/firmware.sh)
-    ├── gpu.sh                    # AMD/Intel/NVIDIA driver handling ([`detect_gpu()`](utils.sh#L168)); NVIDIA Kepler/Turing detection veto (line 203+)
-    ├── kernel.sh                 # Update Kernel to Backports with NVIDIA compatibility warnings
-    ├── gaming.sh                 # Steam, GameMode, MangoHud, Heroic Games Launcher
-    ├── extras.sh                 # Dispatcher for the "Extras" submenu (Option 9)
-    ├── zram.sh                   # ZRAM compressed swap configuration
-    └── extras/                   # Category modules organized by function
-        ├── _helpers.sh           # Shared helpers: [`_inst()`](utils.sh#L418), [`_state()`] for package management
-        ├── essential/            # Essential Pack (compression, system info, VLC, MS fonts)
-        │   └── essential.sh     # One-click essentials installation
-        ├── system/               # System Tools (htop, btop, ncdu, timeshift, tmux, flatpak, extrepo, virtualization tools)
-        │   └── system.sh        # 25+ system utility packages
-        ├── dev/                  # Development & Servers (Docker, Nginx/Apache, PostgreSQL/MariaDB, SSH, fail2ban, Python)
-        │   └── dev.sh           # 15 development/server tools
-        ├── players/              # Media Players (VLC, MPV)
-        │   └── players.sh       # Video player packages
-        ├── internet/             # Internet: Firefox (Mozilla), LibreWolf, Floorp, Chromium, Thunderbird, Riseup VPN, Tor Browser
-        │   └── internet.sh      # Browsers, email clients, VPN tools
-        ├── themes/               # Customization submenu with 4 options
-        │   ├── themes.sh        # Submenu dispatcher for customization categories
-        │   ├── desktop-themes/  # Desktop Themes (GTK/KDE): Arc, Numix, Breeze GTK, Bluebird, Blackbird, Greybird, Orchis
-        │   │   └── desktop-themes.sh
-        │   ├── icons/           # Icon Themes: Papirus, Numix, Elementary, Deepin, Suru, Obsidian, Breeze, Moka
-        │   │   └── icons.sh     # 11-12 icon theme packages
-        │   ├── cursors/         # Cursor Themes: Bibata, Breeze, Chameleon, DMZ, XCursor, Oxygen
-        │   │   └── cursors.sh   # 6 cursor theme packages
-        │   └── fonts/           # Fonts: Bebas Neue, Anonymous Pro, ADF Verana, 3270, Liberation, MS Core, Ubuntu, Recommended
-        │       └── fonts.sh     # 8 font packages including MS Core fonts
-        ├── fetch/                # Fetch Tools (Neofetch/Fastfetch, hyfetch, Linux logo, Screenfetch)
-        │   └── fetch.sh         # System info display tools
-        ├── download/             # Downloaders & Torrent Clients: aria2, ytdlp, FileZilla, qBittorrent, Deluge, Transmission, mktorrent
-        │   └── download.sh      # Download manager + torrent client packages
-        └── design/               # Multimedia & Design (GIMP, Kdenlive, Blender, OBS Studio, Audacity, Inkscape, HandBrake)
-            └── design.sh        # 12+ creative applications
+├── modules/
+│   ├── utils.sh                  # System info helpers: CPU/RAM/GPU/WiFi detection, Debian version check ([`detect_debian_version()`](utils.sh#L79))
+│   ├── sudo_config.sh            # User group + pwfeedback setup
+│   ├── repos.sh                  # Repository configuration (deb822/classic format) with backup/restore
+│   ├── firmware.sh               # WiFi microcode and chipset-specific support via [`firmware-linux-nonfree`](modules/firmware.sh)
+│   ├── gpu.sh                    # AMD/Intel/NVIDIA driver handling ([`detect_gpu()`](utils.sh#L168)); NVIDIA Kepler/Turing detection veto (line 203+)
+│   ├── kernel.sh                 # Update Kernel to Backports with NVIDIA compatibility warnings
+│   ├── gaming.sh                 # Steam, GameMode, MangoHud, Heroic Games Launcher
+│   ├── zram.sh                   # ZRAM compressed swap configuration
+│   ├── gpu/                      # NVIDIA-specific modules for Debian 12+ (Bookworm/Trixie)
+│   │   ├── _helpers.sh           # Shared helpers including [`is_nvidia_kepler()`](gpu/_helpers.sh#LXX) with four isolated blocks for legacy detection
+│   │   └── nvidia.sh             # NVIDIA driver installation ([`_install_nvidia_bookworm_kepler()`](gpu/nvidia.sh#LXX))
+│   ├── bullseye/                 # Legacy support modules for Debian 11 (Bullseye) with ultra-minimalist rescue environment
+│   │   ├── legacy.sh             # Fermi GPU detection (NVIDIA-390xx drivers), [install_gaming_bullseye](bullseye/legacy.sh#LXX) function
+│   │   ├── repos.sh              # Classic `/etc/apt/sources.list` format with Archive Phase 2026 configuration
+│   │   └── extras.sh             # Utilities installation with purged package list for unavailable packages on Debian 11
+│   └── extras/                   # Category modules organized by function (Option 9 submenu)
+│       ├── _helpers.sh           # Shared helpers: [`_inst()`](utils.sh#L418), [`_state()`] for package management
+│       ├── essential/            # Essential Pack (compression, system info, VLC, MS fonts)
+│       │   └── essential.sh     # One-click essentials installation
+│       ├── system/               # System Tools (htop, btop, ncdu, timeshift, tmux, flatpak, extrepo, virtualization tools)
+│       │   └── system.sh        # 25+ system utility packages
+│       ├── dev/                  # Development & Servers (Docker, Nginx/Apache, PostgreSQL/MariaDB, SSH, fail2ban, Python)
+│       │   └── dev.sh           # 15 development/server tools
+│       ├── players/              # Media Players (VLC, MPV)
+│       │   └── players.sh       # Video player packages
+│       ├── internet/             # Internet: Firefox (Mozilla), LibreWolf, Floorp, Chromium, Thunderbird, Riseup VPN, Tor Browser
+│       │   └── internet.sh      # Browsers, email clients, VPN tools
+│       ├── themes/               # Customization submenu with 4 options
+│       │   ├── themes.sh        # Submenu dispatcher for customization categories
+│       │   ├── desktop-themes/  # Desktop Themes (GTK/KDE): Arc, Numix, Breeze GTK, Bluebird, Blackbird, Greybird, Orchis
+│       │   │   └── desktop-themes.sh
+│       │   ├── icons/           # Icon Themes: Papirus, Numix, Elementary, Deepin, Suru, Obsidian, Breeze, Moka
+│       │   │   └── icons.sh     # 11-12 icon theme packages
+│       │   ├── cursors/         # Cursor Themes: Bibata, Breeze, Chameleon, DMZ, XCursor, Oxygen
+│       │   │   └── cursors.sh   # 6 cursor theme packages
+│       │   └── fonts/           # Fonts: Bebas Neue, Anonymous Pro, ADF Verana, 3270, Liberation, MS Core, Ubuntu, Recommended
+│       │       └── fonts.sh     # 8 font packages including MS Core fonts
+│       ├── fetch/                # Fetch Tools (Neofetch/Fastfetch, hyfetch, Linux logo, Screenfetch)
+│       │   └── fetch.sh         # System info display tools
+│       ├── download/             # Downloaders & Torrent Clients: aria2, ytdlp, FileZilla, qBittorrent, Deluge, Transmission, mktorrent
+│       │   └── download.sh      # Download manager + torrent client packages
+│       └── design/               # Multimedia & Design (GIMP, Kdenlive, Blender, OBS Studio, Audacity, Inkscape, HandBrake)
+│           └── design.sh        # 12+ creative applications
 ```
 
 > 🤖 **AI-Assisted Development Note**  
