@@ -134,6 +134,12 @@ install_mesa_stable() {
 }
 
 offer_generic_tools() {
+    if [ "$DEBIAN_VERSION" = "11" ]; then
+        if ! lsmod 2>/dev/null | grep -q "^nvidia "; then
+            echo "nvtop skipped on Bullseye — NVIDIA driver not loaded."
+            return
+        fi
+    fi
     local tool_pkgs
     tool_pkgs=$(pkg_versions nvtop vainfo)
     if _confirm "GPU Tools" "Install monitoring and info tools?\n\n${tool_pkgs}"; then

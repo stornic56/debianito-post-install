@@ -116,18 +116,18 @@ install_gaming_bullseye() {
 
     local enable_32bit=false
     if _confirm "32-bit Support" \
-        "Habilitar arquitectura i386 para juegos?\n\n\
-Requieren los juegos nativos de 32 bits y ciertas\n\
-bibliotecas de emulación."; then
+        "Enable i386 architecture for 32-bit games?\n\n\
+Required by Steam/Proton for 32-bit games.\n\
+Installs matching 32-bit graphics drivers."; then
         enable_32bit=true
     fi
 
     if $enable_32bit; then
-        echo "Activando soporte multiarquitectura i386..."
+        echo "Enabling i386 multi-architecture support..."
         if ! dpkg --print-foreign-architectures | grep -q i386; then
             sudo dpkg --add-architecture i386
         fi
-        _run_cmd "APT Update" "sudo apt update" "Actualizando listas..."
+        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
 
         if [ "$GPU_TYPE" = "nvidia" ]; then
             local nv32_pkg="nvidia-driver-libs:i386"
@@ -139,10 +139,10 @@ bibliotecas de emulación."; then
                 msg+="[+] nvidia-driver-libs:i386"
                 if _confirm "NVIDIA 32-bit" "$msg" 12 70; then
                     _run_cmd "32-bit NVIDIA" "sudo apt install -y ${nv32_pkg}" \
-                        "Instalando librerías NVIDIA 32-bit..."
+                        "Installing NVIDIA 32-bit libraries..."
                 fi
             else
-                echo "nvidia-driver-libs:i386 no disponible en Bullseye."
+                echo "nvidia-driver-libs:i386 not available on Bullseye."
             fi
         else
             # Mesa 32-bit
@@ -158,20 +158,20 @@ bibliotecas de emulación."; then
                 awk 'NR==3 {print $2; exit}')
             local comp_line="Components: Vulkan:i386, OpenGL:i386, GLX:i386, EGL:i386, VA-API:i386"
 
-            local msg="Mesa 32-bit drivers para gaming.\n\n"
+            local msg="Mesa 32-bit drivers for gaming.\n\n"
             msg+="Source: Debian Bullseye Stable\n"
             msg+="Mesa ${ref_ver}\n"
             msg+="${comp_line}\n\n"
-            msg+="Instalar drivers 32-bit?"
+            msg+="Install 32-bit drivers?"
 
             if _confirm "Mesa 32-bit" "$msg" 14 70; then
                 _run_cmd "Mesa 32-bit" "sudo apt install -y ${mesa_32[*]}" \
-                    "Instalando Mesa 32-bit..."
+                    "Installing Mesa 32-bit..."
             fi
         fi
     fi
 
-    # Gaming tools checklist (sin Steam ni Heroic)
+    # Gaming tools checklist (no Steam, no Heroic)
     local choices
     choices=$(whiptail --title "Gaming Tools — Bullseye" --checklist \
         "Select gaming optimization tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
@@ -179,6 +179,7 @@ bibliotecas de emulación."; then
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "goverlay" "MangoHud config GUI" ON \
         "lutris"   "Game launcher/manager" OFF \
+        "java"     "Java Runtimes (8, 17, 21)" OFF \
         3>&1 1>&2 2>&3)
 
     if [ -z "$choices" ]; then
@@ -192,20 +193,21 @@ bibliotecas de emulación."; then
     for pkg in $cleaned; do
         case $pkg in
             mangohud)
-                _run_cmd "MangoHud" "sudo apt install -y mangohud" "Instalando MangoHud..."
+                _run_cmd "MangoHud" "sudo apt install -y mangohud" "Installing MangoHud..."
                 if $enable_32bit; then
                     local mh32_ver
                     mh32_ver=$(apt-cache policy mangohud:i386 2>/dev/null | \
                         awk 'NR==3 {print $2; exit}')
                     if [ -n "$mh32_ver" ] && [ "$mh32_ver" != "(none)" ]; then
                         _run_cmd "MangoHud" "sudo apt install -y mangohud:i386" \
-                            "Instalando MangoHud 32-bit..."
+                            "Installing MangoHud 32-bit..."
                     fi
                 fi
                 ;;
-            gamemode)  _run_cmd "GameMode" "sudo apt install -y gamemode" "Instalando GameMode..." ;;
-            goverlay)  _run_cmd "GOverlay" "sudo apt install -y goverlay" "Instalando GOverlay..." ;;
-            lutris)    _run_cmd "Lutris" "sudo apt install -y lutris" "Instalando Lutris..." ;;
+            gamemode)  _run_cmd "GameMode" "sudo apt install -y gamemode" "Installing GameMode..." ;;
+            goverlay)  _run_cmd "GOverlay" "sudo apt install -y goverlay" "Installing GOverlay..." ;;
+            lutris)    _run_cmd "Lutris" "sudo apt install -y lutris" "Installing Lutris..." ;;
+            java)      _install_gaming_java ;;
             *)         _run_install "$pkg" ;;
         esac
     done

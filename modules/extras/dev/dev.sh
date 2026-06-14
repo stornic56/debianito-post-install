@@ -17,6 +17,8 @@ _cat_dev() {
     local pip_state;      pip_state=$(_state "python3-pip")
     local redis_state;    redis_state=$(_state "redis-server")
     local sqlite_state;   sqlite_state=$(_state "sqlite3")
+    local jdk_desc;       jdk_desc=$(_any_jdk_installed_desc)
+    local jdk_state;      jdk_state=$(_any_jdk_state)
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
@@ -35,6 +37,7 @@ _cat_dev() {
         "python3-pip"               "Python 3 pip + venv + dev$(_inst python3-pip)"                "$pip_state" \
         "redis-server"              "Redis key-value store$(_inst redis-server)"                   "$redis_state" \
         "sqlite3"                   "SQLite database engine$(_inst sqlite3)"                       "$sqlite_state" \
+        "openjdk-dev-env"           "Adoptium Temurin JDK (17, 21, 25 LTS)${jdk_desc}"             "${jdk_state}" \
         3>&1 1>&2 2>&3)
     clear
 
@@ -64,6 +67,9 @@ _cat_dev() {
                 else
                     echo "Docker already installed."
                 fi
+                ;;
+            openjdk-dev-env)
+                _install_dev_java
                 ;;
             *)
                 if ! is_installed "$pkg"; then

@@ -35,11 +35,12 @@ install_extras() {
             "3" "Internet (Browsers, Email, VPN)" \
             "4" "Media Players" \
             "5" "Multimedia & Design" \
-            "6" "Programming Applications" \
-            "7" "Security & Networking" \
-            "8" "System Tools" \
-            "9" "Fetch / System Info" \
-            "10" "Back to main menu" \
+            "6" "Code Editors & IDEs" \
+            "7" "Servers & Dev Tools" \
+            "8" "Security & Networking" \
+            "9" "System Tools" \
+            "10" "Fetch / System Info" \
+            "11" "Back to main menu" \
             3>&1 1>&2 2>&3)
 
         [ -z "$cat_choice" ] && return
@@ -53,10 +54,11 @@ install_extras() {
             4)  _cat_players ;;
             5)  _cat_design ;;
             6)  _cat_programming ;;
-            7)  _cat_security ;;
-            8)  _cat_general ;;
-            9)  _cat_fetch ;;
-            10) return ;;
+            7)  _cat_dev ;;
+            8)  _cat_security ;;
+            9)  _cat_general ;;
+            10) _cat_fetch ;;
+            11) return ;;
         esac
         clear
     done
