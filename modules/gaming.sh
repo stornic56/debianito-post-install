@@ -128,6 +128,7 @@ install_gaming() {
         "gamemode" "Game performance optimization" ON \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "heroic"   "Heroic Launcher (Epic/GOG)" OFF \
+        "java-jre"     "Java Runtimes (8, 17, 21)" OFF \
         "goverlay" "MangoHud config GUI" ON \
         "lutris"   "Game launcher/manager" OFF \
         3>&1 1>&2 2>&3)
@@ -157,6 +158,7 @@ install_gaming() {
                 fi
                 ;;
             heroic)   install_heroic ;;
+            java)     _install_gaming_java ;;
             mangohud) install_mangohud ;;
             gamemode) install_gamemode ;;
             goverlay) install_goverlay ;;

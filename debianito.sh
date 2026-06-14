@@ -17,6 +17,7 @@ MODULES_DIR="${SCRIPT_DIR}/modules"
 
 source "${MODULES_DIR}/utils.sh"
 source "${MODULES_DIR}/sudo_config.sh"
+source "${MODULES_DIR}/repos/repo_detect.sh"
 source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/firmware.sh" ] && source "${MODULES_DIR}/firmware.sh"
 [ -f "${MODULES_DIR}/gpu.sh" ]       && source "${MODULES_DIR}/gpu.sh"
@@ -24,6 +25,7 @@ source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/gaming.sh" ]    && source "${MODULES_DIR}/gaming.sh"
 [ -f "${MODULES_DIR}/extras.sh" ]    && source "${MODULES_DIR}/extras.sh"
 [ -f "${MODULES_DIR}/zram.sh" ]      && source "${MODULES_DIR}/zram.sh"
+[ -f "${MODULES_DIR}/extras/java.sh" ] && source "${MODULES_DIR}/extras/java.sh"
 
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
 if [ -d "${MODULES_DIR}/bullseye" ]; then

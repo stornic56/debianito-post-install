@@ -20,7 +20,11 @@ offer_amd_tools() {
     fi
 
     local pkgs
-    pkgs=$(pkg_versions "${amd_tools[@]}" nvtop vainfo)
+    if [ "$DEBIAN_VERSION" = "11" ]; then
+        pkgs=$(pkg_versions "${amd_tools[@]}" vainfo)
+    else
+        pkgs=$(pkg_versions "${amd_tools[@]}" nvtop vainfo)
+    fi
     if $corectrl_available; then
         local ctrl_ver
         ctrl_ver=$(apt-cache policy corectrl 2>/dev/null | awk 'NR==3 {print $2; exit}')
@@ -32,7 +36,11 @@ offer_amd_tools() {
         return
     fi
 
-    _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} nvtop vainfo" "Installing AMD tools..."
+    if [ "$DEBIAN_VERSION" = "11" ]; then
+        _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} vainfo" "Installing AMD tools..."
+    else
+        _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} nvtop vainfo" "Installing AMD tools..."
+    fi
     vainfo
 
     if $corectrl_available; then
@@ -73,7 +81,18 @@ offer_intel_tools() {
     [ -d "/sys/bus/pci/drivers/xe" ]   && has_xe=true
     [ -d "/sys/bus/pci/drivers/i915" ] && has_i915=true
 
-    if $has_xe; then
+    if [ "$DEBIAN_VERSION" = "11" ]; then
+        if $has_xe; then
+            echo "Intel Xe GPU detected. No monitoring tools available on Bullseye."
+            return
+        elif $has_i915; then
+            driver_info="Classic Intel GPU detected (i915 driver)."
+            pkg_list=("intel-gpu-tools")
+        else
+            echo "Intel GPU driver not identified. No monitoring tools available on Bullseye."
+            return
+        fi
+    elif $has_xe; then
         driver_info="Modern Intel GPU detected (Xe driver).\nintel-gpu-tools is NOT compatible with Xe.\nOnly nvtop will be offered."
         pkg_list=("nvtop")
     elif $has_i915; then
