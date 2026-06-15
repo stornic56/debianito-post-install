@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # system.sh — System Tools (extrepo moved here from Dev & Servers)
 
+_detect_desktop_type() {
+    local desktop
+    desktop="${XDG_CURRENT_DESKTOP:-${DESKTOP_SESSION:-}}"
+    desktop="${desktop,,}"
+
+    case "$desktop" in
+        *kde*|*lxqt*|*razor*|*plasma*)
+            echo "qt"; return ;;
+        *gnome*|*xfce*|*cinnamon*|*mate*|*lxde*|*budgie*|*sway*|*hyprland*|*i3*|*bspwm*|*openbox*|*fluxbox*)
+            echo "gtk"; return ;;
+    esac
+
+    echo "gtk"
+}
+
 _cat_general() {
     local headless=false
     _is_headless && headless=true
@@ -113,19 +128,38 @@ _cat_general() {
             flatpak)
                 if ! is_installed "flatpak"; then
                     _run_cmd "Flatpak" "sudo apt install -y flatpak" "Installing Flatpak..."
-                    if command -v plasma-discover &>/dev/null; then
-                        _run_cmd "Flatpak" "sudo apt install -y plasma-discover-backend-flatpak" "Installing Flatpak backend..."
-                        echo "Flatpak backend for Discover installed."
-                    elif command -v gnome-software &>/dev/null; then
-                        _run_cmd "Flatpak" "sudo apt install -y gnome-software-plugin-flatpak" "Installing Flatpak plugin..."
-                        echo "Flatpak plugin for GNOME Software installed."
-                    fi
                 else
                     echo "Flatpak already installed."
                 fi
                 flatpak remote-add --if-not-exists flathub \
                     https://dl.flathub.org/repo/flathub.flatpakrepo
                 echo "Flathub repository added."
+
+                if command -v plasma-discover &>/dev/null; then
+                    if ! is_installed "plasma-discover-backend-flatpak" 2>/dev/null; then
+                        if _confirm "Discover Backend" "Install Flatpak backend for Plasma Discover?"; then
+                            _run_cmd "Backend" "sudo apt install -y plasma-discover-backend-flatpak" "Installing Flatpak backend..."
+                        fi
+                    fi
+                elif command -v gnome-software &>/dev/null; then
+                    if ! is_installed "gnome-software-plugin-flatpak" 2>/dev/null; then
+                        if _confirm "GNOME Plugin" "Install Flatpak plugin for GNOME Software?"; then
+                            _run_cmd "Plugin" "sudo apt install -y gnome-software-plugin-flatpak" "Installing Flatpak plugin..."
+                        fi
+                    fi
+                else
+                    local de_type
+                    de_type=$(_detect_desktop_type)
+                    if [ "$de_type" = "qt" ]; then
+                        if _confirm "Software Center" "Install Plasma Discover for Flatpak management?"; then
+                            _run_cmd "Discover" "sudo apt install -y plasma-discover plasma-discover-backend-flatpak" "Installing Discover..."
+                        fi
+                    else
+                        if _confirm "Software Center" "Install GNOME Software for Flatpak management?"; then
+                            _run_cmd "GNOME Software" "sudo apt install -y gnome-software gnome-software-plugin-flatpak" "Installing GNOME Software..."
+                        fi
+                    fi
+                fi
                 echo -e "${GREEN}A reboot is recommended.${NC}"
                 ;;
             fwupd)
@@ -191,3 +225,4 @@ _cat_general() {
 
     echo -e "${GREEN}System tools installed.${NC}"
 }
+
