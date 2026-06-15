@@ -49,16 +49,16 @@ After running the script:
 |--------|-------------|--------------|
 | **1** | System Info | Show detected OS, CPU, RAM, GPU and hardware details |
 | **2** | [User Privileges & Feedback](#user-privileges--feedback) | Configure sudo group membership, enable passwordless sudo for frequent tasks, repair home directory ownership issues, and toggle visual password feedback (asterisks) in terminal |
-| **3** | Configure Repositories | Setup official repos with/without backports (deb822 or classic format)|
+| **3** | Configure Repositories | Setup official repos with/without backports (deb822 or classic format) and non-free/contrib|
 | **4** | Setup Wireless & Firmware | Install WiFi firmware for Broadcom, Intel, and other chipsets|
 | **5** | Configure Graphics Stack | AMD/Intel/NVIDIA drivers + monitoring tools |
-| **6** | Update Kernel to Backports | Install latest stable kernel from Debian backports|
+| **6** | Update Kernel to Backports | Install latest kernel from Debian backports|
 | **7** | Gaming Setup and Performance | Steam, Heroic Games Launcher, GameMode, MangoHud, Java JRE (Temurin 8/17/21) |
 | **8** | Install ZRAM (compressed swap) | Configure compressed RAM for memory optimization|
-| **9** | Install Programs and Software | Selection across 10 categories (Dev, Themes, System, etc.) |
+| **9** | Install Programs and Software | Selection from several categories (Development, Themes, System, etc.) |
 | **10** | Exit | Return to terminal |
 
-### Extra Applications Categories (Option 9)
+### Install Programs and Software (Option 9)
 
 The submenu offers the next categories:
 
@@ -73,9 +73,10 @@ The submenu offers the next categories:
 | **6** | Code Editors & IDEs | vim, vim-gtk3, Neovim, Helix, nano, Emacs, Kate, Mousepad, Gedit, Geany, GNOME Text Editor, and VSCodium (VS Code open-source) |
 | **7** | Servers & Dev Tools | Web servers (Nginx/Apache), databases (PostgreSQL/MariaDB), Java Development Kit (Temurin 17/21/25 JDK), Docker, Python, SSH tools, fail2ban, and essential utilities |
 | **8** | Security & Networking | Wireshark, tcpdump, Zenmap, ClamAV, UFW, Fail2ban |
-| **9** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, Flatpak support, extension repository manager, and qemu/virtmanager |
-| **10** | Fetch / System Info | fastfetch/neofetch, hyfetch, Linux logo and screenfetch |
-| **11** | Back to Main Menu | Return directly to the main Debianito menu (exit submenu) |
+| **9** | Software Centers | Choose a software store to install |
+| **10** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, Flatpak support, extension repository manager, and qemu/virtmanager |
+| **11** | Fetch / System Info | fastfetch/neofetch, hyfetch, Linux logo and screenfetch |
+| **12** | Back to Main Menu | Return directly to the main Debianito menu (exit submenu) |
 
 ---
 
@@ -135,6 +136,7 @@ By default, Debian’s terminal hides your password (no asterisks or feedback). 
 │   │   ├── security
 │   │   │   └── security.sh
 │   │   ├── system
+│   │   │   ├── software_centers.sh
 │   │   │   └── system.sh
 │   │   └── themes
 │   │       ├── cursors
@@ -160,11 +162,14 @@ By default, Debian’s terminal hides your password (no asterisks or feedback). 
 │   │   └── nvidia.sh
 │   ├── gpu.sh
 │   ├── kernel.sh
+│   ├── repos
+│   │   └── repo_detect.sh
 │   ├── repos.sh
 │   ├── sudo_config.sh
 │   ├── utils.sh
 │   └── zram.sh
 └── README.md
+
 ```
 
 ---

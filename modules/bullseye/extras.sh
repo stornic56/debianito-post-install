@@ -534,9 +534,10 @@ install_extras_bullseye() {
             "6"  "Code Editors & IDEs" \
             "7"  "Servers & Dev Tools" \
             "8"  "Security & Networking" \
-            "9"  "System Tools" \
-            "10" "Fetch / System Info" \
-            "11" "Back to main menu" \
+            "9"  "Software Centers" \
+            "10" "System Tools" \
+            "11" "Fetch / System Info" \
+            "12" "Back to main menu" \
             3>&1 1>&2 2>&3)
 
         [ -z "$cat_choice" ] && return
@@ -552,10 +553,41 @@ install_extras_bullseye() {
             6)  _cat_programming_bullseye ;;
             7)  _cat_dev_bullseye ;;
             8)  _cat_security_bullseye ;;
-            9)  _cat_general_bullseye ;;
-            10) _cat_fetch_bullseye ;;
-            11) return ;;
+            9)  _cat_software_centers_bullseye ;;
+            10) _cat_general_bullseye ;;
+            11) _cat_fetch_bullseye ;;
+            12) return ;;
         esac
         clear
     done
+}
+
+_cat_software_centers_bullseye() {
+    local sc_choice
+    sc_choice=$(whiptail --title "Software Centers" --menu \
+        "Choose a software store to install:" 12 65 2 \
+        "gnome-software"   "Software Center for GNOME" \
+        "plasma-discover"  "Software manager for Plasma" \
+        3>&1 1>&2 2>&3)
+    [ -z "$sc_choice" ] && return
+
+    _run_cmd "Install" "sudo apt install -y $sc_choice" "Installing ${sc_choice}..."
+
+    if _confirm "Flatpak Support" "Do you want to enable Flatpak support for this software center?"; then
+        local bpkg
+        if [ "$sc_choice" = "gnome-software" ]; then
+            bpkg="gnome-software-plugin-flatpak"
+        else
+            bpkg="plasma-discover-backend-flatpak"
+        fi
+        if ! is_installed "flatpak"; then
+            _run_cmd "Flatpak" "sudo apt install -y flatpak" "Installing Flatpak..."
+        fi
+        _run_cmd "Plugin" "sudo apt install -y $bpkg" "Installing $bpkg..."
+        flatpak remote-add --if-not-exists flathub \
+            https://dl.flathub.org/repo/flathub.flatpakrepo
+        echo "Flathub repository added."
+    fi
+
+    echo -e "${GREEN}Software store installed.${NC}"
 }

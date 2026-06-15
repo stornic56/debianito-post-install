@@ -265,24 +265,26 @@ get_intel_generation() {
 # Check if backports repository is enabled (active line without #)
 # ----------------------------------------------------------------------
 is_backports_enabled() {
-    # Check classic sources.list
-    if [ -f /etc/apt/sources.list ]; then
-        if grep -Eq '^[^#]*[ \t]+bookworm-backports[ \t]+' /etc/apt/sources.list 2>/dev/null; then
-            echo true
-            return
-        fi
-        if grep -Eq '^[^#]*[ \t]+trixie-backports[ \t]+' /etc/apt/sources.list 2>/dev/null; then
-            echo true
-            return
-        fi
+    local codename="${DEBIAN_CODENAME:-}"
+    [ -z "$codename" ] && { echo false; return; }
+
+    local c_pattern="^[^#]*${codename}-backports[[:space:]]+"
+    local d_pattern="Suites:.*${codename}-backports"
+
+    # Classic embedded (sources.list)
+    if [ -f /etc/apt/sources.list ] && grep -Eq "$c_pattern" /etc/apt/sources.list 2>/dev/null; then
+        echo true; return
     fi
 
-    # Check deb822 .sources files
-    if [ -d /etc/apt/sources.list.d ]; then
-        if grep -qr 'Suites:.*-backports' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
-            echo true
-            return
-        fi
+    # Classic standalone (new — debian-backports.list)
+    if [ -f /etc/apt/sources.list.d/debian-backports.list ] && \
+       grep -Eq "$c_pattern" /etc/apt/sources.list.d/debian-backports.list 2>/dev/null; then
+        echo true; return
+    fi
+
+    # Deb822 any .sources file
+    if grep -qr "$d_pattern" /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+        echo true; return
     fi
 
     echo false
