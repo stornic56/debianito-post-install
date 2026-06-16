@@ -23,7 +23,7 @@ _cat_programming() {
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(whiptail --title "Programming Applications" --checklist \
-        "Select editors and IDEs (12 items, ↑↓ scroll):" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+        "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "vim"                "Classic terminal editor$(_inst vim)"                        "$vim_state" \
         "vim-gtk3"           "Vim with GTK3 GUI$(_inst vim-gtk3)"                        "$vimgtk_state" \
         "neovim"             "Modern vim fork$(_inst neovim)"                             "$neovim_state" \

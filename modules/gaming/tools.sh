@@ -20,3 +20,44 @@ install_goverlay() {
 install_lutris() {
     _run_install lutris
 }
+
+install_openrgb() {
+    local url
+    if [ "$DEBIAN_VERSION" = "12" ]; then
+        url="https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_candidate_1.0rc2/openrgb_1.0rc2_amd64_bookworm_0fca93e.deb"
+    elif [ "$DEBIAN_VERSION" = "13" ]; then
+        url="https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_candidate_1.0rc2/openrgb_1.0rc2_amd64_trixie_0fca93e.deb"
+    else
+        echo "OpenRGB requires Debian 12 (Bookworm) or 13 (Trixie)."
+        return 1
+    fi
+
+    local deb_path="/tmp/openrgb.deb"
+    local ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+    _run_cmd "OpenRGB" "curl -L -o ${deb_path} -A '${ua}' '${url}'" "Downloading OpenRGB..."
+
+    if [ ! -s "${deb_path}" ]; then
+        echo -e "${RED}[-]${NC} Download failed: empty or missing file."
+        rm -f "${deb_path}"
+        return 1
+    fi
+
+    echo -e "${GREEN}[+]${NC} Installing OpenRGB package..."
+    if ! sudo apt install -y "${deb_path}"; then
+        rm -f "${deb_path}"
+        echo -e "${RED}[-]${NC} Package installation failed."
+        return 1
+    fi
+
+    sudo modprobe i2c-dev
+    if ! grep -q "^i2c-dev" /etc/modules 2>/dev/null; then
+        echo "i2c-dev" | sudo tee -a /etc/modules >/dev/null
+    fi
+    sudo usermod -aG i2c "$USER"
+    sudo udevadm control --reload-rules && sudo udevadm trigger
+    sudo setcap cap_sys_rawio=ep /usr/bin/openrgb 2>/dev/null || true
+
+    rm -f "${deb_path}"
+    echo -e "${GREEN}OpenRGB installed. NOTE: You must reboot or log out/in for the 'i2c' group to take effect.${NC}"
+}

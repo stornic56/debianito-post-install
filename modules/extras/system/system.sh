@@ -57,11 +57,12 @@ _cat_general() {
     local timeshift_state; timeshift_state=$(_state "timeshift")
     local tmux_state;      tmux_state=$(_state "tmux")
     local wine_state;      wine_state=$(_state "wine")
+    local nvme_state;      nvme_state=$(_state "nvme-cli")
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(whiptail --title "System Tools" --checklist \
-        "Select system utilities to install (28 items, ↑↓ scroll):" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+        "Select system utilities to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "alacritty"       "GPU-accelerated terminal$(_inst alacritty)"            "$alacritty_state" \
         "btop"            "Resource monitor (fancy top)$(_inst btop)"             "$btop_state" \
         "compress"        "Compression tools (zip, unrar, 7z)$(_inst zip)"        "$compress_state" \
@@ -84,6 +85,7 @@ _cat_general() {
         "kvm"             "QEMU/KVM virtualization$(_inst virt-manager)"          "$kvm_state" \
         "lshw"            "List hardware details$(_inst lshw)"                    "$lshw_state" \
         "mc"              "Midnight Commander (file manager)$(_inst mc)"          "$mc_state" \
+        "nvme-cli"        "NVMe SSD health monitoring$(_inst nvme-cli)"           "$nvme_state" \
         "nala"            "APT frontend (parallel downloads)$(_inst nala)"        "$nala_state" \
         "ncdu"            "Disk usage analyzer (ncurses)$(_inst ncdu)"            "$ncdu_state" \
         "psensor"         "Hardware temperature monitor$(_inst psensor)"          "$psensor_state" \
@@ -207,6 +209,28 @@ _cat_general() {
                     echo -e "${GREEN}Wine installed. Run 'winecfg' to configure.${NC}"
                 else
                     echo "Wine already installed."
+                fi
+                ;;
+            nvme-cli)
+                if ! lsblk -d -o TRAN 2>/dev/null | grep -q "^nvme$"; then
+                    echo "No NVMe controller detected. Skipping."
+                    break
+                fi
+                if ! is_installed "nvme-cli"; then
+                    _run_cmd "nvme-cli" "sudo apt install -y nvme-cli" "Installing nvme-cli..."
+                fi
+                local nvme_dev
+                nvme_dev=$(lsblk -d -o NAME,TRAN 2>/dev/null | awk '/nvme/ {print $1; exit}')
+                if [ -n "$nvme_dev" ] && [ -e "/dev/${nvme_dev}" ]; then
+                    if _confirm "NVMe Health" "Run smart-log on /dev/${nvme_dev}?"; then
+                        echo ""
+                        sudo nvme smart-log "/dev/${nvme_dev}"
+                        echo ""
+                        echo "Press [ENTER] to continue..."
+                        read -r
+                    fi
+                else
+                    echo "No NVMe device found for health check."
                 fi
                 ;;
             *)

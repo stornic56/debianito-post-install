@@ -4,6 +4,7 @@
 # ------------------
 # Global variables
 # ------------------
+readonly SCROLL_HINT="  [↑↓]"
 CPU_SUMMARY=""
 RAM_SUMMARY=""
 GPU_TYPE=""
@@ -11,6 +12,9 @@ GPU_DESC=""
 GPU_VERSION=""
 INTEL_GPU_DEVICE_ID=""
 NVIDIA_GPU_DEVICE_ID=""
+HAS_NVIDIA=false
+HAS_AMD=false
+HAS_INTEL=false
 KERNEL_VERSION=""
 WIFI_CHIPSET=""
 
@@ -170,28 +174,49 @@ detect_kernel() {
 # GPU detection
 # ----------------------------------
 detect_gpu() {
-    local gpu_line
-    gpu_line=$(lspci -nn | grep -E "VGA|3D" | head -n1) || true
-    if [ -z "$gpu_line" ]; then
+    local gpu_lines
+    gpu_lines=$(lspci -nn | grep -E "VGA|3D") || true
+    if [ -z "$gpu_lines" ]; then
         GPU_TYPE="unknown"
         GPU_DESC="No GPU detected"
         return
     fi
 
+    local has_nvidia=false has_amd=false has_intel=false
+    local desc_lines="" nvidia_dev_id="" intel_dev_id=""
 
-    GPU_DESC=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
+    while IFS= read -r line; do
+        local desc
+        desc=$(echo "$line" | sed -E 's/.*: //; s/ *\(rev.*//')
+        [ -n "$desc_lines" ] && desc_lines+=" + "
+        desc_lines+="$desc"
 
-    if echo "$gpu_line" | grep -qi "AMD"; then
-        GPU_TYPE="amd"
-    elif echo "$gpu_line" | grep -qi "Intel"; then
-        GPU_TYPE="intel"
-        INTEL_GPU_DEVICE_ID=$(echo "$gpu_line" | grep -oP '8086:\K[0-9a-fA-F]+' | head -n1)
-        if [ -n "$INTEL_GPU_DEVICE_ID" ]; then
-            INTEL_GPU_DEVICE_ID="0x${INTEL_GPU_DEVICE_ID,,}"
+        if echo "$line" | grep -qi "nvidia"; then
+            has_nvidia=true
+            [ -z "$nvidia_dev_id" ] && nvidia_dev_id=$(echo "$line" | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+        elif echo "$line" | grep -qi "amd"; then
+            has_amd=true
+        elif echo "$line" | grep -qi "intel"; then
+            has_intel=true
+            [ -z "$intel_dev_id" ] && intel_dev_id=$(echo "$line" | grep -oP '8086:\K[0-9a-fA-F]+' | head -n1)
         fi
-    elif echo "$gpu_line" | grep -qi "NVIDIA"; then
+    done <<< "$gpu_lines"
+
+    GPU_DESC="$desc_lines"
+    HAS_NVIDIA=$has_nvidia
+    HAS_AMD=$has_amd
+    HAS_INTEL=$has_intel
+
+    if $has_nvidia; then
         GPU_TYPE="nvidia"
-        NVIDIA_GPU_DEVICE_ID=$(echo "$gpu_line" | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+        [ -n "$nvidia_dev_id" ] && NVIDIA_GPU_DEVICE_ID="$nvidia_dev_id"
+    elif $has_amd; then
+        GPU_TYPE="amd"
+    elif $has_intel; then
+        GPU_TYPE="intel"
+        if [ -n "$intel_dev_id" ]; then
+            INTEL_GPU_DEVICE_ID="0x${intel_dev_id,,}"
+        fi
     else
         GPU_TYPE="unknown"
     fi

@@ -20,7 +20,7 @@ _cat_design() {
 
     local choices
     choices=$(whiptail --title "Multimedia & Design" --checklist \
-        "Select multimedia and design tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "audacity"   "Audio editor/recorder$(_inst audacity)"                  "$audacity_state" \
         "ardour"     "Digital audio workstation$(_inst ardour)"                "$ardour_state" \
         "blender"    "3D modeling/animation suite$(_inst blender)"             "$blender_state" \

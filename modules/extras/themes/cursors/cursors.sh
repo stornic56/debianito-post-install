@@ -11,7 +11,7 @@ _cat_cursors() {
 
     local choices
     choices=$(whiptail --title "Cursor Themes" --checklist \
-        "Select cursor themes to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select cursor themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "bibata-cursor-theme"    "Bibata cursors$(_inst bibata-cursor-theme)"          "$bibata_state" \
         "breeze-cursor-theme"    "Breeze cursors (KDE)$(_inst breeze-cursor-theme)"   "$breeze_state" \
         "chameleon-cursor-theme" "Chameleon cursors$(_inst chameleon-cursor-theme)"   "$chameleon_state" \
