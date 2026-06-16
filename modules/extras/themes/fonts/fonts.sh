@@ -13,7 +13,7 @@ _cat_fonts() {
 
     local choices
     choices=$(whiptail --title "Fonts" --checklist \
-        "Select fonts to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select fonts to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "fonts-bebas-neue"           "Bebas Neue (display)$(_inst fonts-bebas-neue)"                       "$bebas_state" \
         "fonts-anonymous-pro"        "Anonymous Pro (monospace)$(_inst fonts-anonymous-pro)"               "$anon_state" \
         "fonts-adf-verana"           "ADF Verana (sans-serif)$(_inst fonts-adf-verana)"                    "$verana_state" \

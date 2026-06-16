@@ -28,7 +28,7 @@ install_extras() {
     while true; do
         local cat_choice
         cat_choice=$(whiptail --title "Extra Software" --menu \
-            "Select a category:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "Select a category${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "0" "Essential Pack" \
             "1" "Customization System" \
             "2" "Download & Network" \

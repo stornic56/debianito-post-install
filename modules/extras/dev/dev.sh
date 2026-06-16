@@ -23,7 +23,7 @@ _cat_dev() {
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(whiptail --title "Development & Servers" --checklist \
-        "Select development tools and servers (12 items, ↑↓ scroll):" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+        "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "apache2"                   "Apache web server$(_inst apache2)"                            "$apache_state" \
         "build-essential"           "C/C++ build tools (gcc, make)$(_inst build-essential)"        "$build_state" \
         "certbot"                   "Let's Encrypt TLS certificates$(_inst certbot)"               "$certbot_state" \
@@ -37,6 +37,7 @@ _cat_dev() {
         "python3-pip"               "Python 3 pip + venv + dev$(_inst python3-pip)"                "$pip_state" \
         "redis-server"              "Redis key-value store$(_inst redis-server)"                   "$redis_state" \
         "sqlite3"                   "SQLite database engine$(_inst sqlite3)"                       "$sqlite_state" \
+        "jellyfin"                  "Jellyfin Media Server (Web GUI on port 8096)$(_inst jellyfin)" OFF \
         "openjdk-dev-env"           "Adoptium Temurin JDK (17, 21, 25 LTS)${jdk_desc}"             "${jdk_state}" \
         3>&1 1>&2 2>&3)
     clear
@@ -67,6 +68,9 @@ _cat_dev() {
                 else
                     echo "Docker already installed."
                 fi
+                ;;
+            jellyfin)
+                install_jellyfin
                 ;;
             openjdk-dev-env)
                 _install_dev_java

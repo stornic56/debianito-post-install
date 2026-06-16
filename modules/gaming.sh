@@ -123,13 +123,14 @@ install_gaming() {
     # 2. Gaming packages checklist
     local choices
     choices=$(whiptail --title "Gaming Setup" --checklist \
-        "Select gaming packages to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select gaming packages to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "steam"    "Steam (requires 32-bit support)" ON \
         "gamemode" "Game performance optimization" ON \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "heroic"   "Heroic Launcher (Epic/GOG)" OFF \
         "java-jre"     "Java Runtimes (8, 17, 21)" OFF \
         "goverlay" "MangoHud config GUI" ON \
+        "openrgb"  "OpenRGB (RGB lighting control)$(_inst openrgb)" OFF \
         "lutris"   "Game launcher/manager" OFF \
         3>&1 1>&2 2>&3)
 
@@ -162,6 +163,13 @@ install_gaming() {
             mangohud) install_mangohud ;;
             gamemode) install_gamemode ;;
             goverlay) install_goverlay ;;
+            openrgb)
+                if [ "$DEBIAN_VERSION" = "11" ]; then
+                    echo "OpenRGB requires Debian 12+."
+                    continue
+                fi
+                install_openrgb
+                ;;
             lutris)   install_lutris ;;
             *)        _run_install "$pkg" ;;
         esac

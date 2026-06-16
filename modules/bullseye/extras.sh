@@ -70,7 +70,7 @@ _cat_customization_bullseye() {
 _cat_themes_bullseye() {
     local choices
     choices=$(whiptail --title "Desktop Themes (Bullseye)" --checklist \
-        "Select desktop themes:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select desktop themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "arc-theme"             "Arc GTK theme$(_inst arc-theme)"                     "$(_state arc-theme)" \
         "blackbird-gtk-theme"   "Blackbird GTK theme$(_inst blackbird-gtk-theme)"     "$(_state blackbird-gtk-theme)" \
         "bluebird-gtk-theme"    "Bluebird GTK theme$(_inst bluebird-gtk-theme)"       "$(_state bluebird-gtk-theme)" \
@@ -101,7 +101,7 @@ _cat_icons_bullseye() {
     )
     local choices
     choices=$(whiptail --title "Icon Themes (Bullseye)" --checklist \
-        "Select icon themes:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select icon themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "${items[@]}" 3>&1 1>&2 2>&3)
     clear
     [ -z "$choices" ] && return
@@ -115,7 +115,7 @@ _cat_icons_bullseye() {
 _cat_cursors_bullseye() {
     local choices
     choices=$(whiptail --title "Cursor Themes (Bullseye)" --checklist \
-        "Select cursor themes:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select cursor themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "breeze-cursor-theme"    "Breeze cursors (KDE)$(_inst breeze-cursor-theme)"       "$(_state breeze-cursor-theme)" \
         "chameleon-cursor-theme" "Chameleon cursors$(_inst chameleon-cursor-theme)"       "$(_state chameleon-cursor-theme)" \
         "dmz-cursor-theme"       "DMZ cursors$(_inst dmz-cursor-theme)"                   "$(_state dmz-cursor-theme)" \
@@ -134,7 +134,7 @@ _cat_cursors_bullseye() {
 _cat_fonts_bullseye() {
     local choices
     choices=$(whiptail --title "Fonts (Bullseye)" --checklist \
-        "Available fonts:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Available fonts${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "fonts-firacode"    "Fira Code monospace font$(_inst fonts-firacode)"           "$(_state fonts-firacode)" \
         "fonts-noto"        "Noto fonts (Google)$(_inst fonts-noto)"                    "$(_state fonts-noto)" \
         "fonts-dejavu-core" "DejaVu core fonts$(_inst fonts-dejavu-core)"               "$(_state fonts-dejavu-core)" \
@@ -160,7 +160,7 @@ _cat_download_bullseye() {
     clear
 
     choices2=$(whiptail --title "Torrent Clients" --checklist \
-        "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select torrent clients${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "deluge"            "BitTorrent client (GTK)$(_inst deluge)"               "$(_state deluge)" \
         "deluged"           "BitTorrent daemon/server$(_inst deluged)"             "$(_state deluged)" \
         "mktorrent"         "Torrent metainfo creator (CLI)$(_inst mktorrent)"     "$(_state mktorrent)" \
@@ -189,7 +189,7 @@ _cat_download_bullseye() {
 _cat_internet_bullseye() {
     local choices
     choices=$(whiptail --title "Internet (Bullseye)" --checklist \
-        "Select browsers, email:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select browsers, email${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "chromium"            "Chromium web browser$(_inst chromium)"                   "$(_state chromium)" \
         "dillo"               "Lightweight graphical browser$(_inst dillo)"             "$(_state dillo)" \
         "elinks"              "Text-mode web browser$(_inst elinks)"                    "$(_state elinks)" \
@@ -230,7 +230,7 @@ _cat_internet_bullseye() {
 _cat_players_bullseye() {
     local choices
     choices=$(whiptail --title "Media Players (Bullseye)" --checklist \
-        "Select media players:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select media players${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "mpv"  "Lightweight media player$(_inst mpv)"  "$(_state mpv)" \
         "vlc"  "VLC media player$(_inst vlc)"          "$(_state vlc)" \
         3>&1 1>&2 2>&3)
@@ -250,7 +250,7 @@ _cat_players_bullseye() {
 _cat_design_bullseye() {
     local choices
     choices=$(whiptail --title "Multimedia & Design (Bullseye)" --checklist \
-        "Select multimedia and design tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "ardour"      "Digital audio workstation$(_inst ardour)"                  "$(_state ardour)" \
         "audacity"    "Audio editor/recorder$(_inst audacity)"                   "$(_state audacity)" \
         "blender"     "3D modeling/animation suite$(_inst blender)"              "$(_state blender)" \
@@ -281,7 +281,7 @@ _cat_design_bullseye() {
 _cat_programming_bullseye() {
     local choices
     choices=$(whiptail --title "Code Editors & IDEs (Bullseye)" --checklist \
-        "Select editors and IDEs:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "vim"        "Classic terminal editor$(_inst vim)"          "$(_state vim)" \
         "vim-gtk3"   "Vim with GTK3 GUI$(_inst vim-gtk3)"         "$(_state vim-gtk3)" \
         "neovim"     "Modern vim fork$(_inst neovim)"              "$(_state neovim)" \
@@ -308,7 +308,7 @@ _cat_programming_bullseye() {
 _cat_dev_bullseye() {
     local choices
     choices=$(whiptail --title "Servers & Dev Tools (Bullseye)" --checklist \
-        "Select development tools and servers:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "apache2"         "Apache web server$(_inst apache2)"                        "$(_state apache2)" \
         "build-essential" "C/C++ build tools (gcc, make)$(_inst build-essential)"   "$(_state build-essential)" \
         "docker"          "Docker container runtime$(_inst docker.io)"               "$(_state docker.io)" \
@@ -321,6 +321,7 @@ _cat_dev_bullseye() {
         "python3-pip"     "Python 3 pip + venv + dev$(_inst python3-pip)"            "$(_state python3-pip)" \
         "redis-server"    "Redis key-value store$(_inst redis-server)"               "$(_state redis-server)" \
         "sqlite3"         "SQLite database engine$(_inst sqlite3)"                   "$(_state sqlite3)" \
+        "jellyfin"        "Jellyfin Media Server (Web GUI on port 8096)$(_inst jellyfin)" OFF \
         "openjdk-dev-env" "Adoptium Temurin JDK (17, 21, 25 LTS)$(_any_jdk_installed_desc)" "$(_any_jdk_state)" \
         3>&1 1>&2 2>&3)
     clear
@@ -349,9 +350,13 @@ _cat_dev_bullseye() {
                     echo "Python 3 tools already installed."
                 fi
                 ;;
+            jellyfin)
+                install_jellyfin
+                ;;
             openjdk-dev-env)
                 _install_dev_java
                 ;;
+
             *)
                 if ! is_installed "$pkg"; then
                     _run_install "$pkg"
@@ -363,11 +368,10 @@ _cat_dev_bullseye() {
     done
     echo -e "${GREEN}Servers & dev tools installed.${NC}"
 }
-
 _cat_security_bullseye() {
     local choices
     choices=$(whiptail --title "Security & Networking (Bullseye)" --checklist \
-        "Select security and networking tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "wireshark"   "Network protocol analyzer (GUI)$(_inst wireshark)"       "$(_state wireshark)" \
         "tcpdump"     "Command-line packet analyzer$(_inst tcpdump)"            "$(_state tcpdump)" \
         "fail2ban"    "Brute-force protection daemon$(_inst fail2ban)"          "$(_state fail2ban)" \
@@ -397,7 +401,7 @@ _cat_security_bullseye() {
 _cat_general_bullseye() {
     local choices
     choices=$(whiptail --title "System Tools (Bullseye)" --checklist \
-        "Select system utilities:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select system utilities${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "compress"           "Compression tools (zip, unrar, p7zip)$(_inst zip)"          "$(_state zip)" \
         "conky"              "System monitor for desktop$(_inst conky)"                    "$(_state conky)" \
         "cpu-x"              "CPU-X (alternative to CPU-Z)$(_inst cpu-x)"                  "$(_state cpu-x)" \
@@ -411,6 +415,7 @@ _cat_general_bullseye() {
         "kvm"                "QEMU/KVM virtualization$(_inst virt-manager)"                 "$(_state virt-manager)" \
         "lshw"               "List hardware details$(_inst lshw)"                           "$(_state lshw)" \
         "mc"                 "Midnight Commander$(_inst mc)"                                "$(_state mc)" \
+        "nvme-cli"           "NVMe SSD health monitoring$(_inst nvme-cli)"                   "$(_state nvme-cli)" \
         "ncdu"               "Disk usage analyzer$(_inst ncdu)"                             "$(_state ncdu)" \
         "psensor"            "Temperature monitor$(_inst psensor)"                          "$(_state psensor)" \
         "timeshift"          "System restore snapshots$(_inst timeshift)"                   "$(_state timeshift)" \
@@ -478,6 +483,9 @@ _cat_general_bullseye() {
                     sudo fwupdmgr get-updates 2>&1 || true
                 fi
                 ;;
+            nvme-cli)
+                _run_install "nvme-cli"
+                ;;
             *)
                 if ! is_installed "$pkg"; then
                     _run_install "$pkg"
@@ -524,7 +532,7 @@ install_extras_bullseye() {
     while true; do
         local cat_choice
         cat_choice=$(whiptail --title "Extra Software — Bullseye" --menu \
-            "Select a category:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "Select a category${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "0"  "Essential Pack" \
             "1"  "Customization System" \
             "2"  "Download & Network" \
@@ -566,8 +574,8 @@ _cat_software_centers_bullseye() {
     local sc_choice
     sc_choice=$(whiptail --title "Software Centers" --menu \
         "Choose a software store to install:" 12 65 2 \
-        "gnome-software"   "Software Center for GNOME" \
-        "plasma-discover"  "Software manager for Plasma" \
+        "gnome-software"   "Software Center for GNOME$(_inst gnome-software)" \
+        "plasma-discover"  "Software manager for Plasma$(_inst plasma-discover)" \
         3>&1 1>&2 2>&3)
     [ -z "$sc_choice" ] && return
 

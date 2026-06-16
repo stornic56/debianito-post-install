@@ -25,7 +25,7 @@ _cat_internet() {
 
     local choices
     choices=$(whiptail --title "Internet" --checklist \
-        "Select browsers, email, and VPN tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "chromium"            "Chromium web browser$(_inst chromium)"                  "$chromium_state" \
         "dillo"               "Lightweight graphical browser$(_inst dillo)"            "$dillo_state" \
         "elinks"              "Text-mode web browser$(_inst elinks)"                   "$elinks_state" \

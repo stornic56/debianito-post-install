@@ -14,7 +14,7 @@ _cat_security() {
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(whiptail --title "Security & Networking" --checklist \
-        "Select security and networking tools (6 items):" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+        "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "wireshark"   "Network protocol analyzer (GUI)$(_inst wireshark)"            "$wireshark_state" \
         "tcpdump"     "Command-line packet analyzer$(_inst tcpdump)"                 "$tcpdump_state" \
         "zenmap"      "Network scanner GUI (Nmap frontend)$(_inst zenmap)"            "$zenmap_state" \

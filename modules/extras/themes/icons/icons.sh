@@ -42,7 +42,7 @@ _cat_icons() {
 
     local choices
     choices=$(whiptail --title "Icon Themes" --checklist \
-        "Select icon themes to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Select icon themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "${items[@]}" \
         3>&1 1>&2 2>&3)
     clear
