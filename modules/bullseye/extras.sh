@@ -24,6 +24,14 @@ _quick_install_bullseye() {
 install_firmware_bullseye() {
     echo -e "${YELLOW}Installing firmware-linux-nonfree (Bullseye)...${NC}"
 
+    # ── Safeguard: non-free repos must be enabled ──
+    if ! grep -qr "non-free" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+        _msg "Error" "Error: No 'non-free' repositories were detected.\n\
+Please first run the 'Configure repositories' option in the\n\
+main menu to install proprietary firmwares." 10 65
+        return 1
+    fi
+
     if is_installed "firmware-linux-nonfree"; then
         echo "firmware-linux-nonfree already installed."
         return

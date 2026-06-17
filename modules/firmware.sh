@@ -3,6 +3,14 @@
 install_firmware() {
     echo -e "${YELLOW}Base firmware check...${NC}"
 
+    # ── Safeguard: non-free repos must be enabled ──
+    if ! grep -qr "non-free" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+        _msg "Error" "Error: No 'non-free' repositories were detected.\n\
+Please first run the 'Configure repositories' option in the\n\
+main menu to install proprietary firmwares." 10 65
+        return 1
+    fi
+
     local fw_pkg="firmware-linux-nonfree"
     local fw_bpo
     fw_bpo=$(apt-cache madison "$fw_pkg" 2>/dev/null | \
@@ -28,8 +36,13 @@ install_firmware() {
     local msg="firmware-linux-nonfree provides hardware drivers for:\n"
     msg+="  WiFi, Bluetooth, GPU, audio, webcams, and more.\n\n"
     if [ -n "$fw_bpo" ]; then
-        msg+="  Backports: ${fw_bpo} (newer, recommended)\n"
-        msg+="  Stable:    ${fw_stable}\n\n"
+        msg+="  ● Stable:        ${fw_stable}\n"
+        msg+="                     Ultra tested, but may lack support for\n"
+        msg+="                     very recent hardware.\n\n"
+        msg+="  ● Backports:     ${fw_bpo} (Recommended)\n"
+        msg+="                     Updated firmware for modern hardware from\n"
+        msg+="                     2025/2026: recent GPUs (Intel Arc, Radeon,\n"
+        msg+="                     NVIDIA), new processors, Wi-Fi 6E / Wi-Fi 7.\n\n"
         msg+="Choose version:"
         if _confirm_custom "Firmware" "$msg" "Backports" "Stable"; then
             _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $fw_pkg" "Installing firmware from backports..."
