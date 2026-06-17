@@ -16,11 +16,13 @@ install_gpu_drivers() {
     info+="Components:\n"
     info+="  Mesa (OpenGL / Vulkan / VA-API)\n"
     if [ "$GPU_TYPE" != "unknown" ]; then
-        info+="  GPU firmware for ${GPU_DESC}\n"
+        info+="  GPU firmware\n"
     fi
     info+="  Monitoring tools (nvtop, vainfo, ...)"
 
-    if ! _confirm "Graphics Stack" "$info"; then
+    _msg "Graphics Stack" "$info" 16 70
+
+    if ! _confirm "Graphics Stack" "Proceed with the graphics stack setup?"; then
         echo "Skipping Graphics Stack."
         return
     fi
@@ -66,21 +68,15 @@ install_gpu_drivers() {
     fi
 
     # ── Detectable GPU: build plan ──
-    local ref_ver
-    ref_ver=$(apt-cache policy mesa-vulkan-drivers 2>/dev/null | awk 'NR==3 {print $2; exit}')
-    local ref_bpo_ver
-    ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers 2>/dev/null | \
-        grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
-    local comp_line="Components: Vulkan, OpenGL, GLX, EGL, VA-API (64-bit)"
-
-    local src_line="Source: Debian Stable"
-    [ -n "$ref_bpo_ver" ] && [ "$(is_backports_enabled)" == "true" ] && src_line="Source: Debian ${DEBIAN_CODENAME^}-Backports"
-
-    local plan="GPUs detected: ${GPU_DESC}\n\n"
-    plan+="${src_line}\n"
-    plan+="Mesa ${ref_bpo_ver:-$ref_ver}\n"
-    plan+="${comp_line}\n\n"
-    plan+="Components:\n"
+    local plan=""
+    local gpu_count=0
+    while IFS= read -r gpu_line; do
+        gpu_count=$((gpu_count + 1))
+        local desc
+        desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
+        plan+="  GPU ${gpu_count}:  ${desc}\n"
+    done < <(lspci -nn | grep -E "VGA|3D" || true)
+    plan+="\nComponents:\n"
     if $HAS_INTEL; then
         local _gen; _gen=$(get_intel_generation)
         local _va;  [ "$_gen" = "gen7-" ] && _va="i965-va-driver-shaders" || _va="intel-media-va-driver-non-free"
@@ -90,10 +86,13 @@ install_gpu_drivers() {
         plan+="  [+] AMD firmware (firmware-amd-graphics)\n"
     fi
     if $HAS_NVIDIA; then
-        plan+="  [+] NVIDIA driver (details in next step)\n"
+        plan+="  [+] NVIDIA driver\n"
     fi
+    plan+="  [+] Mesa (version selected in next step)\n"
 
-    if ! _confirm "Graphics Stack — ${GPU_DESC}" "$plan" 14 70; then
+    _msg "Graphics Stack — Plan" "$plan" 16 70
+
+    if ! _confirm "Graphics Stack" "Install the components shown above?"; then
         echo "Skipping Graphics Stack."
         return
     fi
@@ -140,6 +139,11 @@ install_gpu_drivers() {
     # ── Mesa (once) ──
     _install_mesa_backports
 
+    # ── Refresh GPU_VERSION after Mesa install ──
+    local mesa_ver
+    mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//')
+    [ -n "$mesa_ver" ] && GPU_VERSION="Mesa ${mesa_ver}"
+
     # ── Vendor-specific tools ──
     if $HAS_INTEL; then
         offer_intel_tools
@@ -151,5 +155,15 @@ install_gpu_drivers() {
         offer_generic_tools
     fi
 
-    echo -e "${GREEN}Graphics stack setup complete.${NC}"
+    # ── Build summary ──
+    local summary=""
+    summary+="Mesa:    ${GPU_VERSION:-not available}\n"
+    if $HAS_NVIDIA; then
+        local nv_mode="${NVIDIA_DRIVER_MODE:-unknown}"
+        summary+="NVIDIA:  ${nv_mode}\n"
+    fi
+    summary+="Firmware: installed for detected GPUs\n"
+    summary+="Tools:   installed per vendor selection"
+
+    _msg "Graphics Stack — Complete" "$summary" 12 65
 }

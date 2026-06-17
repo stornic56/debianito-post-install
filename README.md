@@ -49,12 +49,12 @@ After running the script:
 |--------|-------------|--------------|
 | **1** | System Info | Show detected OS, CPU, RAM, GPU and hardware details |
 | **2** | [User Privileges & Feedback](#user-privileges--feedback) | Configure sudo group membership, enable passwordless sudo for frequent tasks, repair home directory ownership issues, and toggle visual password feedback (asterisks) in terminal |
-| **3** | Configure Repositories | Setup official repos with/without backports (deb822 or classic format) and non-free/contrib|
-| **4** | Setup Wireless & Firmware | Install WiFi firmware for Broadcom, Intel, and other chipsets|
-| **5** | Configure Graphics Stack | AMD/Intel/NVIDIA drivers + monitoring tools |
-| **6** | Update Kernel to Backports | Install latest kernel from Debian backports|
-| **7** | Gaming Setup and Performance | Steam, Heroic Games Launcher, GameMode, MangoHud, OpenRGB Java JRE (Temurin 8/17/21) |
-| **8** | Install ZRAM (compressed swap) | Configure compressed RAM for memory optimization|
+| **3** | Configure Repositories | Setup official repos with non-free/contrib options, optional Backports support and Deb822/classic format injection.|
+| **4** | Firmware & Wireless Drivers | Install essential firmware for GPUs and wireless|
+| **5** | Graphics Drivers & Mesa Stack | Configure AMD/Intel/NVIDIA drivers and Mesa graphics stack + monitoring tools |
+| **6** | Backports Kernel | Install latest kernel from Debian backports|
+| **7** | Gaming Setup and Performance | Steam, Heroic Games Launcher, GameMode, MangoHud, OpenRGB, Java JRE (Temurin 8/17/21) |
+| **8** | Install ZRAM (Swap) | Configure compressed RAM for memory optimization|
 | **9** | Install Programs and Software | Selection from several categories (Development, Themes, System, etc.) |
 | **10** | Exit | Return to terminal |
 
@@ -73,8 +73,8 @@ The submenu offers the next categories:
 | **6** | Code Editors & IDEs | vim, vim-gtk3, Neovim, Helix, nano, Emacs, Kate, Mousepad, Gedit, Geany, GNOME Text Editor, and VSCodium (VS Code open-source) |
 | **7** | Servers & Dev Tools | Web servers (Nginx/Apache), databases (PostgreSQL/MariaDB), Java Development Kit (Temurin 17/21/25 JDK), Docker, Python, SSH tools, fail2ban, Jellyfin Server and essential utilities |
 | **8** | Security & Networking | Wireshark, tcpdump, Zenmap, ClamAV, UFW, Fail2ban |
-| **9** | Software Centers | Choose a software store to install |
-| **10** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, nvme-cli Flatpak support, extension repository manager and qemu/virtmanager |
+| **9** | Software Centers | Choose a software store to install. |
+| **10** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, nvme-cli, Flatpak support, extension repository manager and qemu/virtmanager |
 | **11** | Fetch / System Info | fastfetch/neofetch, hyfetch, Linux logo and screenfetch |
 | **12** | Back to Main Menu | Return directly to the main Debianito menu (exit submenu) |
 

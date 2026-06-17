@@ -214,23 +214,44 @@ _cat_general() {
             nvme-cli)
                 if ! lsblk -d -o TRAN 2>/dev/null | grep -q "^nvme$"; then
                     echo "No NVMe controller detected. Skipping."
-                    break
+                    continue
                 fi
                 if ! is_installed "nvme-cli"; then
                     _run_cmd "nvme-cli" "sudo apt install -y nvme-cli" "Installing nvme-cli..."
                 fi
-                local nvme_dev
-                nvme_dev=$(lsblk -d -o NAME,TRAN 2>/dev/null | awk '/nvme/ {print $1; exit}')
-                if [ -n "$nvme_dev" ] && [ -e "/dev/${nvme_dev}" ]; then
-                    if _confirm "NVMe Health" "Run smart-log on /dev/${nvme_dev}?"; then
+                local nvme_devs=()
+                while read -r dev; do
+                    nvme_devs+=("$dev")
+                done < <(lsblk -d -o NAME,TRAN 2>/dev/null | awk '$2 == "nvme" {print $1}')
+                if [ ${#nvme_devs[@]} -eq 0 ]; then
+                    echo "No NVMe block devices found for health check."
+                    continue
+                fi
+                local dev_list=""
+                local dev
+                for dev in "${nvme_devs[@]}"; do
+                    [ -n "$dev_list" ] && dev_list+=", "
+                    dev_list+="/dev/${dev}"
+                done
+                if _confirm "NVMe Health" "Run smart-log on ${#nvme_devs[@]} NVMe device(s): ${dev_list}?"; then
+                    echo ""
+                    for dev in "${nvme_devs[@]}"; do
+                        local cw="" temp="" pu=""
+                        while IFS= read -r line; do
+                            case "$line" in
+                                *critical_warning*) cw="${line##*: }" ;;
+                                *temperature*)      temp="${line##*: }" ;;
+                                *percentage_used*)  pu="${line##*: }" ;;
+                            esac
+                        done < <(sudo nvme smart-log "/dev/${dev}" 2>/dev/null || true)
+                        echo -e "${YELLOW}━━━ /dev/${dev} ━━━${NC}"
+                        echo -e "  ${GREEN}Critical Warning:${NC}  ${cw:-N/A}"
+                        echo -e "  ${GREEN}Temperature:${NC}      ${temp:-N/A}"
+                        echo -e "  ${GREEN}Percentage Used:${NC}   ${pu:-N/A}"
                         echo ""
-                        sudo nvme smart-log "/dev/${nvme_dev}"
-                        echo ""
-                        echo "Press [ENTER] to continue..."
-                        read -r
-                    fi
-                else
-                    echo "No NVMe device found for health check."
+                    done
+                    echo "Press [ENTER] to continue..."
+                    read -r
                 fi
                 ;;
             *)

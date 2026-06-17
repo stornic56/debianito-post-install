@@ -273,6 +273,15 @@ configure_repos() {
         return 1
     fi
 
+    # ── Informational banner ──
+    _msg "Repositories" \
+"This section will automatically enable the 'contrib' and 'non-free'\n\
+branches in your official Debian repositories. (The 'non-free-firmware'\n\
+branch is already enabled by default in Debian 12 and 13.)\n\n\
+This is CRUCIAL for obtaining proprietary software packages and\n\
+essential hardware drivers, including NVIDIA graphics drivers,\n\
+Wi-Fi firmware, and CPU microcode." 14 70
+
     # Detect current state
     local current_format
     current_format=$(detect_repo_format)
@@ -288,12 +297,19 @@ configure_repos() {
     echo "Current format: ${current_format:-none}"
     echo "Backports: $bp_status (location: $bp_location)"
 
-    # Choose format (only Trixie gets the choice)
+    # ── Format selection dialog (only Trixie gets the choice) ──
     local use_deb822=false
     if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-        local default_text="no"
-        [ "$current_format" = "deb822" ] && default_text="yes"
-        if whiptail --title "Repository Format" --defaultno --yesno "Use deb822 format (modern .sources)?" 8 60; then
+        if whiptail --title "Repository Format" --defaultno --yesno \
+"Do you want to migrate your repositories to the new
+DEB822 (.sources) format?
+
+DEB822 is the modern, structured Debian standard. It won't
+harm your system, and the script will handle the transition
+safely if you accept.
+
+NOTE: 'NO' (default) is recommended to maintain the classic
+linear format as it comes pre-configured in Debian 13 (Trixie)." 14 70; then
             use_deb822=true
         fi
     elif [ "$current_format" = "deb822" ]; then
@@ -302,7 +318,13 @@ configure_repos() {
 
     # Choose backports
     local enable_backports=false
-    if _confirm "Backports" "Enable backports repository?\n\nProvides newer kernel, drivers, Mesa."; then
+    if _confirm "Backports" "Do you want to enable the official Debian Backports repository?\n\n\
+Backports provides newer, selectively updated packages from the\n\
+next Debian testing branch, recompiled to run stably on your\n\
+current system.\n\n\
+This is HIGHLY RECOMMENDED if you have modern hardware, as it\n\
+delivers newer Linux Kernels, updated display drivers, and modern\n\
+Mesa versions without compromising overall system stability." 15 70; then
         enable_backports=true
     fi
 

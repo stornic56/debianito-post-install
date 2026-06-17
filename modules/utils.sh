@@ -16,6 +16,8 @@ HAS_NVIDIA=false
 HAS_AMD=false
 HAS_INTEL=false
 KERNEL_VERSION=""
+DISPLAY_SERVER="unknown"
+STORAGE_SUMMARY=""
 WIFI_CHIPSET=""
 
 # --------------------------
@@ -252,6 +254,17 @@ WIFI_CHIPSET=""
 WIFI_DESC=""
 ETH_DESC=""
 
+declare -a ETH_NAMES=()
+declare -a ETH_DESCS=()
+declare -a ETH_STATES=()
+declare -a ETH_IPS=()
+
+declare -a WIFI_NAMES=()
+declare -a WIFI_DESCS=()
+declare -a WIFI_STATES=()
+declare -a WIFI_IPS=()
+declare -a WIFI_SSIDS=()
+
 detect_network() {
     local eth_line
     eth_line=$(lspci -nn | grep -i 'Ethernet controller' | head -n1) || true
@@ -265,6 +278,91 @@ detect_network() {
         WIFI_CHIPSET="$wifi_line"
         WIFI_DESC=$(echo "$wifi_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
     fi
+
+    # ── Safeguard: if ip is not installed, skip runtime parsing ──
+    if ! command -v ip &>/dev/null; then
+        return
+    fi
+
+    local iface state ip4 ssid
+
+    while IFS= read -r line; do
+        iface=$(echo "$line" | awk -F': ' '{print $2}' | sed 's/@.*//')
+        state=$(echo "$line" | awk '{print $9}')
+        case "$iface" in
+            eth*|enp*|ens*|enx*|eno*)
+                ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+                ETH_NAMES+=("$iface")
+                ETH_STATES+=("$state")
+                ETH_IPS+=("${ip4:-}")
+                ETH_DESCS+=("${ETH_DESC:-}")
+                ;;
+            wl*|wlp*|wlo*)
+                ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+                ssid=""
+                [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)
+                WIFI_NAMES+=("$iface")
+                WIFI_STATES+=("$state")
+                WIFI_IPS+=("${ip4:-}")
+                WIFI_SSIDS+=("${ssid:-}")
+                WIFI_DESCS+=("${WIFI_DESC:-}")
+                ;;
+        esac
+    done < <(ip -o link show 2>/dev/null)
+}
+
+# ---------------------------------------
+# Display Server detection (Wayland / X11 / tty)
+# ---------------------------------------
+detect_displayserver() {
+    local st="${XDG_SESSION_TYPE:-}"
+    case "$st" in
+        wayland) DISPLAY_SERVER="Wayland" ;;
+        x11)     DISPLAY_SERVER="X11" ;;
+        tty)     DISPLAY_SERVER="none (tty)" ;;
+        *)
+            if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+                DISPLAY_SERVER="Wayland"
+            elif [ -n "${DISPLAY:-}" ]; then
+                DISPLAY_SERVER="X11"
+            else
+                DISPLAY_SERVER="unknown"
+            fi
+            ;;
+    esac
+}
+
+# ---------------------------------------
+# Storage summary via lsblk (NVMe / SSD / HDD)
+# ---------------------------------------
+detect_storage() {
+    local parts=()
+    local name size rota type
+
+    while read -r name size rota; do
+        [ "$name" = "NAME" ] && continue
+        if echo "$name" | grep -q "nvme"; then
+            type="NVMe"
+        elif [ "$rota" = "1" ]; then
+            type="HDD"
+        else
+            type="SSD"
+        fi
+        parts+=("${size} ${type}")
+    done < <(lsblk -d -o NAME,SIZE,ROTA 2>/dev/null || true)
+
+    if [ ${#parts[@]} -eq 0 ]; then
+        STORAGE_SUMMARY="No disks detected"
+        return
+    fi
+
+    local result=""
+    local p
+    for p in "${parts[@]}"; do
+        [ -n "$result" ] && result+=" + "
+        result+="$p"
+    done
+    STORAGE_SUMMARY="$result"
 }
 
 # ---------------------------------------
