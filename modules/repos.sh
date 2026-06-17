@@ -275,11 +275,11 @@ configure_repos() {
 
     # ── Informational banner ──
     _msg "Repositories" \
-"This section will automatically enable the 'contrib' and 'non-free'\n\
-branches in your official Debian repositories. (The 'non-free-firmware'\n\
-branch is already enabled by default in Debian 12 and 13.)\n\n\
+"This section will automatically enable the 'contrib' and \n\
+'non-free' branches in your official Debian repositories. \n\
+(The 'non-free-firmware' branch is already enabled by default in Debian 12 and 13.)\n\n\
 This is CRUCIAL for obtaining proprietary software packages and\n\
-essential hardware drivers, including NVIDIA graphics drivers,\n\
+essential hardware drivers, including graphics drivers,\n\
 Wi-Fi firmware, and CPU microcode." 14 70
 
     # Detect current state
@@ -309,7 +309,7 @@ harm your system, and the script will handle the transition
 safely if you accept.
 
 NOTE: 'NO' (default) is recommended to maintain the classic
-linear format as it comes pre-configured in Debian 13 (Trixie)." 14 70; then
+linear format as it comes pre-configured in Debian 13 (Trixie)." 16 70; then
             use_deb822=true
         fi
     elif [ "$current_format" = "deb822" ]; then
@@ -324,7 +324,7 @@ next Debian testing branch, recompiled to run stably on your\n\
 current system.\n\n\
 This is HIGHLY RECOMMENDED if you have modern hardware, as it\n\
 delivers newer Linux Kernels, updated display drivers, and modern\n\
-Mesa versions without compromising overall system stability." 15 70; then
+Mesa versions without compromising overall system stability." 16 70; then
         enable_backports=true
     fi
 
