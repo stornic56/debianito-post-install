@@ -10,23 +10,6 @@ source "${_GPU_DIR}/nvidia.sh"
 NVIDIA_DRIVER_MODE=""
 
 install_gpu_drivers() {
-    local info="This section installs the latest Mesa graphics stack\n"
-    info+="from Debian backports (or stable), plus GPU firmware\n"
-    info+="and monitoring tools tailored to your hardware.\n\n"
-    info+="Components:\n"
-    info+="  Mesa (OpenGL / Vulkan / VA-API)\n"
-    if [ "$GPU_TYPE" != "unknown" ]; then
-        info+="  GPU firmware\n"
-    fi
-    info+="  Monitoring tools (nvtop, vainfo, ...)"
-
-    _msg "Graphics Stack" "$info" 16 70
-
-    if ! _confirm "Graphics Stack" "Proceed with the graphics stack setup?"; then
-        echo "Skipping Graphics Stack."
-        return
-    fi
-
     # ── Unknown GPU / VM block ──
     if [ "$GPU_TYPE" = "unknown" ] || [ -z "$GPU_TYPE" ]; then
         local mesa_pkgs=(mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl-mesa0 mesa-va-drivers)
@@ -68,7 +51,9 @@ install_gpu_drivers() {
     fi
 
     # ── Detectable GPU: build plan ──
-    local plan=""
+    local plan="The script has automatically detected your graphics hardware\n"
+    plan+="and prepared a personalized installation plan.\n\n"
+    plan+="Detected GPUs:\n"
     local gpu_count=0
     while IFS= read -r gpu_line; do
         gpu_count=$((gpu_count + 1))
@@ -76,7 +61,7 @@ install_gpu_drivers() {
         desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
         plan+="  GPU ${gpu_count}:  ${desc}\n"
     done < <(lspci -nn | grep -E "VGA|3D" || true)
-    plan+="\nComponents:\n"
+    plan+="\nPlanned components:\n"
     if $HAS_INTEL; then
         local _gen; _gen=$(get_intel_generation)
         local _va;  [ "$_gen" = "gen7-" ] && _va="i965-va-driver-shaders" || _va="intel-media-va-driver-non-free"
@@ -86,13 +71,13 @@ install_gpu_drivers() {
         plan+="  [+] AMD firmware (firmware-amd-graphics)\n"
     fi
     if $HAS_NVIDIA; then
-        plan+="  [+] NVIDIA driver\n"
+        plan+="  [+] NVIDIA driver (proprietary)\n"
     fi
     plan+="  [+] Mesa (version selected in next step)\n"
 
     _msg "Graphics Stack — Plan" "$plan" 16 70
 
-    if ! _confirm "Graphics Stack" "Install the components shown above?"; then
+    if ! _confirm "Graphics Stack" "Install the planned components?"; then
         echo "Skipping Graphics Stack."
         return
     fi

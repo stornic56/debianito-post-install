@@ -49,6 +49,7 @@ Instalar?"; then
             "Installing firmware-linux-nonfree..."
         echo -e "${GREEN}Firmware installed.${NC}"
     fi
+    type _handle_wireless &>/dev/null && _handle_wireless
 }
 
 # ======================================================================
