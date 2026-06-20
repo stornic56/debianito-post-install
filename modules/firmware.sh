@@ -3,6 +3,8 @@
 # ── Global arrays ──
 PCI_NET_DEVS=()
 USB_WIFI_DEVS=()
+PCI_BT_DEVS=()
+USB_BT_DEVS=()
 _DETECTED_FW_PKGS=()
 _FW_PLAN_HW_LINES=()
 _FW_PLAN_PKG_LINES=()
@@ -24,6 +26,20 @@ _detect_all_network_devices() {
         fi
     done < <(lsusb 2>/dev/null || true)
 
+    PCI_BT_DEVS=()
+    while IFS= read -r line; do
+        PCI_BT_DEVS+=("$line")
+    done < <(lspci -nn 2>/dev/null | grep -i 'Bluetooth controller' || true)
+
+    USB_BT_DEVS=()
+    while IFS= read -r line; do
+        if echo "$line" | grep -qi 'bluetooth'; then
+            if ! echo "$line" | grep -qiE 'wireless|wifi|802\.11|wlan'; then
+                USB_BT_DEVS+=("$line")
+            fi
+        fi
+    done < <(lsusb 2>/dev/null || true)
+
     _FW_PLAN_HW_LINES=()
     for dev in "${PCI_NET_DEVS[@]}"; do
         local desc dev_type
@@ -39,7 +55,17 @@ _detect_all_network_devices() {
         local desc
         desc=$(echo "$dev" | sed 's/^.*ID //')
         _FW_PLAN_HW_LINES+=("  \xe2\x97\x8f ${desc} (USB)")
+    done
 
+    for dev in "${PCI_BT_DEVS[@]}"; do
+        local desc
+        desc=$(echo "$dev" | sed -E 's/^[^ ]+ [^:]+: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev.*\)//')
+        _FW_PLAN_HW_LINES+=("  \xe2\x97\x8f ${desc} (Bluetooth PCI)")
+    done
+    for dev in "${USB_BT_DEVS[@]}"; do
+        local desc
+        desc=$(echo "$dev" | sed 's/^.*ID //')
+        _FW_PLAN_HW_LINES+=("  \xe2\x97\x8f ${desc} (Bluetooth USB)")
     done
 }
 
@@ -144,10 +170,42 @@ _build_firmware_plan() {
         plan+="${line}\n"
     done
 
+    local has_bt=false
+    [ ${#PCI_BT_DEVS[@]} -gt 0 ] && has_bt=true
+    [ ${#USB_BT_DEVS[@]} -gt 0 ] && has_bt=true
+    if ! $has_bt; then
+        for dev in "${USB_WIFI_DEVS[@]}"; do
+            if echo "$dev" | grep -qi 'bluetooth'; then
+                has_bt=true; break
+            fi
+        done
+    fi
+
+    plan+="\nBluetooth:\n"
+    if $has_bt; then
+        if is_installed bluez; then
+            plan+="  [+] bluez (already installed)\n"
+        else
+            plan+="  [+] bluez + bluez-utils + bluez-obexd (base stack)\n"
+        fi
+        case "${DESKTOP_ENV:-other}" in
+            kde)   plan+="  [+] bluedevil (KDE applet)\n"
+                   if [ "${AUDIO_SERVER:-}" = "pipewire" ]; then
+                       plan+="  → pipewire-pulse + wireplumber (if missing)\n"
+                   fi
+                   ;;
+            gnome) plan+="  (already in gnome-control-center)\n" ;;
+            *)     plan+="  [+] blueman (GTK Bluetooth manager)\n" ;;
+        esac
+        plan+="  → Bluetooth service will be enabled\n"
+    else
+        plan+="  (no Bluetooth hardware detected)\n"
+    fi
+
     plan+="\nInstallation order:\n"
     plan+="  1. Base firmware (firmware-linux-nonfree)\n"
     plan+="  2. Network firmware (realtek, iwlwifi, ...)\n"
-    plan+="  3. Broadcom wireless (if detected)\n"
+    plan+="  3. Broadcom / Bluetooth firmware\n"
 
     echo -e "$plan"
 }
@@ -303,6 +361,9 @@ main menu to install proprietary firmwares." 10 65
     # 6. Broadcom wireless handler
     _handle_wireless
 
-    # 7. Summary
+    # 7. Bluetooth stack
+    _install_bluetooth_stack
+
+    # 8. Summary
     echo -e "${GREEN}Network & firmware setup complete.${NC}"
 }

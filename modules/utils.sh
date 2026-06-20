@@ -19,6 +19,8 @@ KERNEL_VERSION=""
 DISPLAY_SERVER="unknown"
 STORAGE_SUMMARY=""
 WIFI_CHIPSET=""
+DESKTOP_ENV=""
+AUDIO_SERVER=""
 
 # --------------------------
 # Pre-flight checks
@@ -47,11 +49,11 @@ check_system_time() {
     local year
     year=$(date +%Y)
     if [ "$year" -lt 2026 ]; then
-        local msg="Se ha detectado que la fecha/hora de su sistema está desconfigurada\n"
-        msg+="($(date '+%Y-%m-%d %H:%M')), lo que impedirá que los repositorios\n"
-        msg+="de Debian funcionen correctamente.\n\n"
-        msg+="¿Desea que el script intente sincronizar la hora automáticamente\n"
-        msg+="mediante la red (NTP) y configurar timedatectl?"
+        local msg="System date/time appears to be incorrect\n"
+        msg+="($(date '+%Y-%m-%d %H:%M')). This will prevent Debian\n"
+        msg+="repositories from working properly.\n\n"
+        msg+="Attempt automatic NTP synchronization?\n"
+        msg+="(requires network access and timedatectl)"
         if _confirm "System Date" "$msg"; then
             sync_system_time
             local new_year
@@ -363,6 +365,31 @@ detect_storage() {
         result+="$p"
     done
     STORAGE_SUMMARY="$result"
+}
+
+# ---------------------------------------
+# Desktop environment detection
+# ---------------------------------------
+detect_desktop_environment() {
+    case "${XDG_CURRENT_DESKTOP:-}" in
+        *GNOME*) DESKTOP_ENV="gnome" ;;
+        *KDE*)   DESKTOP_ENV="kde" ;;
+        *XFCE*)  DESKTOP_ENV="xfce" ;;
+        *)       DESKTOP_ENV="other" ;;
+    esac
+}
+
+# ---------------------------------------
+# Audio server detection (PipeWire / PulseAudio)
+# ---------------------------------------
+detect_audio_server() {
+    if command -v pw-cli &>/dev/null && pw-cli info &>/dev/null 2>&1; then
+        AUDIO_SERVER="pipewire"
+    elif command -v pactl &>/dev/null; then
+        AUDIO_SERVER="pulseaudio"
+    else
+        AUDIO_SERVER="none"
+    fi
 }
 
 # ---------------------------------------

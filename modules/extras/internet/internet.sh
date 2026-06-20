@@ -1,6 +1,78 @@
 #!/usr/bin/env bash
-# internet.sh — Browsers, email, VPN (was _cat_browsers, now includes riseup-vpn)
+# internet.sh — Browsers, email, VPN
+# extrepo-powered: mozilla, floorp, palemoon, librewolf, tailscale, mullvad, protonvpn
 
+# ── Helpers extrepo ──
+_ensure_extrepo() {
+    if ! command -v extrepo &>/dev/null; then
+        _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..."
+    fi
+}
+
+_enable_mozilla_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_mozilla.sources ]; then
+        _ensure_extrepo
+        _run_cmd "Mozilla" "sudo extrepo enable mozilla" "Enabling Mozilla repository..."
+    fi
+    if [ ! -f /etc/apt/preferences.d/mozilla ]; then
+        sudo tee /etc/apt/preferences.d/mozilla > /dev/null << 'EOF'
+Package: *
+Pin: origin packages.mozilla.org
+Pin-Priority: 1000
+EOF
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+_enable_floorp_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_floorp.sources ]; then
+        _ensure_extrepo
+        _run_cmd "Floorp" "sudo extrepo enable floorp" "Enabling Floorp repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+_enable_palemoon_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_palemoon.sources ]; then
+        _ensure_extrepo
+        _run_cmd "Pale Moon" "sudo extrepo enable palemoon" "Enabling Pale Moon repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+_enable_librewolf_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_librewolf.sources ]; then
+        _ensure_extrepo
+        _run_cmd "LibreWolf" "sudo extrepo enable librewolf" "Enabling LibreWolf repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+_enable_tailscale_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_tailscale.sources ]; then
+        _ensure_extrepo
+        _run_cmd "Tailscale" "sudo extrepo enable tailscale" "Enabling Tailscale repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+_enable_mullvad_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_mullvad.sources ]; then
+        _ensure_extrepo
+        _run_cmd "Mullvad" "sudo extrepo enable mullvad" "Enabling Mullvad repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+_enable_protonvpn_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_protonvpn.sources ]; then
+        _ensure_extrepo
+        _run_cmd "ProtonVPN" "sudo extrepo enable protonvpn" "Enabling ProtonVPN repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+# ── Categories ──
 _cat_internet() {
     local headless=false
     _is_headless && headless=true
@@ -16,12 +88,17 @@ _cat_internet() {
     local floorp_state;       floorp_state=$(_state "floorp")
     local konqueror_state;    konqueror_state=$(_state "konqueror")
     local librewolf_state;    librewolf_state=$(_state "librewolf")
+    local palemoon_state;     palemoon_state=$(_state "palemoon")
     local privacybrowser_state; privacybrowser_state=$(_state "privacybrowser")
     local qutebrowser_state;  qutebrowser_state=$(_state "qutebrowser")
     local riseupvpn_state;    riseupvpn_state=$(_state "riseup-vpn")
     local thunderbird_state;  thunderbird_state=$(_state "thunderbird")
     local torbrowser_state;   torbrowser_state=$(_state "torbrowser-launcher")
     local w3m_state;          w3m_state=$(_state "w3m")
+    local tailscale_state;    tailscale_state=$(_state "tailscale")
+    local mullvad_state;      mullvad_state=$(_state "mullvad-vpn")
+    local mullvadbrowser_state; mullvadbrowser_state=$(_state "mullvad-browser")
+    local protonvpn_state;    protonvpn_state=$(_state "protonvpn")
 
     local choices
     choices=$(whiptail --title "Internet" --checklist \
@@ -32,15 +109,20 @@ _cat_internet() {
         "epiphany-browser"    "GNOME web browser$(_inst epiphany-browser)"             "$epiphany_state" \
         "falkon"              "KDE web browser (QtWebEngine)$(_inst falkon)"           "$falkon_state" \
         "firefox"             "Firefox from Mozilla (replaces ESR)"                    "$firefox_state" \
-        "floorp"              "Firefox-based browser (external repo)"                  "$floorp_state" \
+        "floorp"              "Firefox-based browser (extrepo)$(_inst floorp)"         "$floorp_state" \
         "konqueror"           "KDE file manager / web browser$(_inst konqueror)"       "$konqueror_state" \
-        "librewolf"           "Privacy-focused Firefox fork$(_inst librewolf)"         "$librewolf_state" \
+        "librewolf"           "Privacy-focused Firefox fork (extrepo)$(_inst librewolf)" "$librewolf_state" \
+        "palemoon"            "Classic Firefox-derived browser (extrepo)"              "$palemoon_state" \
         "privacybrowser"      "Privacy-focused web browser$(_inst privacybrowser)"     "$privacybrowser_state" \
         "qutebrowser"         "Keyboard-driven browser (Qt)$(_inst qutebrowser)"       "$qutebrowser_state" \
-        "riseup-vpn"          "Riseup VPN client$(_inst riseup-vpn)"                    "$riseupvpn_state" \
+        "riseup-vpn"          "Riseup VPN client$(_inst riseup-vpn)"                   "$riseupvpn_state" \
         "thunderbird"         "Email client$(_inst thunderbird)"                       "$thunderbird_state" \
         "torbrowser-launcher" "Tor Browser launcher$(_inst torbrowser-launcher)"       "$torbrowser_state" \
         "w3m"                 "Text-mode browser + deps (w3m-img)$(_inst w3m)"         "$w3m_state" \
+        "tailscale"           "Zero-config VPN & mesh networking$(_inst tailscale)"    "$tailscale_state" \
+        "mullvad-vpn"         "Mullvad VPN client (WireGuard)$(_inst mullvad-vpn)"     "$mullvad_state" \
+        "mullvad-browser"     "Mullvad privacy browser$(_inst mullvad-browser)"        "$mullvadbrowser_state" \
+        "protonvpn"           "ProtonVPN client$(_inst protonvpn)"                     "$protonvpn_state" \
         3>&1 1>&2 2>&3)
     clear
 
@@ -54,38 +136,39 @@ _cat_internet() {
                 install_firefox_mozilla
                 ;;
             floorp)
-                if ! is_installed "floorp"; then
-                    echo "Setting up Floorp repository..."
-                    ! is_installed "curl" && _run_install curl
-                    ! is_installed "gpg" && _run_install gpg
-                    sudo install -d -m 0755 /etc/apt/keyrings
-                    curl -fsSL https://ppa.floorp.app/KEY.gpg | \
-                        sudo gpg --dearmor -o /usr/share/keyrings/Floorp.gpg
-                    sudo curl -sS --compressed -o /etc/apt/sources.list.d/Floorp.list \
-                        'https://ppa.floorp.app/Floorp.list'
-                    sudo tee /etc/apt/preferences.d/floorp > /dev/null << EOF
-Package: *
-Pin: origin ppa.floorp.app
-Pin-Priority: 1000
-EOF
-                    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
-                    _run_install floorp
-                    echo -e "${GREEN}Floorp installed.${NC}"
-                else
-                    echo "Floorp already installed."
-                fi
+                _enable_floorp_repo
+                _run_install floorp
+                echo -e "${GREEN}Floorp installed.${NC}"
                 ;;
             librewolf)
-                if ! is_installed "librewolf"; then
-                    echo "Installing LibreWolf..."
-                    install_backports_or_stable extrepo
-                    sudo extrepo enable librewolf 2>/dev/null || true
-                    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
-                    _run_install librewolf
-                    echo -e "${GREEN}LibreWolf installed.${NC}"
-                else
-                    echo "LibreWolf already installed."
-                fi
+                _enable_librewolf_repo
+                _run_install librewolf
+                echo -e "${GREEN}LibreWolf installed.${NC}"
+                ;;
+            palemoon)
+                _enable_palemoon_repo
+                _run_install palemoon
+                echo -e "${GREEN}Pale Moon installed.${NC}"
+                ;;
+            tailscale)
+                _enable_tailscale_repo
+                _run_install tailscale
+                echo -e "${GREEN}Tailscale installed.${NC}"
+                ;;
+            mullvad-vpn)
+                _enable_mullvad_repo
+                _run_install mullvad-vpn
+                echo -e "${GREEN}Mullvad VPN installed.${NC}"
+                ;;
+            mullvad-browser)
+                _enable_mullvad_repo
+                _run_install mullvad-browser
+                echo -e "${GREEN}Mullvad Browser installed.${NC}"
+                ;;
+            protonvpn)
+                _enable_protonvpn_repo
+                _run_install protonvpn
+                echo -e "${GREEN}ProtonVPN installed.${NC}"
                 ;;
             riseup-vpn)
                 install_backports_or_stable riseup-vpn
@@ -125,57 +208,17 @@ install_firefox_mozilla() {
         return
     fi
 
-    echo "Setting up Mozilla APT repository for Firefox..."
-
     if is_installed "firefox-esr"; then
         if _confirm "Firefox ESR" "Firefox ESR is installed.\nRemove it before installing Mozilla Firefox?"; then
             echo "Removing Firefox ESR..."
             sudo apt remove -y firefox-esr
         else
             echo "Keeping Firefox ESR."
+            return
         fi
     fi
 
-    ! is_installed "wget" && _run_install wget
-    ! is_installed "gpg" && _run_install gpg
-
-    sudo install -d -m 0755 /etc/apt/keyrings
-
-    wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | \
-        sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-
-    local fp
-    fp=$(gpg -n -q --import --import-options import-show \
-        /etc/apt/keyrings/packages.mozilla.org.asc 2>/dev/null | \
-        awk '/pub/{getline; gsub(/^ +| +$/,""); print}')
-    if [ "$fp" != "35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3" ]; then
-        echo -e "${YELLOW}Warning: Mozilla key fingerprint does not match expected value.${NC}"
-    fi
-
-    local use_deb822=false
-    [ -f /etc/apt/sources.list.d/debian.sources ] && use_deb822=true
-
-    if $use_deb822; then
-        sudo tee /etc/apt/sources.list.d/mozilla.sources > /dev/null << EOF
-Types: deb
-URIs: https://packages.mozilla.org/apt
-Suites: mozilla
-Components: main
-Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc
-EOF
-    else
-        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | \
-            sudo tee /etc/apt/sources.list.d/mozilla.list > /dev/null
-    fi
-
-    sudo tee /etc/apt/preferences.d/mozilla > /dev/null << EOF
-Package: *
-Pin: origin packages.mozilla.org
-Pin-Priority: 1000
-EOF
-
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _enable_mozilla_repo
     _run_install firefox
-
     echo -e "${GREEN}Firefox (Mozilla) installed.${NC}"
 }

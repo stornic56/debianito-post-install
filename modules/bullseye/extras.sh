@@ -5,7 +5,7 @@
 # ── Essential Pack (Bullseye) ──
 _quick_install_bullseye() {
     _msg "Essential Pack — Bullseye" \
-        "Instalar programas básicos:\n\n\
+        "Install basic programs:\n\n\
   - Compression (zip, unrar, p7zip-full)\n\
   - System tools (htop, inxi, neofetch, bpytop)\n\
   - VLC media player\n\

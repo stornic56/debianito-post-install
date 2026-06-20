@@ -39,9 +39,10 @@ install_extras() {
             "7" "Servers & Dev Tools" \
             "8" "Security & Networking" \
             "9" "Software Centers" \
-            "10" "System Tools" \
-            "11" "Fetch / System Info" \
-            "12" "Back to main menu" \
+            "10" "Office & Productivity" \
+            "11" "System Tools" \
+            "12" "Fetch / System Info" \
+            "13" "Back to main menu" \
             3>&1 1>&2 2>&3)
 
         [ -z "$cat_choice" ] && return
@@ -58,9 +59,10 @@ install_extras() {
             7)  _cat_dev ;;
             8)  _cat_security ;;
             9)  _cat_software_centers ;;
-            10) _cat_general ;;
-            11) _cat_fetch ;;
-            12) return ;;
+            10) _cat_office ;;
+            11) _cat_general ;;
+            12) _cat_fetch ;;
+            13) return ;;
         esac
         clear
     done

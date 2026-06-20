@@ -1,28 +1,16 @@
 #!/usr/bin/env bash
-# java.sh — Adoptium Temurin repository setup and Java version selectors
+# java.sh — Adoptium Temurin repository setup (extrepo) and Java version selectors
 # License GPL v3
 
-_ensure_adoptium_repo() {
-    [ -f /etc/apt/sources.list.d/adoptium.list ] && return 0
-
-    local deps=()
-    ! is_installed "wget"                && deps+=("wget")
-    ! is_installed "apt-transport-https" && deps+=("apt-transport-https")
-    ! is_installed "gpg"                 && deps+=("gpg")
-    [ ${#deps[@]} -gt 0 ] && _run_install_batch "${deps[@]}"
-
-    wget -qO - "https://packages.adoptium.net/artifactory/api/gpg/key/public" \
-        | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg 2>/dev/null
-
-    local codename
-    codename=$(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release)
-    echo "deb https://packages.adoptium.net/artifactory/deb ${codename} main" \
-        | sudo tee /etc/apt/sources.list.d/adoptium.list > /dev/null
-
-    sudo apt update \
-        -o Dir::Etc::sourcelist=/etc/apt/sources.list.d/adoptium.list \
-        -o Dir::Etc::sourceparts="-" \
-        2>/dev/null || true
+_enable_temurin_repo() {
+    if [ -f /etc/apt/sources.list.d/extrepo_temurin.sources ]; then
+        return 0
+    fi
+    if ! command -v extrepo &>/dev/null; then
+        _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..."
+    fi
+    _run_cmd "Temurin" "sudo extrepo enable temurin" "Enabling Adoptium Temurin repository..."
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
 }
 
 _install_gaming_java() {
@@ -34,7 +22,7 @@ _install_gaming_java() {
         "21" "Java 21 — For modern Minecraft >= 1.20.5 & 1.21+" \
         3>&1 1>&2 2>&3)
     [ -z "$ver" ] && { echo "No Java version selected."; return; }
-    _ensure_adoptium_repo
+    _enable_temurin_repo
     _run_install "temurin-${ver}-jre"
 }
 
@@ -47,7 +35,7 @@ _install_dev_java() {
         "25" "Java 25 LTS Development Kit" \
         3>&1 1>&2 2>&3)
     [ -z "$ver" ] && { echo "No JDK version selected."; return; }
-    _ensure_adoptium_repo
+    _enable_temurin_repo
     _run_install "temurin-${ver}-jdk"
 }
 
