@@ -67,6 +67,22 @@ is_nvidia_pascal() {
     echo false
 }
 
+is_nvidia_blackwell() {
+    local dev_id
+    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    [ -z "$dev_id" ] && { echo false; return; }
+
+    local dev_int
+    dev_int=$((16#${dev_id,,}))
+
+    # Blackwell (GB20x) rango bajo: 0x2900 – 0x29BF
+    if [ "$dev_int" -ge $((16#2900)) ] && [ "$dev_int" -le $((16#29BF)) ]; then echo true; return; fi
+    # Blackwell (GB20x) rango alto: 0x2B80 – 0x31FF
+    if [ "$dev_int" -ge $((16#2B80)) ] && [ "$dev_int" -le $((16#31FF)) ]; then echo true; return; fi
+
+    echo false
+}
+
 _install_mesa_backports() {
     if [ "$(is_backports_enabled)" != "true" ]; then
         install_mesa_stable

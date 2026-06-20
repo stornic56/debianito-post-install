@@ -35,7 +35,7 @@ _cat_programming() {
         "gedit"              "GNOME text editor$(_inst gedit)"                            "$gedit_state" \
         "geany"              "Lightweight IDE$(_inst geany)"                              "$geany_state" \
         "gnome-text-editor"  "GNOME modern text editor$(_inst gnome-text-editor)"       "$gte_state" \
-        "vscodium"           "VS Code open-source (external repo)$(_inst codium)"       "$codium_state" \
+        "vscodium"           "VS Code open-source (extrepo)$(_inst codium)"              "$codium_state" \
         3>&1 1>&2 2>&3)
     clear
 
@@ -65,41 +65,23 @@ _cat_programming() {
     echo -e "${GREEN}Programming applications installed.${NC}"
 }
 
+_enable_vscodium_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_vscodium.sources ]; then
+        if ! command -v extrepo &>/dev/null; then
+            _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..."
+        fi
+        _run_cmd "VSCodium" "sudo extrepo enable vscodium" "Enabling VSCodium repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
 install_vscodium() {
     if command -v codium &>/dev/null; then
         echo "VSCodium is already installed."
         return
     fi
 
-    echo "Setting up VSCodium repository..."
-
-    ! is_installed "wget" && _run_install wget
-    ! is_installed "gpg" && _run_install gpg
-
-    sudo install -d -m 0755 /usr/share/keyrings
-
-    wget -qO - https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg \
-        | gpg --dearmor \
-        | sudo dd of=/usr/share/keyrings/vscodium-archive-keyring.gpg 2>/dev/null
-
-    local use_deb822=false
-    [ -f /etc/apt/sources.list.d/debian.sources ] && use_deb822=true
-
-    if $use_deb822; then
-        sudo tee /etc/apt/sources.list.d/vscodium.sources > /dev/null << 'EOF'
-Types: deb
-URIs: https://download.vscodium.com/debs
-Suites: vscodium
-Components: main
-Architectures: amd64 arm64
-Signed-by: /usr/share/keyrings/vscodium-archive-keyring.gpg
-EOF
-    else
-        echo "deb [arch=amd64,arm64 signed-by=/usr/share/keyrings/vscodium-archive-keyring.gpg] https://download.vscodium.com/debs vscodium main" \
-            | sudo tee /etc/apt/sources.list.d/vscodium.list > /dev/null
-    fi
-
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _enable_vscodium_repo
     _run_install codium
 
     echo -e "${GREEN}VSCodium installed.${NC}"

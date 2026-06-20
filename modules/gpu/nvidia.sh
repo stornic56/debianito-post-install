@@ -13,6 +13,16 @@ install_nvidia_driver() {
     local is_kepler;        is_kepler=$(is_nvidia_kepler)
     local is_maxwell;       is_maxwell=$(is_nvidia_maxwell)
     local is_pascal;        is_pascal=$(is_nvidia_pascal)
+    local is_blackwell;     is_blackwell=$(is_nvidia_blackwell)
+
+    # ── Blackwell: v550 no soporta GB20x → CUDA repo v590 ──
+    if [ "$DEBIAN_CODENAME" = "trixie" ] && [ "$is_blackwell" = "true" ]; then
+        _msg "NVIDIA Blackwell" \
+            "Your GPU is NVIDIA Blackwell architecture.\n\nDebian 13's nvidia-driver (v550) does not\nsupport Blackwell GPUs.\n\n\
+The script will enable the official NVIDIA CUDA\nrepository and install the v590 production branch,\nwhich fully supports Blackwell (GB20x)." 14 65
+        _install_nvidia_cuda_repo
+        return
+    fi
 
     # ── Veto: Kepler en Trixie no tiene driver disponible ──
     if [ "$is_kepler" = "true" ] && [ "$DEBIAN_CODENAME" = "trixie" ]; then
@@ -49,6 +59,22 @@ install_nvidia_driver() {
 }
 
 # -------------------------------------------------------------------
+# Shared helper: enable NVIDIA CUDA repo via extrepo
+# -------------------------------------------------------------------
+_enable_cuda_repo() {
+    if [ ! -f /etc/apt/sources.list.d/extrepo_nvidia-cuda.sources ] && \
+       ! grep -qr 'developer.download.nvidia.com' /etc/apt/sources.list.d/ 2>/dev/null; then
+        if ! command -v extrepo &>/dev/null; then
+            _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..."
+        fi
+        _run_cmd "CUDA Repo" \
+            "sudo extrepo enable nvidia-cuda" \
+            "Enabling official NVIDIA CUDA repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+# -------------------------------------------------------------------
 # CASE A: Trixie + Backports Kernel → Official CUDA Repo (Pinned v590)
 # -------------------------------------------------------------------
 _install_nvidia_cuda_repo() {
@@ -74,20 +100,15 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 1: Download & install CUDA keyring
-    _run_cmd "CUDA Keyring" \
-        "wget -q https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb -O /tmp/cuda-keyring.deb && sudo dpkg -i /tmp/cuda-keyring.deb && rm -f /tmp/cuda-keyring.deb" \
-        "Downloading and installing official CUDA keyring..."
+    # Step 1: Enable CUDA repo via extrepo
+    _enable_cuda_repo
 
     # Step 2: Create APT pinning to lock v590
     _run_cmd "APT Pinning" \
         'printf "%s\n" "Package: *nvidia*" "Package: *cuda*" "Package: libcuda1" "Package: firmware-nvidia-gsp" "Pin: version 590.*" "Pin-Priority: 1001" | sudo tee /etc/apt/preferences.d/block-nvidia > /dev/null' \
         "Creating APT pinning to lock NVIDIA to v590 branch..."
 
-    # Step 3: Update package lists
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
-
-    # Step 4: Build version-locked package list
+    # Step 3: Build version-locked package list
     local pkgs=(
         "cuda-drivers=590.48.01-1"
         "libcuda1=590.48.01-1"
@@ -127,13 +148,26 @@ _install_nvidia_cuda_repo() {
     _run_cmd "NVIDIA CUDA" "sudo apt install -y ${pkgs[*]}" \
         "Installing NVIDIA Production Driver v590.48.01..."
 
-    # Step 5: Hold critical packages
+    # Step 4: Hold critical packages
     _run_cmd "Package Hold" \
         "sudo apt-mark hold cuda-drivers libcuda1 firmware-nvidia-gsp" \
         "Locking v590 packages to prevent accidental upgrades..."
 
     NVIDIA_DRIVER_MODE="cuda-repo"
     echo -e "${GREEN}NVIDIA Production Driver v590 installed from CUDA repo. Reboot required.${NC}"
+
+    echo ""
+    echo "──────────────────────────────────────────────"
+    echo "Verifying DKMS module compilation:"
+    if command -v dkms &>/dev/null; then
+        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
+    else
+        echo "(dkms not installed)"
+    fi
+    echo ""
+    echo "If the line ends with 'installed' → module is OK."
+    echo "Otherwise check: dmesg | grep nvidia"
+    echo "──────────────────────────────────────────────"
 }
 
 # -------------------------------------------------------------------
@@ -187,6 +221,19 @@ _install_nvidia_bookworm_bpo() {
 
     NVIDIA_DRIVER_MODE="backports"
     echo -e "${GREEN}NVIDIA driver installed from backports. Reboot required.${NC}"
+
+    echo ""
+    echo "──────────────────────────────────────────────"
+    echo "Verifying DKMS module compilation:"
+    if command -v dkms &>/dev/null; then
+        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
+    else
+        echo "(dkms not installed)"
+    fi
+    echo ""
+    echo "If the line ends with 'installed' → module is OK."
+    echo "Otherwise check: dmesg | grep nvidia"
+    echo "──────────────────────────────────────────────"
 }
 
 # -------------------------------------------------------------------
@@ -241,6 +288,19 @@ _install_nvidia_bookworm_kepler() {
 
     NVIDIA_DRIVER_MODE="${NVIDIA_DRIVER_MODE:-stable}"
     echo -e "${GREEN}Kepler driver (${nv_pkg}) installed. Reboot required.${NC}"
+
+    echo ""
+    echo "──────────────────────────────────────────────"
+    echo "Verifying DKMS module compilation:"
+    if command -v dkms &>/dev/null; then
+        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
+    else
+        echo "(dkms not installed)"
+    fi
+    echo ""
+    echo "If the line ends with 'installed' → module is OK."
+    echo "Otherwise check: dmesg | grep nvidia"
+    echo "──────────────────────────────────────────────"
 }
 
 # -------------------------------------------------------------------
@@ -327,4 +387,17 @@ _install_nvidia_standard() {
     fi
 
     echo -e "${GREEN}NVIDIA driver installed. Reboot required.${NC}"
+
+    echo ""
+    echo "──────────────────────────────────────────────"
+    echo "Verifying DKMS module compilation:"
+    if command -v dkms &>/dev/null; then
+        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
+    else
+        echo "(dkms not installed)"
+    fi
+    echo ""
+    echo "If the line ends with 'installed' → module is OK."
+    echo "Otherwise check: dmesg | grep nvidia"
+    echo "──────────────────────────────────────────────"
 }

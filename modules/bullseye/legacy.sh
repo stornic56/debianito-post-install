@@ -95,16 +95,29 @@ install_nvidia_bullseye() {
         local nv32_ver
         nv32_ver=$(apt-cache policy "$nv32_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
         if [ -n "$nv32_ver" ] && [ "$nv32_ver" != "(none)" ]; then
-            echo "Instalando compatibilidad 32-bit para ${nv_pkg}..."
+            echo "Installing 32-bit compatibility for ${nv_pkg}..."
             _run_cmd "NVIDIA 32-bit" "sudo apt install -y $nv32_pkg" \
-                "Instalando librerías NVIDIA 32-bit..."
+                "Installing NVIDIA 32-bit libraries..."
         else
-            echo "No hay paquete 32-bit disponible para ${nv_pkg} en Bullseye."
+            echo "No 32-bit compatibility package available for ${nv_pkg} on Bullseye."
         fi
     fi
 
     NVIDIA_DRIVER_MODE="stable"
     echo -e "${GREEN}Driver NVIDIA ${nv_pkg} instalado. Requiere reinicio.${NC}"
+
+    echo ""
+    echo "──────────────────────────────────────────────"
+    echo "Verifying DKMS module compilation:"
+    if command -v dkms &>/dev/null; then
+        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
+    else
+        echo "(dkms not installed)"
+    fi
+    echo ""
+    echo "If the line ends with 'installed' → module is OK."
+    echo "Otherwise check: dmesg | grep nvidia"
+    echo "──────────────────────────────────────────────"
 }
 
 # ---------------------------------------------------------------------------
