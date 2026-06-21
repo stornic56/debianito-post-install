@@ -50,11 +50,11 @@ After running the script:
 | **1** | [System Info](/docs/system_info.md) | Show detected OS, CPU, RAM, GPU and hardware details |
 | **2** | [User Privileges & Feedback](/docs/user_priv_feed.md) | Configure sudo group membership, enable passwordless sudo for frequent tasks, repair home directory ownership issues, and toggle visual password feedback (asterisks) in terminal |
 | **3** | [Configure Repositories](/docs/repos_config.md) | Setup official repos with non-free/contrib options, optional Backports support and Deb822/classic format injection.|
-| **4** | [Firmware & Wireless Drivers](firmware.md) | Install essential firmware for GPUs and wireless|
-| **5** | [Graphics Drivers & Mesa Stack](gpu.md) | Configure AMD/Intel/NVIDIA drivers and Mesa graphics stack + monitoring tools |
-| **6** | [Backports Kernel](kernel.md) | Install latest kernel from Debian backports|
-| **7** | [Gaming Setup and Performance](gaming.md)| Steam, Heroic Games Launcher, [RetroArch](retroarch.md) GameMode, MangoHud, OpenRGB, Java JRE (Temurin 8/17/21) |
-| **8** | [Install ZRAM](zram.md)| Configure compressed RAM for memory optimization|
+| **4** | [Firmware & Wireless Drivers](/docs/firmware.md) | Install essential firmware for GPUs and wireless|
+| **5** | [Graphics Drivers & Mesa Stack](/docs/gpu.md) | Configure AMD/Intel/NVIDIA drivers and Mesa graphics stack + monitoring tools |
+| **6** | [Backports Kernel](/docs/kernel.md) | Install latest kernel from Debian backports|
+| **7** | [Gaming Setup and Performance](/docs/gaming.md)| Steam, Heroic Games Launcher, [RetroArch](/docs/retroarch.md) GameMode, MangoHud, OpenRGB, Java JRE (Temurin 8/17/21) |
+| **8** | [Install ZRAM](/docs/zram.md)| Configure compressed RAM for memory optimization|
 | **9** | Install Programs and Software | Selection from several categories (Development, Themes, System, etc.) |
 | **10** | Exit | Return to terminal |
 
