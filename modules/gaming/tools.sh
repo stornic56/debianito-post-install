@@ -61,3 +61,30 @@ install_openrgb() {
     rm -f "${deb_path}"
     echo -e "${GREEN}OpenRGB installed. NOTE: You must reboot or log out/in for the 'i2c' group to take effect.${NC}"
 }
+
+install_retroarch() {
+    if is_installed "retroarch"; then
+        echo "RetroArch already installed."
+        return
+    fi
+
+    _run_cmd "RetroArch" "sudo apt install -y retroarch libretro-mgba libretro-snes9x libretro-nestopia libretro-gambatte" "Installing RetroArch and classic cores (GBA, SNES, NES, GB)..."
+
+    clear
+    echo "================================================================="
+    echo "  🎮  IMPORTANT RETROARCH NOTICE  🎮"
+    echo "================================================================="
+    echo "Good news! Nintendo (NES/SNES) and Game Boy (GB/GBA) cores"
+    echo "have been automatically installed and are ready to play!"
+    echo ""
+    echo "⚠️ However, due to Debian open-source guidelines:"
+    echo "   - Core auto-updates inside the app are disabled."
+    echo "   - Heavy/arcade cores or those requiring proprietary BIOS"
+    echo "     (like PlayStation or Arcade) must be handled manually."
+    echo ""
+    echo "👉 To learn how to unlock the internal Online Downloader:"
+    echo "   Please check our repository's documentation or visit:"
+    echo "   https://wiki.debian.org/RetroArch"
+    echo "================================================================="
+    read -p "Press ENTER to continue..."
+}

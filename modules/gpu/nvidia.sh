@@ -78,21 +78,17 @@ _enable_cuda_repo() {
 # CASE A: Trixie + Backports Kernel → Official CUDA Repo (Pinned v590)
 # -------------------------------------------------------------------
 _install_nvidia_cuda_repo() {
-    local i386_active=false
-    dpkg --print-foreign-architectures | grep -q i386 && i386_active=true
-
     local warn="WARNING: Official Debian NVIDIA driver (v550)\n"
     warn+="fails to compile on Trixie Backports Kernels.\n\n"
-    warn+="The script will configure the official NVIDIA CUDA\n"
-    warn+="repository and force-install the stable production\n"
-    warn+="branch v590.48.01 on your system.\n\n"
+    warn+="The script will enable the official NVIDIA CUDA\n"
+    warn+="repository and install the production branch v590\n"
+    warn+="using NVIDIA's unified driver pinning packages.\n\n"
     warn+="Source: Official NVIDIA CUDA Repo (Pinned v590.*)\n"
-    warn+="Driver: Production Branch 590.48.01 (Kernel 7.0+ Compliant)\n"
-    warn+="[+] Full 64-bit Core & Compute Stack (DKMS)\n"
-    if $i386_active; then
-        warn+="[+] 32-bit Gaming Multiarch Libraries\n"
-    fi
-    warn+="[+] APT Pinning + Package Hold will be applied\n\n"
+    warn+="Driver: Production Branch v590 (unified metapackage)\n"
+    warn+="[+] nvidia-driver (full 64-bit compute + graphics)\n"
+    warn+="[+] firmware-nvidia-gsp\n"
+    warn+="[+] nvidia-driver-pinning-590 (branch locking)\n"
+    warn+="[+] APT Pinning (version 590.*)\n\n"
     warn+="Do you want to proceed at your own risk?"
 
     if ! _confirm_custom "NVIDIA Driver — Trixie + Backports" "$warn" "Proceed" "Abort" 18 70; then
@@ -108,50 +104,10 @@ _install_nvidia_cuda_repo() {
         'printf "%s\n" "Package: *nvidia*" "Package: *cuda*" "Package: libcuda1" "Package: firmware-nvidia-gsp" "Pin: version 590.*" "Pin-Priority: 1001" | sudo tee /etc/apt/preferences.d/block-nvidia > /dev/null' \
         "Creating APT pinning to lock NVIDIA to v590 branch..."
 
-    # Step 3: Build version-locked package list
-    local pkgs=(
-        "cuda-drivers=590.48.01-1"
-        "libcuda1=590.48.01-1"
-        "nvidia-driver=590.48.01-1"
-        "nvidia-driver-libs=590.48.01-1"
-        "firmware-nvidia-gsp=590.48.01-1"
-        "libegl-nvidia0=590.48.01-1"
-        "libglx-nvidia0=590.48.01-1"
-        "libnvidia-eglcore=590.48.01-1"
-        "libnvidia-glcore=590.48.01-1"
-        "libnvidia-glvkspirv=590.48.01-1"
-        "libnvidia-ml1=590.48.01-1"
-        "nvidia-egl-icd=590.48.01-1"
-        "nvidia-vulkan-icd=590.48.01-1"
-        "libnvcuvid1=590.48.01-1"
-        "libnvidia-encode1=590.48.01-1"
-        "nvidia-kernel-dkms=590.48.01-1"
-        "nvidia-settings=590.48.01-1"
-        "nvidia-smi=590.48.01-1"
-    )
-
-    if $i386_active; then
-        pkgs+=(
-            "libcuda1:i386=590.48.01-1"
-            "nvidia-driver-libs:i386=590.48.01-1"
-            "libegl-nvidia0:i386=590.48.01-1"
-            "libglx-nvidia0:i386=590.48.01-1"
-            "libnvidia-eglcore:i386=590.48.01-1"
-            "libnvidia-glcore:i386=590.48.01-1"
-            "libnvidia-glvkspirv:i386=590.48.01-1"
-            "libnvidia-ml1:i386=590.48.01-1"
-            "nvidia-egl-icd:i386=590.48.01-1"
-            "nvidia-vulkan-icd:i386=590.48.01-1"
-        )
-    fi
-
-    _run_cmd "NVIDIA CUDA" "sudo apt install -y ${pkgs[*]}" \
-        "Installing NVIDIA Production Driver v590.48.01..."
-
-    # Step 4: Hold critical packages
-    _run_cmd "Package Hold" \
-        "sudo apt-mark hold cuda-drivers libcuda1 firmware-nvidia-gsp" \
-        "Locking v590 packages to prevent accidental upgrades..."
+    # Step 3: Install NVIDIA unified metapackages (driver pinning)
+    _run_cmd "NVIDIA CUDA" \
+        "sudo apt install -y nvidia-driver-pinning-590 nvidia-driver firmware-nvidia-gsp" \
+        "Installing NVIDIA v590 production driver via unified metapackages..."
 
     NVIDIA_DRIVER_MODE="cuda-repo"
     echo -e "${GREEN}NVIDIA Production Driver v590 installed from CUDA repo. Reboot required.${NC}"

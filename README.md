@@ -47,14 +47,14 @@ After running the script:
 
 | Option | Description | What it does |
 |--------|-------------|--------------|
-| **1** | System Info | Show detected OS, CPU, RAM, GPU and hardware details |
-| **2** | [User Privileges & Feedback](#user-privileges--feedback) | Configure sudo group membership, enable passwordless sudo for frequent tasks, repair home directory ownership issues, and toggle visual password feedback (asterisks) in terminal |
-| **3** | Configure Repositories | Setup official repos with non-free/contrib options, optional Backports support and Deb822/classic format injection.|
-| **4** | Firmware & Wireless Drivers | Install essential firmware for GPUs and wireless|
-| **5** | Graphics Drivers & Mesa Stack | Configure AMD/Intel/NVIDIA drivers and Mesa graphics stack + monitoring tools |
-| **6** | Backports Kernel | Install latest kernel from Debian backports|
-| **7** | Gaming Setup and Performance | Steam, Heroic Games Launcher, GameMode, MangoHud, OpenRGB, Java JRE (Temurin 8/17/21) |
-| **8** | Install ZRAM (Swap) | Configure compressed RAM for memory optimization|
+| **1** | [System Info](/docs/system_info.md) | Show detected OS, CPU, RAM, GPU and hardware details |
+| **2** | [User Privileges & Feedback](/docs/user_priv_feed.md) | Configure sudo group membership, enable passwordless sudo for frequent tasks, repair home directory ownership issues, and toggle visual password feedback (asterisks) in terminal |
+| **3** | [Configure Repositories](/docs/repos_config.md) | Setup official repos with non-free/contrib options, optional Backports support and Deb822/classic format injection.|
+| **4** | [Firmware & Wireless Drivers](firmware.md) | Install essential firmware for GPUs and wireless|
+| **5** | [Graphics Drivers & Mesa Stack](gpu.md) | Configure AMD/Intel/NVIDIA drivers and Mesa graphics stack + monitoring tools |
+| **6** | [Backports Kernel](kernel.md) | Install latest kernel from Debian backports|
+| **7** | [Gaming Setup and Performance](gaming.md)| Steam, Heroic Games Launcher, [RetroArch](retroarch.md) GameMode, MangoHud, OpenRGB, Java JRE (Temurin 8/17/21) |
+| **8** | [Install ZRAM](zram.md)| Configure compressed RAM for memory optimization|
 | **9** | Install Programs and Software | Selection from several categories (Development, Themes, System, etc.) |
 | **10** | Exit | Return to terminal |
 
@@ -80,25 +80,6 @@ The submenu offers the next categories:
 
 ---
 
-## User Privileges & Feedback
-
-Admin rights, passwordless commands, and file ownership fixes—optimized for Debian users.
-
-### 1. Sudo Group Membership
-If you just installed Debian and can’t install software or change system settings (you get "Permission denied"), this option adds your user to the sudo group. This gives you admin privileges so you can manage your system. Changes take effect after you log out and back in.
-
-### 2. Passwordless Sudo for Frequent Tasks
-Every time you run sudo apt install or sudo reboot, Linux asks for your password. This option lets you skip typing your password for common commands like installing/updating software (apt), restarting or shutting down (systemctl).
-- ⚠️ Security Note: While convenient, this reduces security if someone else uses your PC physically.
-
-### 3. Repair Home Directory Ownership
-Sometimes, when you use sudo incorrectly (e.g., installing games or apps), files get "stolen" by the system (root) instead of your user. This causes apps to fail (e.g., saving settings or game progress). This option fixes ownership so all your files and folders belong to you again.
-
-### 4. Sudo Password Feedback (Asterisks)
-By default, Debian’s terminal hides your password (no asterisks or feedback). This option adds visual feedback (e.g., ****) so you can see how many characters you’ve typed. Toggle it on/off as needed.
-
----
-
 ## File Structure
 
 | Directory/File | Description |
@@ -109,7 +90,18 @@ By default, Debian’s terminal hides your password (no asterisks or feedback). 
 
 ```bash
 ├── debianito.sh
+├── docs
+│   ├── firmware.md
+│   ├── gaming.md
+│   ├── gpu.md
+│   ├── kernel.md
+│   ├── repos_config.md
+│   ├── retroarch.md
+│   ├── system_info.md
+│   ├── user_priv_feed.md
+│   └── zram.md
 ├── modules
+│   ├── bluetooth.sh
 │   ├── bullseye
 │   │   ├── extras.sh
 │   │   ├── legacy.sh
@@ -130,6 +122,8 @@ By default, Debian’s terminal hides your password (no asterisks or feedback). 
 │   │   ├── internet
 │   │   │   └── internet.sh
 │   │   ├── java.sh
+│   │   ├── office
+│   │   │   └── office.sh
 │   │   ├── players
 │   │   │   └── players.sh
 │   │   ├── programming
@@ -167,6 +161,7 @@ By default, Debian’s terminal hides your password (no asterisks or feedback). 
 │   │   └── repo_detect.sh
 │   ├── repos.sh
 │   ├── sudo_config.sh
+│   ├── sysinfo.sh
 │   ├── utils.sh
 │   └── zram.sh
 └── README.md
