@@ -21,7 +21,7 @@ install_onlyoffice() {
 Repository: download.onlyoffice.com
 Version:    ${ver:-unknown}"; then
         _enable_onlyoffice_repo
-        _run_cmd "OnlyOffice" "sudo DEBIAN_FRONTEND=noninteractive apt install -y onlyoffice-desktopeditors" "Installing OnlyOffice..."
+        _run_cmd "OnlyOffice" "sudo DEBIAN_FRONTEND=noninteractive apt install -y onlyoffice-desktopeditors" "Installing OnlyOffice..." || echo -e "${RED}OnlyOffice servers are currently slow or down. Please try again later.${NC}"
         echo -e "${GREEN}OnlyOffice installed.${NC}"
     fi
 }

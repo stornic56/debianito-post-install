@@ -66,8 +66,22 @@ install_gaming() {
         if [ "$GPU_TYPE" = "nvidia" ]; then
             case "${NVIDIA_DRIVER_MODE:-stable}" in
                 cuda-repo)
-                    _msg "NVIDIA 32-bit" \
-                        "32-bit NVIDIA CUDA libraries already deployed.\n\nThe complete multiarch stack was installed\nwith the v590 driver from the official CUDA repo." 10 70
+                    local nv32_pkg="nvidia-driver-libs:i386"
+                    local nv32_ver
+                    nv32_ver=$(dpkg -l "$nv32_pkg" 2>/dev/null | awk '/^ii/ {print $3}')
+                    if [ -z "$nv32_ver" ] || ! echo "$nv32_ver" | grep -q "^590"; then
+                        local msg="Source: NVIDIA CUDA Repository (Pinned v590)\n"
+                        msg+="NVIDIA 32-bit Libraries (v590 branch)\n\n"
+                        msg+="[+] nvidia-driver-libs:i386"
+                        if _confirm "NVIDIA 32-bit" "$msg" 12 70; then
+                            _run_cmd "32-bit NVIDIA" \
+                                "sudo apt install -y ${nv32_pkg}" \
+                                "Installing 32-bit NVIDIA libraries from CUDA repo..."
+                        fi
+                    else
+                        _msg "NVIDIA 32-bit" \
+                            "32-bit NVIDIA CUDA libraries already deployed.\n\nv590 ${nv32_ver}" 10 70
+                    fi
                     ;;
                 backports)
                     local nv32_pkg="nvidia-driver-libs:i386"
@@ -128,10 +142,11 @@ install_gaming() {
         "gamemode" "Game performance optimization" ON \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "heroic"   "Heroic Launcher (Epic/GOG)" OFF \
-        "java-jre"     "Java Runtimes (8, 17, 21)" OFF \
+        "java"     "Java Runtimes (8, 17, 21)" OFF \
         "goverlay" "MangoHud config GUI" ON \
         "openrgb"  "OpenRGB (RGB lighting control)$(_inst openrgb)" OFF \
         "lutris"   "Game launcher/manager" OFF \
+        "retroarch" "RetroArch Emulator Frontend$(_inst retroarch)" OFF \
         3>&1 1>&2 2>&3)
 
     if [ -z "$choices" ]; then
@@ -159,7 +174,7 @@ install_gaming() {
                 fi
                 ;;
             heroic)   install_heroic ;;
-            java)     _install_gaming_java ;;
+            java)     install_minecraft_java ;;
             mangohud) install_mangohud ;;
             gamemode) install_gamemode ;;
             goverlay) install_goverlay ;;
@@ -171,6 +186,7 @@ install_gaming() {
                 install_openrgb
                 ;;
             lutris)   install_lutris ;;
+            retroarch)  install_retroarch ;;
             *)        _run_install "$pkg" ;;
         esac
     done

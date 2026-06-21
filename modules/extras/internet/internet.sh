@@ -32,12 +32,42 @@ _enable_floorp_repo() {
     _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
 }
 
-_enable_palemoon_repo() {
-    if [ ! -f /etc/apt/sources.list.d/extrepo_palemoon.sources ]; then
-        _ensure_extrepo
-        _run_cmd "Pale Moon" "sudo extrepo enable palemoon" "Enabling Pale Moon repository..."
+install_palemoon() {
+    if [ "$DEBIAN_VERSION" -lt 12 ] 2>/dev/null; then
+        _msg "Pale Moon" "Pale Moon is only available on\nDebian 12 (Bookworm) and 13 (Trixie).\n\nSkipping installation." 10 60
+        return 1
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+
+    local cpu_flags cpu_label REPO_PALEMOON
+    cpu_flags=$(grep -m1 '^flags' /proc/cpuinfo 2>/dev/null)
+
+    if echo "$cpu_flags" | grep -q 'avx2'; then
+        REPO_PALEMOON="palemoon_avx2_gtk3"
+        cpu_label="AVX2"
+    elif echo "$cpu_flags" | grep -q 'avx'; then
+        REPO_PALEMOON="palemoon_avx_gtk3"
+        cpu_label="AVX"
+    else
+        REPO_PALEMOON="palemoon_sse2_gtk3"
+        cpu_label="SSE2"
+    fi
+
+    _msg "Pale Moon" "CPU detected: ${cpu_label} support.\n\nEnabling optimized repository:\n  ${REPO_PALEMOON}" 10 60
+
+    if ls /etc/apt/sources.list.d/extrepo_palemoon_*.sources &>/dev/null; then
+        echo "Pale Moon repository already enabled."
+    else
+        _ensure_extrepo
+        _run_cmd "Pale Moon" "sudo extrepo enable ${REPO_PALEMOON}" "Enabling ${REPO_PALEMOON}..."
+        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    fi
+
+    if ! is_installed "palemoon"; then
+        _run_cmd "Pale Moon" "sudo apt install -y palemoon" "Installing Pale Moon..."
+        echo -e "${GREEN}Pale Moon installed.${NC}"
+    else
+        echo "Pale Moon already installed."
+    fi
 }
 
 _enable_librewolf_repo() {
@@ -64,12 +94,22 @@ _enable_mullvad_repo() {
     _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
 }
 
-_enable_protonvpn_repo() {
+install_protonvpn() {
     if [ ! -f /etc/apt/sources.list.d/extrepo_protonvpn.sources ]; then
         _ensure_extrepo
-        _run_cmd "ProtonVPN" "sudo extrepo enable protonvpn" "Enabling ProtonVPN repository..."
+        _run_cmd "ProtonVPN" "sudo extrepo enable protonvpn stable" "Enabling ProtonVPN repository (stable suite)..."
+        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    else
+        echo "ProtonVPN repository already enabled."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+
+    if ! is_installed "proton-vpn-gtk-app"; then
+        _msg "ProtonVPN" "Installing Proton VPN GTK client\nfrom the official Proton repository." 10 60
+        _run_cmd "ProtonVPN" "sudo apt install -y proton-vpn-gtk-app" "Installing Proton VPN GTK app..."
+        echo -e "${GREEN}ProtonVPN installed.${NC}"
+    else
+        echo "Proton VPN GTK app already installed."
+    fi
 }
 
 # ── Categories ──
@@ -146,9 +186,7 @@ _cat_internet() {
                 echo -e "${GREEN}LibreWolf installed.${NC}"
                 ;;
             palemoon)
-                _enable_palemoon_repo
-                _run_install palemoon
-                echo -e "${GREEN}Pale Moon installed.${NC}"
+                install_palemoon
                 ;;
             tailscale)
                 _enable_tailscale_repo
@@ -166,9 +204,7 @@ _cat_internet() {
                 echo -e "${GREEN}Mullvad Browser installed.${NC}"
                 ;;
             protonvpn)
-                _enable_protonvpn_repo
-                _run_install protonvpn
-                echo -e "${GREEN}ProtonVPN installed.${NC}"
+                install_protonvpn
                 ;;
             riseup-vpn)
                 install_backports_or_stable riseup-vpn
