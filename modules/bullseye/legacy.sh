@@ -28,28 +28,6 @@ No security updates will be available." 12 60
 }
 
 # ---------------------------------------------------------------------------
-# Fermi PCI ID detection — 6 condiciones inclusivas
-# ---------------------------------------------------------------------------
-is_nvidia_fermi() {
-    local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | \
-             grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
-
-    local dev_int
-    dev_int=$((16#${dev_id,,}))
-
-    if [ "$dev_int" -ge $((16#06C0)) ] && [ "$dev_int" -le $((16#06DF)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#0DC0)) ] && [ "$dev_int" -le $((16#0DFF)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#0DE0)) ] && [ "$dev_int" -le $((16#0DFF)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#0E00)) ] && [ "$dev_int" -le $((16#0E1F)) ]; then echo true; return; fi
-    if [ "$dev_int" -ge $((16#1080)) ] && [ "$dev_int" -le $((16#10DF)) ]; then echo true; return; fi
-    if [ "$dev_int" -eq $((16#1201)) ]; then echo true; return; fi
-
-    echo false
-}
-
-# ---------------------------------------------------------------------------
 # NVIDIA driver installer for Bullseye (Kepler → 470, Fermi → 390)
 # ---------------------------------------------------------------------------
 install_nvidia_bullseye() {
