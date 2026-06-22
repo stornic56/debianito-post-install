@@ -299,7 +299,7 @@ detect_network() {
                 ETH_IPS+=("${ip4:-}")
                 ETH_DESCS+=("${ETH_DESC:-}")
                 ;;
-            wl*|wlp*|wlo*)
+            wl*|wlp*|wlo*|wlan*)
                 ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
                 ssid=""
                 [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)

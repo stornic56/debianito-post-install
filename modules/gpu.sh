@@ -105,13 +105,17 @@ install_gpu_drivers() {
                 else
                     install_nvidia_driver
                 fi
+            elif [ "$(is_nvidia_fermi)" = "true" ]; then
+                _msg "NVIDIA Fermi — Bookworm" \
+                    "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."
+                NVIDIA_DRIVER_MODE=""
             else
                 install_nvidia_driver
             fi
         elif [ "$DEBIAN_VERSION" = "13" ]; then
-            if [ "$(is_nvidia_kepler)" = "true" ]; then
-                _msg "NVIDIA Kepler — Trixie" \
-                    "Your GPU is NVIDIA Kepler architecture.\nThe nvidia-tesla-470 driver is not available\nin Debian 13 (Trixie).\n\nNo NVIDIA driver will be installed for this GPU.\nOther GPUs (Intel/AMD) will still be configured."
+            if [ "$(is_nvidia_kepler)" = "true" ] || [ "$(is_nvidia_fermi)" = "true" ]; then
+                _msg "NVIDIA — Trixie" \
+                    "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
                 NVIDIA_DRIVER_MODE=""
             else
                 install_nvidia_driver

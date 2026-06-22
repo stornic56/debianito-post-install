@@ -15,9 +15,42 @@ is_nvidia_kepler() {
     if [ "$dev_int" -ge $((16#1000)) ] && [ "$dev_int" -le $((16#103F)) ]; then echo true; return; fi
     # Bloque 3: GK104/GK106 (completo) — 0x1180..0x11FF
     if [ "$dev_int" -ge $((16#1180)) ] && [ "$dev_int" -le $((16#11FF)) ]; then echo true; return; fi
-    # Bloque 4: GK208/GK208B acotado — 0x1280..0x12BF
+    # Bloque 4: GK208/GK208B (completo) — 0x1280..0x12BF
     if [ "$dev_int" -ge $((16#1280)) ] && [ "$dev_int" -le $((16#12BF)) ]; then echo true; return; fi
 
+    echo false
+}
+
+is_nvidia_fermi() {
+    local dev_id
+    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    [ -z "$dev_id" ] && { echo false; return; }
+
+    local dev_int
+    dev_int=$((16#${dev_id,,}))
+
+    # GF100 / GF110 — GTX 480, GTX 580, Quadro 6000, Tesla C2050
+    if [ "$dev_int" -ge $((16#06C0)) ] && [ "$dev_int" -le $((16#06DF)) ]; then echo true; return; fi
+    # GF104 / GF114 — GTS 450, GTX 460M, GT 555M
+    if [ "$dev_int" -ge $((16#0DC0)) ] && [ "$dev_int" -le $((16#0DCF)) ]; then echo true; return; fi
+    # GF104 / GF108 — GT 445M, GT 435M, GT 550M
+    if [ "$dev_int" -ge $((16#0DD0)) ] && [ "$dev_int" -le $((16#0DDF)) ]; then echo true; return; fi
+    # GF108 — GT 440, GT 430, GT 520, GT 610, GT 620M, NVS 5400M
+    if [ "$dev_int" -ge $((16#0DE0)) ] && [ "$dev_int" -le $((16#0DEF)) ]; then echo true; return; fi
+    # GF108 — GT 525M, GT 540M, GT 550M, Quadro 600, Quadro 500M
+    if [ "$dev_int" -ge $((16#0DF0)) ] && [ "$dev_int" -le $((16#0DFF)) ]; then echo true; return; fi
+    # GF104 / GF114 — GTX 460, GTX 470M, GTX 485M
+    if [ "$dev_int" -ge $((16#0E22)) ] && [ "$dev_int" -le $((16#0E31)) ]; then echo true; return; fi
+    # GF119 — GT 520M, GT 610M, NVS 4200M
+    if [ "$dev_int" -ge $((16#1050)) ] && [ "$dev_int" -le $((16#105F)) ]; then echo true; return; fi
+    # GF110 — GTX 580, GTX 570, GTX 560 Ti, GTX 590
+    if [ "$dev_int" -ge $((16#1080)) ] && [ "$dev_int" -le $((16#108F)) ]; then echo true; return; fi
+    # GF110 — Tesla M2090, Quadro 5010M, Quadro 7000
+    if [ "$dev_int" -ge $((16#1090)) ] && [ "$dev_int" -le $((16#109F)) ]; then echo true; return; fi
+    # GF116 / GF119 — GTX 560, GTX 460 v2, GTX 555, GT 645
+    if [ "$dev_int" -ge $((16#1200)) ] && [ "$dev_int" -le $((16#120F)) ]; then echo true; return; fi
+    # GF116 / GF108 — GTX 550 Ti, GTS 450 rev, GT 545, GT 640 (Fermi)
+    if [ "$dev_int" -ge $((16#1240)) ] && [ "$dev_int" -le $((16#124F)) ]; then echo true; return; fi
     echo false
 }
 
