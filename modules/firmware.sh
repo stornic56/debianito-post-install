@@ -186,7 +186,7 @@ _build_firmware_plan() {
         if is_installed bluez; then
             plan+="  [+] bluez (already installed)\n"
         else
-            plan+="  [+] bluez + bluez-utils + bluez-obexd (base stack)\n"
+            plan+="  [+] bluez + bluez-tools + bluez-obexd (base stack)\n"
         fi
         case "${DESKTOP_ENV:-other}" in
             kde)   plan+="  [+] bluedevil (KDE applet)\n"
