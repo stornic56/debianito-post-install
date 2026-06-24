@@ -62,16 +62,14 @@ is_nvidia_maxwell() {
     local dev_int
     dev_int=$((16#${dev_id,,}))
 
-    # GM108 (GT 830M, GT 840M, GT 940M)
-    if [ "$dev_int" -ge $((16#1340)) ] && [ "$dev_int" -le $((16#134F)) ]; then echo true; return; fi
-    # GM107 (GTX 750 Ti, GTX 860M)
-    if [ "$dev_int" -ge $((16#1380)) ] && [ "$dev_int" -le $((16#138F)) ]; then echo true; return; fi
-    # GM200 (TITAN X, GTX 980 Ti)
-    if [ "$dev_int" -ge $((16#13C0)) ] && [ "$dev_int" -le $((16#13CF)) ]; then echo true; return; fi
-    # GM204 (GTX 980, GTX 970)
-    if [ "$dev_int" -ge $((16#13D0)) ] && [ "$dev_int" -le $((16#13DF)) ]; then echo true; return; fi
-    # GM206 (GTX 960, GTX 950)
-    if [ "$dev_int" -ge $((16#1480)) ] && [ "$dev_int" -le $((16#148F)) ]; then echo true; return; fi
+    # GM108/GM107/GM204 — gama media/baja + Quadros M (incluye 980M/970M)
+    if [ "$dev_int" -ge $((16#1340)) ] && [ "$dev_int" -le $((16#13FF)) ]; then echo true; return; fi
+    # GM206 — GTX 960, GTX 950, Quadro M2000
+    if [ "$dev_int" -ge $((16#1400)) ] && [ "$dev_int" -le $((16#14FF)) ]; then echo true; return; fi
+    # GM200 — TITAN X, GTX 980 Ti
+    if [ "$dev_int" -ge $((16#17C0)) ] && [ "$dev_int" -le $((16#17CF)) ]; then echo true; return; fi
+    # GM200 profesional — Quadro M6000, Tesla M40
+    if [ "$dev_int" -ge $((16#17F0)) ] && [ "$dev_int" -le $((16#17FF)) ]; then echo true; return; fi
 
     echo false
 }
@@ -84,18 +82,16 @@ is_nvidia_pascal() {
     local dev_int
     dev_int=$((16#${dev_id,,}))
 
-    # GP100 (Tesla P100, Quadro GP100)
+    # GP100 — Tesla P100, Quadro GP100
     if [ "$dev_int" -ge $((16#15F0)) ] && [ "$dev_int" -le $((16#15FF)) ]; then echo true; return; fi
-    # GP104 (GTX 1080, GTX 1070)
-    if [ "$dev_int" -ge $((16#1B00)) ] && [ "$dev_int" -le $((16#1B1F)) ]; then echo true; return; fi
-    # GP102 (TITAN Xp, GTX 1080 Ti)
-    if [ "$dev_int" -ge $((16#1B80)) ] && [ "$dev_int" -le $((16#1B8F)) ]; then echo true; return; fi
-    # GP106 (GTX 1060)
-    if [ "$dev_int" -ge $((16#1C00)) ] && [ "$dev_int" -le $((16#1C2F)) ]; then echo true; return; fi
-    # GP107 (GTX 1050 Ti, GTX 1050)
-    if [ "$dev_int" -ge $((16#1C80)) ] && [ "$dev_int" -le $((16#1C8F)) ]; then echo true; return; fi
-    # GP108 (GT 1030, GT 1010)
-    if [ "$dev_int" -ge $((16#1D00)) ] && [ "$dev_int" -le $((16#1DFF)) ]; then echo true; return; fi
+    # GP102 — TITAN Xp, GTX 1080 Ti, Tesla P40, Quadro P6000
+    if [ "$dev_int" -ge $((16#1B00)) ] && [ "$dev_int" -le $((16#1B3F)) ]; then echo true; return; fi
+    # GP104 — GTX 1080, GTX 1070, Quadro P5000/P4000/P5200/P4200
+    if [ "$dev_int" -ge $((16#1B80)) ] && [ "$dev_int" -le $((16#1BBF)) ]; then echo true; return; fi
+    # GP106 + GP107 — GTX 1060, GTX 1050 Ti, GTX 1050, Quadro P2000/P1000/P620/P600
+    if [ "$dev_int" -ge $((16#1C00)) ] && [ "$dev_int" -le $((16#1CFF)) ]; then echo true; return; fi
+    # GP108 — GT 1030, GT 1010, MX150/250/350/330, Quadro P520
+    if [ "$dev_int" -ge $((16#1D00)) ] && [ "$dev_int" -le $((16#1D7F)) ]; then echo true; return; fi
 
     echo false
 }
@@ -110,8 +106,8 @@ is_nvidia_blackwell() {
 
     # Blackwell (GB20x) rango bajo: 0x2900 – 0x29BF
     if [ "$dev_int" -ge $((16#2900)) ] && [ "$dev_int" -le $((16#29BF)) ]; then echo true; return; fi
-    # Blackwell (GB20x) rango alto: 0x2B80 – 0x31FF
-    if [ "$dev_int" -ge $((16#2B80)) ] && [ "$dev_int" -le $((16#31FF)) ]; then echo true; return; fi
+    # Blackwell (GB20x) rango alto: 0x2B80 – 0x31DF
+    if [ "$dev_int" -ge $((16#2B80)) ] && [ "$dev_int" -le $((16#31DF)) ]; then echo true; return; fi
 
     echo false
 }
