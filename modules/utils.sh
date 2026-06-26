@@ -48,7 +48,7 @@ check_system_time() {
     fi
     local year
     year=$(date +%Y)
-    if [ "$year" -lt 2026 ]; then
+    if [ "$year" -lt 2025 ]; then
         local msg="System date/time appears to be incorrect\n"
         msg+="($(date '+%Y-%m-%d %H:%M')). This will prevent Debian\n"
         msg+="repositories from working properly.\n\n"
@@ -58,7 +58,7 @@ check_system_time() {
             sync_system_time
             local new_year
             new_year=$(date +%Y)
-            if [ "$new_year" -ge 2026 ]; then
+            if [ "$new_year" -ge 2025 ]; then
                 echo -e "${GREEN}Time synced: $(date '+%Y-%m-%d %H:%M')${NC}"
             else
                 echo -e "${RED}Could not sync time automatically.${NC}"
@@ -580,4 +580,53 @@ get_backports_kernel_version() {
     else
         echo "unknown"
     fi
+}
+
+# ----------------------------------
+# Language helpers
+# ----------------------------------
+_detect_lang() {
+    local sys_lang
+    sys_lang=$(echo "${LANG:-en}" | cut -c1-2 | tr '[:upper:]' '[:lower:]')
+    echo "$sys_lang"
+}
+
+_detect_lang_pkg() {
+    local base="$1"
+    local lang2
+    lang2=$(_detect_lang)
+
+    [ "$lang2" = "en" ] && echo "" && return
+
+    local full="${LANG%%.*}"
+    local hyphenated_full
+    hyphenated_full=$(echo "$full" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
+    local pkg
+
+    pkg=$(apt-cache search "^${base}-${hyphenated_full}$" 2>/dev/null | awk 'NR==1{print $1}')
+    [ -z "$pkg" ] && pkg=$(apt-cache search "^${base}-${lang2}$" 2>/dev/null | awk 'NR==1{print $1}')
+    [ -z "$pkg" ] && pkg=$(apt-cache search "^${base}-all$" 2>/dev/null | awk 'NR==1{print $1}')
+
+    echo "$pkg"
+}
+
+# ----------------------------------
+# Network connectivity check
+# ----------------------------------
+_check_network() {
+    local target="${1:-deb.debian.org}"
+
+    if command -v ping &>/dev/null; then
+        ping -c 1 -W 3 "$target" &>/dev/null && return 0
+    fi
+
+    if command -v wget &>/dev/null; then
+        wget -q --timeout=5 --spider "http://${target}" &>/dev/null && return 0
+    fi
+
+    if command -v curl &>/dev/null; then
+        curl -s --connect-timeout 5 -o /dev/null "http://${target}" &>/dev/null && return 0
+    fi
+
+    return 1
 }

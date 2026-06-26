@@ -33,16 +33,8 @@ install_libreoffice_bpo() {
         return
     fi
 
-    local sys_lang
-    sys_lang=$(echo "${LANG:-en}" | cut -c1-2 | tr '[:upper:]' '[:lower:]')
-
-    local lang_pkg=""
-    if [ "$sys_lang" != "en" ]; then
-        local candidate="libreoffice-l10n-${sys_lang}"
-        if apt-cache show "$candidate" &>/dev/null 2>&1; then
-            lang_pkg="$candidate"
-        fi
-    fi
+    local lang_pkg
+    lang_pkg=$(_detect_lang_pkg "libreoffice-l10n")
 
     local ver
     ver=$(apt-cache policy libreoffice 2>/dev/null | awk 'NR==3 {print $2; exit}')

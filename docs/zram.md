@@ -241,3 +241,11 @@ To ensure ZRAM persists across reboots, the script writes configuration to `/etc
 ```bash
 echo "zram" | sudo tee /etc/modules-load.d/zram.conf
 ```
+
+
+### References:
+
+- [https://docs.kernel.org/admin-guide/blockdev/zram.html](https://docs.kernel.org/admin-guide/blockdev/zram.html)
+- [https://wiki.debian.org/ZRam](https://wiki.debian.org/ZRam)
+- [https://wiki.archlinux.org/title/Zram](https://wiki.archlinux.org/title/Zram)
+- [https://wiki.gentoo.org/wiki/Zram](https://wiki.gentoo.org/wiki/Zram)

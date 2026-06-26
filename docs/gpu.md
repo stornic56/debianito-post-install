@@ -48,7 +48,8 @@ This "detect-then-deploy" model prevents users from installing unnecessary drive
 | **Gen4** (Broadwater) | 65nm | GMA X4500, GMA X4500HD | `i915` | `i915` | Not supported | Predecessor to HD Graphics. Very limited support. The i915 DRI driver is the original, now obsolete. |
 | **Gen5** (Ironlake) | 32nm | HD Graphics (Westmere/Arrandale) | `i915` | `crocus` | Not supported | First generation "HD Graphics". OpenGL up to 3.3 only. Legacy driver `i965` was **removed** in Mesa 24.1, so `crocus` is now the only option. |
 | **Gen6** (Sandy Bridge) | 32nm | HD Graphics 2000/3000 | `i915` | `crocus` | Not supported | Significant performance improvement. Maximum OpenGL 3.3. |
-| **Gen7** (Ivy Bridge) | 22nm | HD Graphics 2500/4000 | `i915` | `crocus` | Not supported | First generation at 22nm. `crocus` is the recommended driver. |
+| **Gen7** (Ivy Bridge) | 22nm | HD Graphics 2500/4000 | `i915` | `crocus` | `ANV/HASVK ([incomplete/broken](https://www.reddit.com/r/vulkan/s/Hnf5zU8WZY))` | First Gen at 22nm. `crocus` is the recommended OpenGL driver. Vulkan is exposed but completely non-conformant (0.0.0.0 ), lacks basic features (e.g., texture swizzle), and is [unusable for real-world tasks.](www.phoronix.com/news/Intel-HasVK-Drop-Dead-Code)|
+| **Gen7** (Bay Trail) | 22nm | HD Graphics (Bay Trail) | `i915` | `crocus` | `ANV ([incomplete](https://lists.debian.org/debian-user/2023/07/msg00550.html))` | `conformanceVersion = 0.0.0.0` Support is experimental up to Vulkan 1.2, lacks basic extensions, and may cause instability. The separate HASVK driver exists but is not used on this system. |
 | **Gen7.5** (Haswell) | 22nm | HD Graphics 4600, Iris Pro 5200 | `i915` | `crocus` | `hasvk` |  Vulkan support via community driver `hasvk` (Vulkan 1.3). |
 | **Gen8** (Broadwell) | 14nm | HD Graphics 5300, Iris Pro 6200, Iris 6100 | `i915` | `iris/crocus` | `hasvk` | First generation at 14nm, `iris` becomes the main OpenGL driver. |
 | **Gen9** (Skylake) | 14nm | HD Graphics 530, Iris 540/550 | `i915` | `iris` | `anv` | Mature architecture with strong Linux support. Major performance boost for iGPU. |
@@ -59,7 +60,7 @@ This "detect-then-deploy" model prevents users from installing unnecessary drive
 | **Xe2-LPG** (Lunar Lake) | TSMC N3B | Arc Graphics (Xe2-LPG - 8 Xe-Cores) | `i915?/xe` | `iris` | `anv` | First iGPU with Xe2 architecture (Battlemage). |
 | **Xe3-LPG** (Panther Lake) | Intel 18A | Arc Graphics (Xe3 iGPU) | `i915?/xe` | `iris` | `anv` | High-power iGPU. Requires Kernel 6.19 and Mesa 26 as base. |
 | **Xe-HPG** (Alchemist) | TSMC N6 | **Arc A380, A580, A750, A770** (dGPU) | `i915/xe` | `iris` | `anv` | First modern dGPU (Arc). Support since Kernel 6 and Mesa 22. |
-| **Xe2-HPG** (Battlemage) | TSMC N5 | **Arc B580, B570** (dGPU) | `i915/xe` | `iris` | `anv` | Second generation dGPU. Very solid day-one Linux support since Kernel 6.12 and Mesa 24.2 |
+| **Xe2-HPG** (Battlemage) | TSMC N5 | **Arc B570, B580** (dGPU) | [`i915/xe`](https://www.phoronix.com/review/intel-xe-i915-linux-619) | `iris` | `anv` | Second generation dGPU. Very solid day-one Linux support since Kernel 6.12 and Mesa 24.2 |
 
 ---
 
@@ -71,6 +72,7 @@ This "detect-then-deploy" model prevents users from installing unnecessary drive
         *   **Legacy Hardware (Gen5-Gen8)**: The classic `i965` driver was **officially removed from Mesa in version 24.1**. **[`crocus`](https://www.phoronix.com/news/Intel-Crocus-Default-Gallium3D)** (Gallium3D) is the only active driver for this legacy hardware.
         *   **Modern Hardware (Gen9 and Xe)**: **`iris`** is the standard driver. It works excellently on both iGPUs and Arc dGPUs (Alchemist/Battlemage).
     *   **Vulkan**: 
+        *   **Old Hardware about Ivy Bridge and Bay Trail (Gen7)**: Although the ANV/HASVK drivers expose these GPUs as Vulkan devices (reporting API versions as high as 1.2 or 1.3), their state is completely non-compliant (conformanceVersion = 0.0.0.0). The support is purely theoretical, it lacks basic hardware features (e.g., texture swizzle on Ivy Bridge) and is unstable or unusable for real-world applications. Because of this, in Mesa 22.3, the Gen7/Gen8 Vulkan code was separated from the main driver (ANV) and moved to the legacy HASVK driver to avoid hindering the development of modern hardware. You can read the technical details of this decision [here](https://www.phoronix.com/news/Intel-HASVK-Old-Vulkan-Gen7-8).
         *   **Legacy Hardware (Gen7.5 - Gen8)**: Uses **[`hasvk`](https://www.phoronix.com/news/Intel-ANV-HASVK-Split-Merged)**, a community-maintained driver (not directly by Intel engineers), offering Vulkan 1.2? on 2013-era hardware.
         *Additionally, in early 2024, the compiler code shared between `iris` and `anv` for [Gen8](https://www.phoronix.com/news/Intel-Mesa-Splitting-Gen8) was also isolated, following the same principle: to enable faster development for modern hardware without breaking Broadwell support*.
         *   **Modern Hardware (Gen9+)**: **[`anv`](https://docs.mesa3d.org/drivers/anv.html)** is Intel's official driver. On recent hardware (Gen12+, Arc) it reaches the **Vulkan 1.4 standard**.
@@ -118,7 +120,7 @@ These generations depend **exclusively** on the proprietary driver and closed st
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Fermi**<br>*(GF100/110)* | **390.xx** (Legacy) | `nvidia` (Closed) | **Vulkan 1.0** | No | **CUDA 8.0** | Last driver to support this architecture. Has not received security fixes for years. Only viable for completely offline systems. |
 | **Kepler**<br>*(GK100/110)* | **470.xx** (Legacy) | `nvidia` (Closed) | **Vulkan 1.2** | No | **CUDA 11.8** | Last generation to receive "Legacy" status. Good compatibility with OpenGL 4.6, but Vulkan support stalled at 1.2. |
-| **Maxwell**<br>*(GM100/200)* | **580.xx** (Old Standard) | `nvidia` (Closed) | **Vulkan 1.3** | No | **CUDA 12.0** | Removed from official support in driver 555 (CUDA 12.1). Requires pinning system to branch 550. |
+| **Maxwell**<br>*(GM100/200)* | **580.xx** (Old Standard) | `nvidia` (Closed) | **Vulkan 1.3** | No | **CUDA 12.0** | Removed from official support in driver 580 (CUDA 12.1). |
 | **Pascal**<br>*(GP100/102/104)* | **580.xx** (Old Standard) | `nvidia` (Closed) | **Vulkan 1.3** | No | **CUDA 12.0** | Shares same fate as Maxwell. Still very popular (GTX 1060/1080), but requires blocking packages (e.g., in Debian) to prevent updates that break graphics support. |
 
 ---
@@ -131,7 +133,7 @@ Starting with Turing, NVIDIA introduced the **open kernel module**. From driver 
 | **Turing**<br>*(TU100/102/116)* | 525.xx to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (Vulkan 1.3) | **CUDA 12.8+** | First generation to use Open Kernel Module (introduced in 515, default in 525). *Note:* Security processor firmware (GSP) remains a closed blob. Excellent NVK support. |
 | **Ampere**<br>*(GA100/102/104/107)* | 525.xx to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (Vulkan 1.3) | **CUDA 12.8+** | Mature support in both proprietary driver and NVK. For RTX 3060/3080/3090, NVK offers extremely competitive performance versus proprietary in many scenarios. |
 | **Ada Lovelace**<br>*(AD100/102/103/104)* | 525.xx to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (Vulkan 1.3) | **CUDA 12.8+** | NVK added full Ada support recently. Proprietary driver still required if hardware Ray Tracing or DLSS 3 (Frame Generation) is needed, as NVK does not yet implement these proprietary extensions. |
-| **Blackwell**<br>*(GB100/102/202)* | [570](https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-570-211-01/index.html) to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (In development) | **CUDA 12.8+** | Latest generation architecture (RTX 5090/5080). NVK support is landing in the most recent kernel versions (6.12+) and Mesa (24.3+). Requires very updated `linux-firmware`. |
+| **Blackwell**<br>*(GB100/102/202)* | [570.xx](https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-570-211-01/index.html) to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (In development) | **CUDA 12.8+** | Latest generation architecture (RTX 5090/5080). NVK support is landing in the most recent kernel versions (6.12+) and Mesa (24.3+). Requires very updated `linux-firmware`. |
 
 #### 💡 Quick context glossary for documentation:
 *   **Open Module:** Starting with driver 515, [NVIDIA releases code that interacts directly with the Linux kernel under MIT/GPL license](https://developer.nvidia.com/blog/nvidia-releases-open-source-gpu-kernel-modules/). However, the GPU still requires loading a proprietary closed microcode called **GSP (GPU System Processor)** to boot.
