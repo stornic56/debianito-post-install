@@ -116,6 +116,14 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
 
 check_root
 check_sudo
+if ! _check_network; then
+    echo -e "${YELLOW}──────────────────────────────────────────${NC}"
+    echo -e "${YELLOW} No internet connectivity detected.${NC}"
+    echo -e "${YELLOW} Package installation will fail without network.${NC}"
+    echo -e "${YELLOW} You can use: System Info, User Privileges, and${NC}"
+    echo -e "${YELLOW} other offline features.${NC}"
+    echo -e "${YELLOW}──────────────────────────────────────────${NC}"
+fi
 check_system_time
 sync_system_time
 

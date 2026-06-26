@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # internet.sh — Browsers, email, VPN
 # extrepo-powered: mozilla, floorp, palemoon, librewolf, tailscale, mullvad, protonvpn
+# firefox-esr from Debian repos (with locale auto-detect)
 
 # ── Helpers extrepo ──
 _ensure_extrepo() {
@@ -122,9 +123,11 @@ _cat_internet() {
     local epiphany_state;     epiphany_state=$(_state "epiphany-browser")
     local falkon_state;       falkon_state=$(_state "falkon")
     local firefox_state="OFF"
-    if command -v firefox &>/dev/null && ! command -v firefox-esr &>/dev/null; then
+    if command -v firefox &>/dev/null && ! is_installed "firefox-esr"; then
         firefox_state="ON"
     fi
+    local firefox_esr_state
+    firefox_esr_state=$(_state "firefox-esr")
     local floorp_state;       floorp_state=$(_state "floorp")
     local konqueror_state;    konqueror_state=$(_state "konqueror")
     local librewolf_state;    librewolf_state=$(_state "librewolf")
@@ -149,6 +152,7 @@ _cat_internet() {
         "epiphany-browser"    "GNOME web browser$(_inst epiphany-browser)"             "$epiphany_state" \
         "falkon"              "KDE web browser (QtWebEngine)$(_inst falkon)"           "$falkon_state" \
         "firefox"             "Firefox from Mozilla (replaces ESR)"                    "$firefox_state" \
+        "firefox-esr"         "Firefox ESR (official Debian + locale auto)"            "$firefox_esr_state" \
         "floorp"              "Firefox-based browser (extrepo)$(_inst floorp)"         "$floorp_state" \
         "konqueror"           "KDE file manager / web browser$(_inst konqueror)"       "$konqueror_state" \
         "librewolf"           "Privacy-focused Firefox fork (extrepo)$(_inst librewolf)" "$librewolf_state" \
@@ -170,10 +174,18 @@ _cat_internet() {
 
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
+    if echo "$cleaned" | grep -q "firefox" && echo "$cleaned" | grep -q "firefox-esr"; then
+        _msg "Firefox" "You selected both Firefox (Mozilla) and Firefox ESR.\nPlease choose only one Firefox variant." 10 60
+        return
+    fi
+
     for pkg in $cleaned; do
         case $pkg in
             firefox)
                 install_firefox_mozilla
+                ;;
+            firefox-esr)
+                install_firefox_esr
                 ;;
             floorp)
                 _enable_floorp_repo
@@ -239,7 +251,12 @@ _cat_internet() {
 }
 
 install_firefox_mozilla() {
-    if command -v firefox &>/dev/null && ! command -v firefox-esr &>/dev/null; then
+    if [ "$DEBIAN_VERSION" -lt 12 ] 2>/dev/null; then
+        _msg "Firefox" "Mozilla Firefox is only available on\nDebian 12 (Bookworm) and 13 (Trixie).\n\nSkipping installation." 10 60
+        return 1
+    fi
+
+    if command -v firefox &>/dev/null && ! is_installed "firefox-esr"; then
         echo "Firefox (Mozilla) is already installed."
         return
     fi
@@ -255,6 +272,36 @@ install_firefox_mozilla() {
     fi
 
     _enable_mozilla_repo
-    _run_install firefox
+    _run_cmd "Firefox" "sudo apt install -y firefox" "Installing Firefox (Mozilla)..."
     echo -e "${GREEN}Firefox (Mozilla) installed.${NC}"
+}
+
+install_firefox_esr() {
+    if is_installed "firefox-esr"; then
+        echo "Firefox ESR is already installed."
+        return
+    fi
+
+    if command -v firefox &>/dev/null; then
+        if _confirm "Firefox" "Mozilla Firefox is installed.\nRemove it before installing Firefox ESR?"; then
+            echo "Removing Mozilla Firefox..."
+            sudo apt remove -y firefox
+        else
+            echo "Keeping Mozilla Firefox."
+            return
+        fi
+    fi
+
+    _run_cmd "Firefox ESR" "sudo apt install -y firefox-esr" "Installing Firefox ESR..."
+
+    local lang_pkg
+    lang_pkg=$(_detect_lang_pkg "firefox-esr-l10n")
+    if [ -n "$lang_pkg" ]; then
+        _run_cmd "Firefox ESR Locale" "sudo apt install -y ${lang_pkg}" \
+            "Installing locale: ${lang_pkg}..."
+    else
+        echo "No matching locale package found for your language."
+    fi
+
+    echo -e "${GREEN}Firefox ESR installed.${NC}"
 }
