@@ -402,6 +402,7 @@ Mesa versions without compromising overall system stability." 16 70; then
                 sudo apt autoremove -y
                 sudo apt autoclean
                 echo -e "${GREEN}System upgraded.${NC}"
+                _pause
             else
                 echo "Skipping upgrade."
             fi
@@ -409,6 +410,7 @@ Mesa versions without compromising overall system stability." 16 70; then
     else
         restore_previous_repos
         echo -e "${RED}apt update failed. Previous repository configuration restored.${NC}"
+        _pause
         return 1
     fi
 }

@@ -27,4 +27,5 @@ install_kernel_backports() {
 
     _run_cmd "Kernel" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports linux-image-amd64" "Installing kernel from backports..."
     echo -e "${GREEN}Kernel installed. Reboot to use it.${NC}"
+    _pause
 }

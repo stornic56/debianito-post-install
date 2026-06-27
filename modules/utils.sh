@@ -150,6 +150,14 @@ is_installed() {
     dpkg -l "$1" 2>/dev/null | grep -q '^ii'
 }
 
+_inst() {
+    if is_installed "$1"; then echo " *"; else echo ""; fi
+}
+
+_state() {
+    is_installed "$1" && echo "ON" || echo "OFF"
+}
+
 # ----------------------------------
 # Package version lookup
 # ----------------------------------
@@ -275,7 +283,10 @@ detect_network() {
     fi
 
     local wifi_line
-    wifi_line=$(lspci -nn | grep -i 'Network controller' | head -n1) || true
+    wifi_line=$(lspci -nn | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
+    if [ -z "$wifi_line" ]; then
+        wifi_line=$(lspci -nn | grep -i '14e4:' | head -n1) || true
+    fi
     if [ -n "$wifi_line" ]; then
         WIFI_CHIPSET="$wifi_line"
         WIFI_DESC=$(echo "$wifi_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
@@ -508,6 +519,12 @@ _msg() {
     whiptail --title "$1" --msgbox "$2" "${3:-10}" "${4:-65}"
 }
 
+_pause() {
+    echo ""
+    echo "Press [ENTER] to continue..."
+    read -r
+}
+
 # Blocks 2-4: clear → run → pause
 _run_cmd() {
     local title="$1" command="$2" success_msg="${3:-Running...}"
@@ -522,8 +539,7 @@ _run_cmd() {
     else
         echo -e "${RED}[-]${NC} Failed (exit code: $rc)."
     fi
-    echo "Press [ENTER] to continue..."
-    read -r
+    _pause
 }
 
 # Blocks 1-4: confirm → clear → run → pause

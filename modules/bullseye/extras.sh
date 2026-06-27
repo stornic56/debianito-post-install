@@ -490,6 +490,7 @@ _cat_general_bullseye() {
                 if _confirm "Firmware Scan" "Scan for firmware updates now?"; then
                     sudo fwupdmgr refresh --force 2>/dev/null || true
                     sudo fwupdmgr get-updates 2>&1 || true
+                    _pause
                 fi
                 ;;
             nvme-cli)
@@ -505,6 +506,7 @@ _cat_general_bullseye() {
         esac
     done
     echo -e "${GREEN}System tools installed.${NC}"
+    _pause
 }
 
 _cat_fetch_bullseye() {

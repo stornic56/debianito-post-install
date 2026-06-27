@@ -151,6 +151,7 @@ install_gaming() {
 
     if [ -z "$choices" ]; then
         echo "No gaming packages selected."
+        _pause
         return
     fi
 
@@ -192,4 +193,5 @@ install_gaming() {
     done
 
     echo -e "${GREEN}Gaming setup complete.${NC}"
+    _pause
 }
