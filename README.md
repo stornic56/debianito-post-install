@@ -71,8 +71,8 @@ The submenu offers the next categories:
 | **4** | Media Players | Multimedia playback with VLC media player and MPV for advanced video/audio support |
 | **5** | Multimedia & Design | image editing (GIMP), video editing (Kdenlive, HandBrake), 3D modeling (Blender), audio recording (Audacity), and graphics design (Inkscape) |
 | **6** | Code Editors & IDEs | vim, vim-gtk3, Neovim, Helix, nano, Emacs, Kate, Mousepad, Gedit, Geany, GNOME Text Editor, and VSCodium (VS Code open-source) |
-| **7** | Servers & Dev Tools | Web servers (Nginx/Apache), databases (PostgreSQL/MariaDB), Java Development Kit (Temurin 17/21/25 JDK), Docker, Python, SSH tools, fail2ban, Jellyfin Server and essential utilities |
-| **8** | Security & Networking | Wireshark, tcpdump, Zenmap, ClamAV, UFW, Fail2ban |
+| **7** | Servers & Dev Tools | Web servers (Nginx/Apache), databases (PostgreSQL/MariaDB), Java Development Kit (Temurin 17/21/25 JDK), Docker, Python, SSH tools, Jellyfin Server and essential utilities |
+| **8** | Security & Networking | Wireshark, tcpdump, Zenmap, ClamAV, UFW, fail2ban |
 | **9** | Software Centers | Choose a software store to install. |
 | **10** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, nvme-cli, Flatpak support, extension repository manager and qemu/virtmanager |
 | **11** | Fetch / System Info | fastfetch/neofetch, hyfetch, Linux logo and screenfetch |

@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
 # Shared helpers for extras categories
 
-_inst() {
-    if is_installed "$1"; then echo " (installed)"; else echo ""; fi
-}
-
-_state() {
-    is_installed "$1" && echo "ON" || echo "OFF"
-}
-
 _install_clamav() {
     if is_installed "clamav"; then
         echo "ClamAV already installed."
@@ -21,6 +13,7 @@ _install_clamav() {
         sudo systemctl stop clamav-freshclam 2>/dev/null || true
         sudo freshclam || true
         sudo systemctl start clamav-freshclam 2>/dev/null || true
+        _pause
     fi
 
     if _confirm "ClamAV" "Run quick scan on /bin to verify engine works?"; then

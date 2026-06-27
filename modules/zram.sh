@@ -65,4 +65,5 @@ EOF
     sudo zramctl
     echo ""
     echo -e "${GREEN}You can verify with: sudo zramctl${NC}"
+    _pause
 }

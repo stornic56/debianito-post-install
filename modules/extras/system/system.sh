@@ -180,12 +180,15 @@ _cat_general() {
                             _run_cmd "fwupd" "sudo fwupdmgr update -y" "Installing firmware updates..."
                         else
                             echo "Skipping firmware update."
+                            _pause
                         fi
                     else
                         echo "No firmware updates available."
+                    _pause
                     fi
                 fi
                 echo -e "${GREEN}fwupd setup complete.${NC}"
+                _pause
                 ;;
             kvm)
                 if ! is_installed "virt-manager"; then
@@ -250,8 +253,7 @@ _cat_general() {
                         echo -e "  ${GREEN}Percentage Used:${NC}   ${pu:-N/A}"
                         echo ""
                     done
-                    echo "Press [ENTER] to continue..."
-                    read -r
+                    _pause
                 fi
                 ;;
             *)
@@ -269,5 +271,6 @@ _cat_general() {
     done
 
     echo -e "${GREEN}System tools installed.${NC}"
+    _pause
 }
 

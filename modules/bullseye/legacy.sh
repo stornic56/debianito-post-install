@@ -175,6 +175,7 @@ Installs matching 32-bit graphics drivers."; then
 
     if [ -z "$choices" ]; then
         echo "No gaming tools selected."
+        _pause
         return
     fi
 
@@ -184,16 +185,16 @@ Installs matching 32-bit graphics drivers."; then
     for pkg in $cleaned; do
         case $pkg in
             mangohud)
-                _run_cmd "MangoHud" "sudo apt install -y mangohud" "Installing MangoHud..."
+                local mh_pkgs="mangohud"
                 if $enable_32bit; then
                     local mh32_ver
                     mh32_ver=$(apt-cache policy mangohud:i386 2>/dev/null | \
                         awk 'NR==3 {print $2; exit}')
                     if [ -n "$mh32_ver" ] && [ "$mh32_ver" != "(none)" ]; then
-                        _run_cmd "MangoHud" "sudo apt install -y mangohud:i386" \
-                            "Installing MangoHud 32-bit..."
+                        mh_pkgs+=" mangohud:i386"
                     fi
                 fi
+                _run_cmd "MangoHud" "sudo apt install -y $mh_pkgs" "Installing MangoHud (64 + 32-bit)..."
                 ;;
             gamemode)  _run_cmd "GameMode" "sudo apt install -y gamemode" "Installing GameMode..." ;;
             goverlay)  _run_cmd "GOverlay" "sudo apt install -y goverlay" "Installing GOverlay..." ;;
@@ -204,4 +205,5 @@ Installs matching 32-bit graphics drivers."; then
     done
 
     echo -e "${GREEN}Lightweight gaming setup complete.${NC}"
+    _pause
 }

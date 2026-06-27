@@ -268,6 +268,7 @@ _handle_wireless() {
                 _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y linux-headers-$(uname -r) broadcom-sta-dkms" \
                     "Installing Broadcom driver..."
                 echo "Broadcom proprietary driver installed. A reboot may be required."
+                _pause
                 installed_any=true
             fi
         fi
@@ -281,6 +282,7 @@ _handle_wireless() {
 
     if ! $installed_any; then
         echo "No special WiFi firmware needed -- base firmware-linux-nonfree covers this system."
+        _pause
     fi
 }
 
@@ -307,6 +309,7 @@ main menu to install proprietary firmwares." 10 65
     # 3. Confirm
     if ! _confirm "Firmware" "Apply the network & firmware plan?"; then
         echo "Firmware installation skipped."
+        _pause
         return
     fi
 
@@ -328,6 +331,7 @@ main menu to install proprietary firmwares." 10 65
             fi
         else
             echo "$fw_pkg already installed."
+            _pause
         fi
     else
         local msg="firmware-linux-nonfree provides hardware drivers for:\n"
@@ -366,4 +370,5 @@ main menu to install proprietary firmwares." 10 65
 
     # 8. Summary
     echo -e "${GREEN}Network & firmware setup complete.${NC}"
+    _pause
 }

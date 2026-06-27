@@ -2,11 +2,11 @@
 # Gaming performance tools installation
 
 install_mangohud() {
-    _run_cmd "MangoHud" "sudo apt install -y mangohud" "Installing MangoHud..."
+    local pkgs="mangohud"
     if dpkg --print-foreign-architectures | grep -q i386; then
-        echo "Installing 32-bit MangoHud..."
-        _run_cmd "MangoHud" "sudo apt install -y mangohud:i386" "Installing 32-bit MangoHud..."
+        pkgs+=" mangohud:i386"
     fi
+    _run_cmd "MangoHud" "sudo apt install -y $pkgs" "Installing MangoHud (64 + 32-bit)..."
 }
 
 install_gamemode() {
@@ -60,6 +60,7 @@ install_openrgb() {
 
     rm -f "${deb_path}"
     echo -e "${GREEN}OpenRGB installed. NOTE: You must reboot or log out/in for the 'i2c' group to take effect.${NC}"
+    _pause
 }
 
 install_retroarch() {
@@ -86,5 +87,5 @@ install_retroarch() {
     echo "   Please check our repository's documentation or visit:"
     echo "   https://wiki.debian.org/RetroArch"
     echo "================================================================="
-    read -p "Press ENTER to continue..."
+    _pause
 }
