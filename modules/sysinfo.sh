@@ -87,7 +87,7 @@ _show_sysinfo() {
         if ! $found_active_wifi && [ -n "$WIFI_DESC" ]; then
             has_network=true
             msg+="WiFi:     ${WIFI_DESC}\n"
-            msg+="          (no driver — install firmware)\n"
+            msg+="          (no driver — use Firmware option in main menu)\n"
         fi
 
         if ! $has_network; then

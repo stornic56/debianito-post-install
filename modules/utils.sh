@@ -283,13 +283,28 @@ detect_network() {
     fi
 
     local wifi_line
-    wifi_line=$(lspci -nn | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
+    # Layer 1: grep by PCI class description text
+    wifi_line=$(lspci -nn 2>/dev/null | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
+    # Layer 2: grep by exact PCI class code 0x0280 (Network controller)
     if [ -z "$wifi_line" ]; then
-        wifi_line=$(lspci -nn | grep -i '14e4:' | head -n1) || true
+        wifi_line=$(lspci -d ::0280 2>/dev/null | head -n1) || true
+    fi
+    # Layer 3: Broadcom vendor ID fallback (14e4)
+    if [ -z "$wifi_line" ]; then
+        wifi_line=$(lspci -nn 2>/dev/null | grep -i '14e4:' | head -n1) || true
     fi
     if [ -n "$wifi_line" ]; then
         WIFI_CHIPSET="$wifi_line"
         WIFI_DESC=$(echo "$wifi_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
+    fi
+    # Layer 4: USB WiFi adapter (no PCI device)
+    if [ -z "$wifi_line" ] && command -v lsusb &>/dev/null; then
+        local usb_wifi
+        usb_wifi=$(lsusb 2>/dev/null | grep -iE 'wireless|wifi|wlan|802\.11' | head -n1) || true
+        if [ -n "$usb_wifi" ]; then
+            WIFI_CHIPSET="$usb_wifi"
+            WIFI_DESC=$(echo "$usb_wifi" | sed 's/^.*ID //')
+        fi
     fi
 
     # ── Safeguard: if ip is not installed, skip runtime parsing ──
