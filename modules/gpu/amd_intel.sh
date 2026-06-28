@@ -42,6 +42,7 @@ offer_amd_tools() {
         _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} nvtop vainfo" "Installing AMD tools..."
     fi
     vainfo
+    _pause
 
     if $corectrl_available; then
         if [ "$DEBIAN_CODENAME" = "trixie" ]; then
@@ -108,6 +109,7 @@ offer_intel_tools() {
     if _confirm "Intel Tools" "Intel GPU monitoring tools\n\n${driver_info}\n\nPackages:\n${pkg_info}"; then
         _run_cmd "Intel Tools" "sudo apt install -y ${pkg_list[*]} vainfo" "Installing Intel monitoring tools..."
         vainfo
+        _pause
     else
         echo "Skipping Intel monitoring tools."
     fi

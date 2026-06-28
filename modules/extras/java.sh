@@ -14,17 +14,21 @@ _enable_temurin_repo() {
 }
 
 install_minecraft_java() {
-    local ver
-    ver=$(whiptail --title "Java Runtimes for Minecraft" --menu \
-        "Select Java version:" 12 65 3 \
-        "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" \
-        "17" "Java 17 — Minecraft 1.17 to 1.20.4" \
-        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" \
+    local choices
+    choices=$(whiptail --title "Java Runtimes for Minecraft" --checklist \
+        "Select Java version(s) to install:" 14 65 3 \
+        "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" ON \
+        "17" "Java 17 — Minecraft 1.17 to 1.20.4" ON \
+        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" ON \
         3>&1 1>&2 2>&3)
-    [ -z "$ver" ] && { echo "No Java version selected."; return; }
+    [ -z "$choices" ] && { echo "No Java version selected."; return; }
     _enable_temurin_repo
-    _run_cmd "Java" "sudo apt install -y temurin-${ver}-jre" \
-        "Installing Temurin JRE ${ver}..."
+    local cleaned
+    cleaned=$(echo "$choices" | tr -d '"')
+    for ver in $cleaned; do
+        _run_cmd "Java" "sudo apt install -y temurin-${ver}-jre" \
+            "Installing Temurin JRE ${ver}..."
+    done
 }
 
 _install_dev_java() {
