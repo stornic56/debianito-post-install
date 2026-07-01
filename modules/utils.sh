@@ -43,11 +43,11 @@ check_sudo() {
 # Time sync detection + NTP
 # --------------------------------
 check_system_time() {
-    if ! command -v timedatectl &> /dev/null; then
-        return
-    fi
+    command -v timedatectl &>/dev/null || return
+
     local year
     year=$(date +%Y)
+
     if [ "$year" -lt 2025 ]; then
         local msg="System date/time appears to be incorrect\n"
         msg+="($(date '+%Y-%m-%d %H:%M')). This will prevent Debian\n"
@@ -56,31 +56,40 @@ check_system_time() {
         msg+="(requires network access and timedatectl)"
         if _confirm "System Date" "$msg"; then
             sync_system_time
-            local new_year
-            new_year=$(date +%Y)
-            if [ "$new_year" -ge 2025 ]; then
-                echo -e "${GREEN}Time synced: $(date '+%Y-%m-%d %H:%M')${NC}"
-            else
-                echo -e "${RED}Could not sync time automatically.${NC}"
-                echo "You may need to set it manually: sudo date --set \"YYYY-MM-DD HH:MM:SS\""
-            fi
         else
             echo -e "${YELLOW}Warning: System time is incorrect. Package installations may fail.${NC}"
         fi
+        return
+    fi
+
+    local ntp_active
+    ntp_active=$(timedatectl show --property=NTP --value 2>/dev/null || echo "no")
+    if [ "$ntp_active" != "yes" ]; then
+        sync_system_time
     fi
 }
 
 sync_system_time() {
-    if command -v timedatectl &> /dev/null; then
-        local ntp_active
-        ntp_active=$(timedatectl show --property=NTP --value 2>/dev/null || echo "no")
-        if [ "$ntp_active" != "yes" ]; then
-            echo -e "${YELLOW}NTP not active. Attempting to enable time sync...${NC}"
-            sudo timedatectl set-ntp true 2>/dev/null || true
-            sleep 4
-        fi
-    elif command -v hwclock &> /dev/null && command -v ntpd &> /dev/null; then
-        sudo hwclock --hctosys 2>/dev/null || true
+    command -v timedatectl &>/dev/null || return
+
+    if ! is_installed systemd-timesyncd; then
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-timesyncd || true
+    fi
+
+    if ! systemctl is-enabled systemd-timesyncd &>/dev/null; then
+        sudo systemctl enable systemd-timesyncd || true
+    fi
+    if ! systemctl is-active systemd-timesyncd &>/dev/null; then
+        sudo systemctl start systemd-timesyncd || true
+    fi
+
+    sudo timedatectl set-ntp true || true
+    sleep 4
+
+    if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q yes; then
+        echo -e "${GREEN}Time synchronized: $(date '+%Y-%m-%d %H:%M')${NC}"
+    else
+        echo -e "${YELLOW}NTP sync did not complete.${NC}"
     fi
 }
 
@@ -93,9 +102,8 @@ detect_debian_version() {
             DEBIAN_CODENAME=$(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "")
         fi
         if [ -z "$DEBIAN_CODENAME" ]; then
-            echo -e "${YELLOW}Installing lsb-release...${NC}"
-            sync_system_time
-            sudo apt update -qq 2>/dev/null && sudo apt install -y -qq lsb-release
+            sync_system_time || true
+            sudo apt update -qq 2>/dev/null && sudo apt install -y -qq lsb-release || true
         fi
     fi
     if [ -z "$DEBIAN_CODENAME" ]; then
@@ -660,4 +668,27 @@ _check_network() {
     fi
 
     return 1
+}
+
+# ----------------------------------
+# LightDM configuration
+# ----------------------------------
+_configure_lightdm() {
+    command -v lightdm &>/dev/null || return 0
+
+    if ! is_installed lightdm-gtk-greeter-settings; then
+        echo -e "${YELLOW}Installing lightdm-gtk-greeter-settings...${NC}"
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y lightdm-gtk-greeter-settings
+    fi
+
+    local conf_dir="/etc/lightdm/lightdm.conf.d"
+    local conf_file="${conf_dir}/99-show-users.conf"
+
+    if [ -f "$conf_file" ] && grep -q '^greeter-hide-users=false' "$conf_file"; then
+        return
+    fi
+
+    sudo mkdir -p "$conf_dir"
+    printf '[Seat:*]\ngreeter-hide-users=false\n' | sudo tee "$conf_file" > /dev/null
+    echo -e "${GREEN}LightDM configured to show user list.${NC}"
 }

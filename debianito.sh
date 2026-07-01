@@ -28,6 +28,7 @@ source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/extras.sh" ]    && source "${MODULES_DIR}/extras.sh"
 [ -f "${MODULES_DIR}/zram.sh" ]      && source "${MODULES_DIR}/zram.sh"
 [ -f "${MODULES_DIR}/extras/java.sh" ] && source "${MODULES_DIR}/extras/java.sh"
+[ -f "${MODULES_DIR}/rescue.sh" ]    && source "${MODULES_DIR}/rescue.sh"
 
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
 if [ -d "${MODULES_DIR}/bullseye" ]; then
@@ -61,7 +62,8 @@ main_menu() {
             "7" "Gaming Setup" \
             "8" "ZRAM (Swap)" \
             "9" "Install Programs and Software" \
-            "10" "Exit" \
+            "10" "Boot Rescue & Repair" \
+            "11" "Exit" \
             3>&1 1>&2 2>&3)
 
         clear
@@ -109,7 +111,8 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
                     install_extras || true
                 fi
                 ;;
-            10) echo "Exiting."; exit 0 ;;
+            10) rescue_boot || true ;;
+            11) echo "Exiting."; exit 0 ;;
         esac
     done
 }
@@ -125,7 +128,6 @@ if ! _check_network; then
     echo -e "${YELLOW}──────────────────────────────────────────${NC}"
 fi
 check_system_time
-sync_system_time
 
 detect_debian_version
 detect_cpu_ram
@@ -135,6 +137,7 @@ detect_network
 detect_displayserver
 detect_storage
 detect_desktop_environment
+_configure_lightdm
 detect_audio_server
 
 # ── Bullseye-specific init (archive phase) ──

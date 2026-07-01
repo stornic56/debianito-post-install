@@ -18,7 +18,11 @@ install_goverlay() {
 }
 
 install_lutris() {
-    _run_install lutris
+    local pkgs="lutris wine64"
+    if dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
+        pkgs+=" wine32"
+    fi
+    _run_cmd "Lutris" "sudo apt install -y $pkgs" "Installing Lutris + Wine..."
 }
 
 install_openrgb() {

@@ -48,8 +48,8 @@ This "detect-then-deploy" model prevents users from installing unnecessary drive
 | **Gen4** (Broadwater) | 65nm | GMA X4500, GMA X4500HD | `i915` | `i915` | Not supported | Predecessor to HD Graphics. Very limited support. The i915 DRI driver is the original, now obsolete. |
 | **Gen5** (Ironlake) | 32nm | HD Graphics (Westmere/Arrandale) | `i915` | `crocus` | Not supported | First generation "HD Graphics". OpenGL up to 3.3 only. Legacy driver `i965` was **removed** in Mesa 24.1, so `crocus` is now the only option. |
 | **Gen6** (Sandy Bridge) | 32nm | HD Graphics 2000/3000 | `i915` | `crocus` | Not supported | Significant performance improvement. Maximum OpenGL 3.3. |
-| **Gen7** (Ivy Bridge) | 22nm | HD Graphics 2500/4000 | `i915` | `crocus` | `ANV/HASVK ([incomplete/broken](https://www.reddit.com/r/vulkan/s/Hnf5zU8WZY))` | First Gen at 22nm. `crocus` is the recommended OpenGL driver. Vulkan is exposed but completely non-conformant (0.0.0.0 ), lacks basic features (e.g., texture swizzle), and is [unusable for real-world tasks.](www.phoronix.com/news/Intel-HasVK-Drop-Dead-Code)|
-| **Gen7** (Bay Trail) | 22nm | HD Graphics (Bay Trail) | `i915` | `crocus` | `ANV ([incomplete](https://lists.debian.org/debian-user/2023/07/msg00550.html))` | `conformanceVersion = 0.0.0.0` Support is experimental up to Vulkan 1.2, lacks basic extensions, and may cause instability. The separate HASVK driver exists but is not used on this system. |
+| **Gen7** (Ivy Bridge) | 22nm | HD Graphics 2500/4000 | `i915` | `crocus` | `ANV/HASVK` [(incomplete/broken)](https://www.reddit.com/r/vulkan/s/Hnf5zU8WZY) | First Gen at 22nm. `crocus` is the recommended OpenGL driver. Vulkan is exposed but completely non-conformant (0.0.0.0 ), lacks basic features (e.g., texture swizzle), and is [unusable for real-world tasks](https://www.phoronix.com/news/Intel-HasVK-Drop-Dead-Code).|
+| **Gen7** (Bay Trail) | 22nm | HD Graphics (Bay Trail) | `i915` | `crocus` | `ANV`[(incomplete)](https://lists.debian.org/debian-user/2023/07/msg00550.html) | `conformanceVersion = 0.0.0.0` Support is experimental up to Vulkan 1.2, lacks basic extensions, and may cause instability. The separate HASVK driver exists but is not used on this system. |
 | **Gen7.5** (Haswell) | 22nm | HD Graphics 4600, Iris Pro 5200 | `i915` | `crocus` | `hasvk` |  Vulkan support via community driver `hasvk` (Vulkan 1.3). |
 | **Gen8** (Broadwell) | 14nm | HD Graphics 5300, Iris Pro 6200, Iris 6100 | `i915` | `iris/crocus` | `hasvk` | First generation at 14nm, `iris` becomes the main OpenGL driver. |
 | **Gen9** (Skylake) | 14nm | HD Graphics 530, Iris 540/550 | `i915` | `iris` | `anv` | Mature architecture with strong Linux support. Major performance boost for iGPU. |
@@ -155,8 +155,8 @@ When the script detects Intel or AMD hardware, it triggers a specific installati
 
 | Vendor | Kernel Driver (KMD) | Mesa User-Space Driver | VAAPI Backend Strategy |
 | :--- | :--- | :--- | :--- |
-| **Intel Gen < 8** | `i915` | `crocus` / `iris` | Installs `i965-va-driver-shaders`. Legacy path for older CPUs. |
-| **Intel Gen 8+** | `i915` | `iris` / `anv` | Installs `intel-media-va-driver-non-free`. Modern, preferred backend for Broadwell+. |
+| **Intel Gen < 8** | `i915` | `crocus` / `iris` | Installs [`i965-va-driver-shaders`](https://github.com/intel/intel-vaapi-driver/). Legacy path for older CPUs. |
+| **Intel Gen 8+** | `i915` | `iris` / `anv` | Installs [`intel-media-va-driver-non-free](https://github.com/intel/media-driver). Modern, preferred backend for Broadwell+. |
 | **AMD GCN/RDNA** | `amdgpu` | `radeonsi` (GL) + `RADV` (VK) | Uses standard `va-driver-all`. Requires kernel param tuning for older GCN. |
 
 **Critical Consistency Check:**

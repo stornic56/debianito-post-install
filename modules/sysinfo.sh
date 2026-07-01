@@ -45,53 +45,158 @@ _show_sysinfo() {
     fi
     msg+="\n"
 
-    # ── Network Block ──
+    # ── Network Block (PCI class + live interfaces) ──
     msg+="─── Network ───\n"
-    local has_network=false
-    local i
+
+    # ── 1. Detect ALL Ethernet chipsets (class 0x0200) ──
+    declare -a pci_eth_lines=()
+    while IFS= read -r line; do
+        pci_eth_lines+=("$line")
+    done < <(lspci -d ::0200 2>/dev/null || true)
+
+    # ── 2. Detect ALL WiFi chipsets (class 0x0280 + vendor fallbacks) ──
+    declare -a pci_wifi_lines=()
+    while IFS= read -r line; do
+        pci_wifi_lines+=("$line")
+    done < <(lspci -d ::0280 2>/dev/null || true)
+
+    # Broadcom vendor-ID fallback (14e4) — include only if not already captured
+    while IFS= read -r line; do
+        if echo "$line" | grep -qi '14e4:'; then
+            local already=false
+            for existing in "${pci_wifi_lines[@]}"; do
+                [ "$existing" = "$line" ] && already=true && break
+            done
+            ! $already && pci_wifi_lines+=("$line")
+        fi
+    done < <(lspci -nn 2>/dev/null || true)
+
+    # USB WiFi fallback
+    local usb_wifi_lines=()
+    while IFS= read -r line; do
+        usb_wifi_lines+=("$line")
+    done < <(lsusb 2>/dev/null | grep -iE 'wireless|wifi|wlan|802\.11' || true)
+
+    # ── 3. Build chipset description arrays ──
+    local -a eth_descs=()
+    local -a wifi_descs=()
+    local line desc
+
+    for line in "${pci_eth_lines[@]}"; do
+        desc=$(echo "$line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
+        eth_descs+=("$desc")
+    done
+    for line in "${pci_wifi_lines[@]}"; do
+        desc=$(echo "$line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
+        wifi_descs+=("$desc")
+    done
+    for line in "${usb_wifi_lines[@]}"; do
+        desc=$(echo "$line" | sed 's/^.*ID //')
+        wifi_descs+=("$desc")
+    done
+
+    # ── 4. Enumerate live interfaces ──
+    local -a shown_eth_descs=()
+    local -a shown_wifi_descs=()
+    local has_eth=false has_wifi=false has_other=false
 
     if ! command -v ip &>/dev/null; then
         msg+="(install iproute2 for interface details)\n"
     else
-        for i in "${!ETH_NAMES[@]}"; do
-            has_network=true
-            local e_iface="${ETH_NAMES[$i]}"
-            local e_desc="${ETH_DESCS[$i]:-$ETH_DESC}"
-            local e_state="${ETH_STATES[$i]}"
-            local e_ip4="${ETH_IPS[$i]}"
-            if [ "$e_state" = "UP" ]; then
-                msg+="${e_iface}:   ${e_desc}\n       ↑ ${e_ip4:-no IP}\n"
-            else
-                msg+="${e_iface}:   ${e_desc}\n       ↓\n"
-            fi
-        done
+        while IFS= read -r line; do
+            local iface state ip4 ssid
+            iface=$(echo "$line" | awk -F': ' '{print $2}' | sed 's/@.*//')
+            state=$(echo "$line" | awk '{print $9}')
 
-        local found_active_wifi=false
-        for i in "${!WIFI_NAMES[@]}"; do
-            found_active_wifi=true
-            has_network=true
-            local w_iface="${WIFI_NAMES[$i]}"
-            local w_desc="${WIFI_DESCS[$i]:-$WIFI_DESC}"
-            local w_state="${WIFI_STATES[$i]}"
-            local w_ip4="${WIFI_IPS[$i]}"
-            local w_ssid="${WIFI_SSIDS[$i]}"
-            if [ "$w_state" = "UP" ]; then
-                msg+="${w_iface}:   ${w_desc}\n       ↑ ${w_ip4:-no IP}"
-                [ -n "$w_ssid" ] && msg+="  \"${w_ssid}\""
+            case "$iface" in
+                lo|docker*|veth*|br-*|virbr*|tun*|tap*|bond*) continue ;;
+            esac
+
+            ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+
+            # Determine type by PCI class (most reliable)
+            local pci_class=""
+            pci_class=$(cat "/sys/class/net/${iface}/device/class" 2>/dev/null || true)
+
+            case "$pci_class" in
+                0x0200*)
+                    has_eth=true
+                    desc="${eth_descs[0]:-Unknown Ethernet chipset}"
+                    shown_eth_descs+=("${eth_descs[0]}")
+                    ;;
+                0x0280*)
+                    has_wifi=true
+                    desc="${wifi_descs[0]:-Unknown WiFi chipset}"
+                    shown_wifi_descs+=("${wifi_descs[0]}")
+                    ssid=""
+                    [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)
+                    ;;
+                *)
+                    # Fallback: classify by interface name pattern
+                    case "$iface" in
+                        wl*|wlp*|wlo*|wlan*)
+                            has_wifi=true
+                            desc="${wifi_descs[0]:-Unknown WiFi chipset}"
+                            shown_wifi_descs+=("${wifi_descs[0]}")
+                            ssid=""
+                            [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)
+                            ;;
+                        eth*|enp*|ens*|enx*|eno*)
+                            has_eth=true
+                            desc="${eth_descs[0]:-Unknown Ethernet chipset}"
+                            shown_eth_descs+=("${eth_descs[0]}")
+                            ;;
+                        *)
+                            has_other=true
+                            desc="(network interface)"
+                            ;;
+                    esac
+                    ;;
+            esac
+
+            if [ "$state" = "UP" ]; then
+                msg+="${iface}:   ${desc}\n       ↑ ${ip4:-no IP}"
+                if [ "$pci_class" = "0x0280" ] || [[ "$iface" == wl* ]]; then
+                    [ -n "${ssid:-}" ] && msg+="  \"${ssid}\""
+                fi
                 msg+="\n"
             else
-                msg+="${w_iface}:   ${w_desc}\n       ↓\n"
+                msg+="${iface}:   ${desc}\n       ↓\n"
             fi
+        done < <(ip -o link show 2>/dev/null)
+    fi
+
+    # ── 5. Show chipsets without an active interface ──
+    local chip
+
+    for chip in "${eth_descs[@]}"; do
+        local found=false
+        for shown in "${shown_eth_descs[@]}"; do
+            [ "$chip" = "$shown" ] && found=true && break
         done
-
-        if ! $found_active_wifi && [ -n "$WIFI_DESC" ]; then
-            has_network=true
-            msg+="WiFi:     ${WIFI_DESC}\n"
-            msg+="          (no driver — use Firmware option in main menu)\n"
+        if ! $found; then
+            msg+="Ethernet: ${chip}\n       (no active interface)\n"
+            shown_eth_descs+=("$chip")
         fi
+    done
 
-        if ! $has_network; then
-            msg+="No active interfaces detected\n"
+    for chip in "${wifi_descs[@]}"; do
+        local found=false
+        for shown in "${shown_wifi_descs[@]}"; do
+            [ "$chip" = "$shown" ] && found=true && break
+        done
+        if ! $found; then
+            msg+="WiFi:     ${chip}\n       (no active interface)\n"
+            shown_wifi_descs+=("$chip")
+        fi
+    done
+
+    # ── 6. Nothing at all ──
+    if ! $has_eth && ! $has_wifi && ! $has_other && [ ${#eth_descs[@]} -eq 0 ] && [ ${#wifi_descs[@]} -eq 0 ]; then
+        if command -v ip &>/dev/null; then
+            msg+="No network interfaces detected\n"
+        else
+            msg+="(install iproute2 for interface details)\n"
         fi
     fi
 
