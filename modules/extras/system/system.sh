@@ -201,17 +201,17 @@ _cat_general() {
                 fi
                 ;;
             wine)
-                if ! is_installed "wine"; then
-                    echo "Checking for i386 architecture..."
-                    if ! dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
-                        echo "Enabling i386 architecture for Wine..."
-                        sudo dpkg --add-architecture i386
-                        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+                if ! is_installed "wine64"; then
+                    _run_cmd "Wine" "sudo apt install -y --no-install-recommends wine64 fonts-wine" "Installing Wine (64-bit only)..."
+                    local wine_ver
+                    wine_ver=$(wine --version 2>/dev/null)
+                    if [ -n "$wine_ver" ]; then
+                        echo -e "${GREEN}Wine (64-bit) installed: ${wine_ver}${NC}"
+                    else
+                        echo -e "${YELLOW}Wine installed but version check failed.${NC}"
                     fi
-                    _run_cmd "Wine" "sudo apt install -y wine wine32 wine64 libwine libwine:i386 fonts-wine" "Installing Wine..."
-                    echo -e "${GREEN}Wine installed. Run 'winecfg' to configure.${NC}"
                 else
-                    echo "Wine already installed."
+                    echo "Wine64 already installed."
                 fi
                 ;;
             nvme-cli)

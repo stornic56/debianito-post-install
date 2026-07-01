@@ -17,9 +17,9 @@ install_minecraft_java() {
     local choices
     choices=$(whiptail --title "Java Runtimes for Minecraft" --checklist \
         "Select Java version(s) to install:" 14 65 3 \
-        "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" ON \
+        "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" OFF \
         "17" "Java 17 — Minecraft 1.17 to 1.20.4" ON \
-        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" ON \
+        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" OFF \
         3>&1 1>&2 2>&3)
     [ -z "$choices" ] && { echo "No Java version selected."; return; }
     _enable_temurin_repo

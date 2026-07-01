@@ -198,7 +198,13 @@ Installs matching 32-bit graphics drivers."; then
                 ;;
             gamemode)  _run_cmd "GameMode" "sudo apt install -y gamemode" "Installing GameMode..." ;;
             goverlay)  _run_cmd "GOverlay" "sudo apt install -y goverlay" "Installing GOverlay..." ;;
-            lutris)    _run_cmd "Lutris" "sudo apt install -y lutris" "Installing Lutris..." ;;
+            lutris)
+                local pkgs="lutris wine64"
+                if dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
+                    pkgs+=" wine32"
+                fi
+                _run_cmd "Lutris" "sudo apt install -y $pkgs" "Installing Lutris + Wine..."
+                ;;
             java)      _install_gaming_java ;;
             *)         _run_install "$pkg" ;;
         esac
