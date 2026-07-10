@@ -164,14 +164,13 @@ Installs matching 32-bit graphics drivers."; then
 
     # Gaming tools checklist (no Steam, no Heroic)
     local choices
-    choices=$(whiptail --title "Gaming Tools — Bullseye" --checklist \
+    choices=$(_checklist "Gaming Tools — Bullseye" \
         "Select gaming optimization tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "gamemode" "Game performance optimization" ON \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "goverlay" "MangoHud config GUI" ON \
         "lutris"   "Game launcher/manager" OFF \
-        "java"     "Java Runtimes (8, 17, 21)" OFF \
-        3>&1 1>&2 2>&3)
+        "java"     "Java Runtimes (8, 17, 21)" OFF)
 
     if [ -z "$choices" ]; then
         echo "No gaming tools selected."

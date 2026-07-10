@@ -61,11 +61,10 @@ install_libreoffice_bpo() {
 
 _cat_office() {
     local choices
-    choices=$(whiptail --title "Office & Productivity" --checklist \
-        "Select office applications${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Office & Productivity" "Select office applications${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "onlyoffice"    "OnlyOffice Desktop Editors (extrepo)" OFF \
         "libreoffice"   "LibreOffice (backports on Bookworm/Trixie)" OFF \
-        3>&1 1>&2 2>&3)
+        )
 
     [ -z "$choices" ] && return
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')

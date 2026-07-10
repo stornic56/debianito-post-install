@@ -22,8 +22,7 @@ _cat_dev() {
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(whiptail --title "Development & Servers" --checklist \
-        "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Development & Servers" "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "apache2"                   "Apache web server$(_inst apache2)"                            "$apache_state" \
         "build-essential"           "C/C++ build tools (gcc, make)$(_inst build-essential)"        "$build_state" \
         "certbot"                   "Let's Encrypt TLS certificates$(_inst certbot)"               "$certbot_state" \
@@ -39,7 +38,7 @@ _cat_dev() {
         "sqlite3"                   "SQLite database engine$(_inst sqlite3)"                       "$sqlite_state" \
         "jellyfin"                  "Jellyfin Media Server (Web GUI on port 8096)$(_inst jellyfin)" OFF \
         "openjdk-dev-env"           "Adoptium Temurin JDK (17, 21, 25 LTS)${jdk_desc}"             "${jdk_state}" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

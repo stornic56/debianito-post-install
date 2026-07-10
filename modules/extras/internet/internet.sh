@@ -144,8 +144,7 @@ _cat_internet() {
     local protonvpn_state;    protonvpn_state=$(_state "protonvpn")
 
     local choices
-    choices=$(whiptail --title "Internet" --checklist \
-        "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Internet" "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "chromium"            "Chromium web browser$(_inst chromium)"                  "$chromium_state" \
         "dillo"               "Lightweight graphical browser$(_inst dillo)"            "$dillo_state" \
         "elinks"              "Text-mode web browser$(_inst elinks)"                   "$elinks_state" \
@@ -167,7 +166,7 @@ _cat_internet() {
         "mullvad-vpn"         "Mullvad VPN client (WireGuard)$(_inst mullvad-vpn)"     "$mullvad_state" \
         "mullvad-browser"     "Mullvad privacy browser$(_inst mullvad-browser)"        "$mullvadbrowser_state" \
         "protonvpn"           "ProtonVPN client$(_inst protonvpn)"                     "$protonvpn_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

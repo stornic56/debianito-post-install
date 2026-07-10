@@ -19,8 +19,7 @@ _cat_design() {
     local shotcut_state;   shotcut_state=$(_state "shotcut")
 
     local choices
-    choices=$(whiptail --title "Multimedia & Design" --checklist \
-        "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Multimedia & Design" "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "audacity"   "Audio editor/recorder$(_inst audacity)"                  "$audacity_state" \
         "ardour"     "Digital audio workstation$(_inst ardour)"                "$ardour_state" \
         "blender"    "3D modeling/animation suite$(_inst blender)"             "$blender_state" \
@@ -34,7 +33,7 @@ _cat_design() {
         "openshot-qt" "Video editor (simple)$(_inst openshot-qt)"              "$openshot_state" \
         "scribus"    "Desktop publishing (DTP)$(_inst scribus)"                "$scribus_state" \
         "shotcut"    "Video editor (cross-platform)$(_inst shotcut)"           "$shotcut_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

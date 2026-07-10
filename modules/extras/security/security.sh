@@ -13,15 +13,14 @@ _cat_security() {
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(whiptail --title "Security & Networking" --checklist \
-        "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Security & Networking" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "wireshark"   "Network protocol analyzer (GUI)$(_inst wireshark)"            "$wireshark_state" \
         "tcpdump"     "Command-line packet analyzer$(_inst tcpdump)"                 "$tcpdump_state" \
         "zenmap"      "Network scanner GUI (Nmap frontend)$(_inst zenmap)"            "$zenmap_state" \
         "fail2ban"    "Brute-force protection daemon$(_inst fail2ban)"               "$fail2ban_state" \
         "ufw"         "Uncomplicated firewall$(_inst ufw)"                            "$ufw_state" \
         "clamav"      "Antivirus engine (ClamAV)$(_inst clamav)"                     "$clamav_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

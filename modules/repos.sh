@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+source "${MODULES_DIR}/repos/migrate.sh" 2>/dev/null || true
+
 # State for backup/restore
 REPO_BACKUP_DIR=""
 
@@ -84,18 +86,19 @@ _clean_embedded_backports_deb822() {
 
 _write_deb822() {
     local codename="$1" action="$2" bp_enabled="$3" bp_location="$4"
+    local components="${5:-main contrib non-free non-free-firmware}"
 
     local main_file="/etc/apt/sources.list.d/debian.sources"
     local main_content=""
     main_content+="Types: deb\n"
     main_content+="URIs: https://deb.debian.org/debian\n"
     main_content+="Suites: ${codename} ${codename}-updates\n"
-    main_content+="Components: main contrib non-free non-free-firmware\n"
+    main_content+="Components: ${components}\n"
     main_content+="\n"
     main_content+="Types: deb\n"
     main_content+="URIs: https://security.debian.org/debian-security\n"
     main_content+="Suites: ${codename}-security\n"
-    main_content+="Components: main contrib non-free non-free-firmware\n"
+    main_content+="Components: ${components}\n"
 
     if content_differs "$main_file" "$main_content"; then
         if _confirm "Deb822 Sources" "Write main deb822 configuration to ${main_file}?"; then
@@ -174,20 +177,21 @@ _remove_deb822_backports() {
 
 _write_classic() {
     local codename="$1" action="$2" bp_enabled="$3" bp_location="$4"
+    local components="${5:-main contrib non-free non-free-firmware}"
 
     local main_file="/etc/apt/sources.list"
     local main_content=""
     main_content+="# Official repository\n"
-    main_content+="deb https://deb.debian.org/debian ${codename} main contrib non-free non-free-firmware\n"
-    main_content+="# deb-src https://deb.debian.org/debian ${codename} main contrib non-free non-free-firmware\n"
+    main_content+="deb https://deb.debian.org/debian ${codename} ${components}\n"
+    main_content+="# deb-src https://deb.debian.org/debian ${codename} ${components}\n"
     main_content+="\n"
     main_content+="# Updates\n"
-    main_content+="deb https://deb.debian.org/debian ${codename}-updates main contrib non-free non-free-firmware\n"
-    main_content+="# deb-src https://deb.debian.org/debian ${codename}-updates main contrib non-free non-free-firmware\n"
+    main_content+="deb https://deb.debian.org/debian ${codename}-updates ${components}\n"
+    main_content+="# deb-src https://deb.debian.org/debian ${codename}-updates ${components}\n"
     main_content+="\n"
     main_content+="# Security\n"
-    main_content+="deb https://security.debian.org/debian-security ${codename}-security main contrib non-free non-free-firmware\n"
-    main_content+="# deb-src https://security.debian.org/debian-security ${codename}-security main contrib non-free non-free-firmware\n"
+    main_content+="deb https://security.debian.org/debian-security ${codename}-security ${components}\n"
+    main_content+="# deb-src https://security.debian.org/debian-security ${codename}-security ${components}\n"
 
     if content_differs "$main_file" "$main_content"; then
         if _confirm "Classic Sources" "Write main classic configuration to ${main_file}?"; then
@@ -273,144 +277,219 @@ configure_repos() {
         return 1
     fi
 
-    # ── Informational banner ──
-    _msg "Repositories" \
-"This section will automatically enable the 'contrib' and \n\
-'non-free' branches in your official Debian repositories. \n\
-(The 'non-free-firmware' branch is already enabled by default in Debian 12 and 13.)\n\n\
-This is CRUCIAL for obtaining proprietary software packages and\n\
-essential hardware drivers, including graphics drivers,\n\
-Wi-Fi firmware, and CPU microcode." 14 70
+    # ── Repositories submenu ──
+    while true; do
+        local repo_choice
 
-    # Detect current state
-    local current_format
+        if [ "$DEBIAN_CODENAME" = "sid" ]; then
+            repo_choice=$(_menu "Repositories" \
+                "Select an option:" $TUI_ALTO $TUI_ANCHO 6 \
+                "1" "Enable Contrib & Non-Free Components" \
+                "2" "Migrate traditional sources.list to DEB822 format" \
+                "3" "Back to main menu")
+        else
+            repo_choice=$(_menu "Repositories" \
+                "Select an option:" $TUI_ALTO $TUI_ANCHO 6 \
+                "1" "Enable Contrib & Non-Free Components" \
+                "2" "Migrate traditional sources.list to DEB822 format" \
+                "3" "Setup/Update Backports repositories" \
+                "4" "[ADVANCED] Upgrade system branch (Testing / SID)" \
+                "5" "Back to main menu")
+        fi
+
+        [ -z "$repo_choice" ] && break
+        clear
+
+        case "$repo_choice" in
+            1) _repos_enable_components ;;
+            2) _repos_migrate_format ;;
+            3)
+                if [ "$DEBIAN_CODENAME" = "sid" ]; then
+                    break
+                else
+                    _repos_setup_backports
+                fi
+                ;;
+            4) _branch_migration || true ;;
+            5) break ;;
+        esac
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Submenu helpers
+# ---------------------------------------------------------------------------
+
+_components_enabled() {
+    if [ -f /etc/apt/sources.list.d/debian.sources ]; then
+        grep -qE "^Components:.*\b(contrib|non-free)\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null && return 0
+    fi
+    if [ -f /etc/apt/sources.list ]; then
+        grep -qE "^[^#]*\b(contrib|non-free)\b" /etc/apt/sources.list 2>/dev/null && return 0
+    fi
+    return 1
+}
+
+_repos_offer_upgrade() {
+    local upgradable
+    upgradable=$(apt list --upgradable 2>/dev/null | grep -c /)
+    if [ "$upgradable" -gt 0 ]; then
+        if _confirm "Upgrade System" "$upgradable packages can be upgraded. Upgrade now?"; then
+            sudo apt-mark hold tzdata 2>/dev/null || true
+            _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading system..."
+            sudo apt-mark unhold tzdata 2>/dev/null || true
+            sudo apt autoremove -y
+            sudo apt autoclean
+            echo -e "${GREEN}System upgraded.${NC}"
+        else
+            echo "Skipping upgrade."
+        fi
+    fi
+}
+
+_repos_enable_components() {
+    local current_format bp_enabled bp_location components
     current_format=$(detect_repo_format)
-    local bp_status
+
+    if _components_enabled; then
+        if ! _confirm "Disable Components" \
+            "Contrib and non-free are already enabled. Disable them?"; then
+            echo "No changes made."
+            _pause
+            return
+        fi
+        components="main"
+    else
+        if ! _confirm "Enable Components" \
+            "Enable contrib and non-free components?\n\n\
+Needed for proprietary drivers, firmware, and other popular\n\
+software (like gaming platforms and proprietary tools)." 12 60; then
+            echo "No changes made."
+            _pause
+            return
+        fi
+        components="main contrib non-free non-free-firmware"
+    fi
+
+    bp_enabled=false
+    bp_location="none"
+    if detect_backports_status "$DEBIAN_CODENAME"; then
+        bp_enabled=true
+        bp_location=$(detect_backports_location "$DEBIAN_CODENAME")
+    fi
+
+    backup_current_repos
+
+    if [ "$current_format" = "deb822" ] || [ "$current_format" = "none" ]; then
+        _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"
+    else
+        _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"
+    fi
+
+    echo "Updating package lists..."
+    if sudo apt update; then
+        REPOS_CONFIGURED=true
+        cleanup_repo_backup
+        echo -e "${GREEN}Repository components configured.${NC}"
+        _repos_offer_upgrade
+    else
+        restore_previous_repos
+        echo -e "${RED}apt update failed. Previous configuration restored.${NC}"
+    fi
+    _pause
+}
+
+_repos_migrate_format() {
+    local current_format bp_enabled bp_location
+    current_format=$(detect_repo_format)
+
+    if [ "$current_format" != "classic" ]; then
+        echo "Repositories are already in DEB822 format."
+        _pause
+        return
+    fi
+
+    if [ "$DEBIAN_CODENAME" != "trixie" ]; then
+        echo "Format migration is only relevant for Debian 13 (Trixie)."
+        _pause
+        return
+    fi
+
+    # Preserve existing backports state across format migration
+    bp_enabled=false
+    bp_location="none"
+    if detect_backports_status "$DEBIAN_CODENAME"; then
+        bp_enabled=true
+        bp_location=$(detect_backports_location "$DEBIAN_CODENAME")
+    fi
+
+    backup_current_repos
+    _write_deb822 "$DEBIAN_CODENAME" "migrate" "$bp_enabled" "$bp_location"
+
+    echo "Updating package lists..."
+    if sudo apt update; then
+        REPOS_CONFIGURED=true
+        cleanup_repo_backup
+        echo -e "${GREEN}Repository format migrated to DEB822.${NC}"
+    else
+        restore_previous_repos
+        echo -e "${RED}apt update failed. Backup restored.${NC}"
+    fi
+    _pause
+}
+
+_repos_setup_backports() {
+    local current_format bp_status bp_location
+    current_format=$(detect_repo_format)
+
     if detect_backports_status "$DEBIAN_CODENAME"; then
         bp_status="enabled"
     else
         bp_status="disabled"
     fi
-    local bp_location
     bp_location=$(detect_backports_location "$DEBIAN_CODENAME")
 
-    echo "Current format: ${current_format:-none}"
-    echo "Backports: $bp_status (location: $bp_location)"
+    echo "Backports are currently $bp_status."
 
-    # ── Format selection dialog (only Trixie gets the choice) ──
-    local use_deb822=false
-    if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-        if whiptail --title "Repository Format" --defaultno --yesno \
-"Do you want to migrate your repositories to the new
-DEB822 (.sources) format?
-
-DEB822 is the modern, structured Debian standard. It won't
-harm your system, and the script will handle the transition
-safely if you accept.
-
-NOTE: 'NO' (default) is recommended to maintain the classic
-linear format as it comes pre-configured in Debian 13 (Trixie)." 16 70; then
-            use_deb822=true
-        fi
-    elif [ "$current_format" = "deb822" ]; then
-        use_deb822=true
-    fi
-
-    # Choose backports
     local enable_backports=false
     if _confirm "Backports" "Do you want to enable the official Debian Backports repository?\n\n\
-Backports provides newer, selectively updated packages from the\n\
-next Debian testing branch, recompiled to run stably on your\n\
-current system.\n\n\
-This is HIGHLY RECOMMENDED if you have modern hardware, as it\n\
-delivers newer Linux Kernels, updated display drivers, and modern\n\
-Mesa versions without compromising overall system stability." 16 70; then
+Backports provides newer, selectively updated packages from the next\n\
+Debian testing branch, recompiled to run stably on your current system.\n\n\
+Answer NO to disable or remove backports if they are currently enabled." 16 70; then
         enable_backports=true
     fi
 
-    # Determine what to do
-    local target_format
-    $use_deb822 && target_format="deb822" || target_format="classic"
-
-    if [ "$current_format" = "none" ]; then
-        local action="write"
-    elif [ "$target_format" != "$current_format" ]; then
-        local action="migrate"
-    else
-        local action="update"
-    fi
-
-    # If nothing changed (same format + same backports state), skip
-    if [ "$action" = "update" ] && [ "$enable_backports" = "$bp_status" ]; then
-        # Check if backports location is correct (standalone)
-        if $enable_backports; then
-            local correct_location="standalone-deb822"
-            $use_deb822 || correct_location="standalone-classic"
-            if [ "$bp_location" = "$correct_location" ]; then
-                # Also verify no embedded backports linger
-                if [ "$target_format" = "deb822" ]; then
-                    ! grep -qE "^Suites:.*${DEBIAN_CODENAME}-backports\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null || { action="update"; true; }
-                else
-                    ! grep -qE "^[^#]*${DEBIAN_CODENAME}-backports\b" /etc/apt/sources.list 2>/dev/null || { action="update"; true; }
-                fi
-                if [ "$action" = "update" ]; then
-                    echo "Repository configuration is already up-to-date. Skipping."
-                    return 0
-                fi
-            fi
-        else
-            # Backports disabled: verify no backports files exist
-            if [ ! -f /etc/apt/sources.list.d/debian-backports.sources ] && \
-               [ ! -f /etc/apt/sources.list.d/debian-backports.list ]; then
-                echo "Repository configuration is already up-to-date. Skipping."
-                return 0
-            fi
-        fi
+    # Nothing to do — already in desired state
+    if { $enable_backports && [ "$bp_status" = "enabled" ]; } || \
+       { ! $enable_backports && [ "$bp_status" = "disabled" ]; }; then
+        echo "Backports are already configured as requested."
+        _pause
+        return
     fi
 
     backup_current_repos
 
-    if $use_deb822; then
-        _write_deb822 "$DEBIAN_CODENAME" "$action" "$enable_backports" "$bp_location"
+    if $enable_backports; then
+        if [ "$current_format" = "deb822" ]; then
+            _write_deb822_backports "$DEBIAN_CODENAME"
+        else
+            _write_classic_backports "$DEBIAN_CODENAME"
+        fi
     else
-        _write_classic "$DEBIAN_CODENAME" "$action" "$enable_backports" "$bp_location"
+        if [ "$current_format" = "deb822" ]; then
+            _remove_deb822_backports "$DEBIAN_CODENAME"
+        else
+            _remove_classic_backports "$DEBIAN_CODENAME"
+        fi
     fi
 
     echo "Updating package lists..."
-    sudo apt update
-    local apt_rc=$?
-    if [ $apt_rc -eq 0 ]; then
-        REPOS_CONFIGURED=true
-        echo -e "${GREEN}Repositories configured and updated successfully.${NC}"
-
-        if $use_deb822; then
-            # Remove any leftover disabled files from old classic format
-            [ -f /etc/apt/sources.list.disabled ] && sudo rm -f /etc/apt/sources.list.disabled
-        else
-            [ -f /etc/apt/sources.list.d/debian.sources.disabled ] && sudo rm -f /etc/apt/sources.list.d/debian.sources.disabled
-        fi
-
+    if sudo apt update; then
         cleanup_repo_backup
-
-        local upgradable
-        upgradable=$(apt list --upgradable 2>/dev/null | grep -c /)
-        if [ "$upgradable" -gt 0 ]; then
-            if _confirm "Upgrade System" "$upgradable packages can be upgraded. Upgrade now?"; then
-                sudo apt-mark hold tzdata 2>/dev/null || true
-                _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading system..."
-                sudo apt-mark unhold tzdata 2>/dev/null || true
-                sudo apt autoremove -y
-                sudo apt autoclean
-                echo -e "${GREEN}System upgraded.${NC}"
-                _pause
-            else
-                echo "Skipping upgrade."
-            fi
-        fi
+        echo -e "${GREEN}Backports configured.${NC}"
     else
         restore_previous_repos
-        echo -e "${RED}apt update failed. Previous repository configuration restored.${NC}"
-        _pause
-        return 1
+        echo -e "${RED}apt update failed. Backup restored.${NC}"
     fi
+    _pause
 }

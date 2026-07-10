@@ -26,33 +26,62 @@ install_lutris() {
 }
 
 install_openrgb() {
-    local url
-    if [ "$DEBIAN_VERSION" = "12" ]; then
-        url="https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_candidate_1.0rc2/openrgb_1.0rc2_amd64_bookworm_0fca93e.deb"
-    elif [ "$DEBIAN_VERSION" = "13" ]; then
-        url="https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_candidate_1.0rc2/openrgb_1.0rc2_amd64_trixie_0fca93e.deb"
-    else
-        echo "OpenRGB requires Debian 12 (Bookworm) or 13 (Trixie)."
-        return 1
-    fi
+    local deb_suffix
+    case "$DEBIAN_CODENAME" in
+        bookworm) deb_suffix="bookworm" ;;
+        trixie)   deb_suffix="trixie" ;;
+        *)
+            echo "OpenRGB requires Debian 12 (Bookworm) or 13 (Trixie)."
+            return 1
+            ;;
+    esac
 
     local deb_path="/tmp/openrgb.deb"
     local ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
-    _run_cmd "OpenRGB" "curl -L -o ${deb_path} -A '${ua}' '${url}'" "Downloading OpenRGB..."
+    _run_cmd "OpenRGB" "sudo apt install -y curl jq" "Installing dependencies..."
 
-    if [ ! -s "${deb_path}" ]; then
-        echo -e "${RED}[-]${NC} Download failed: empty or missing file."
-        rm -f "${deb_path}"
+    local json
+    json=$(curl -s --connect-timeout 10 \
+        "https://codeberg.org/api/v1/repos/OpenRGB/OpenRGB/releases?limit=1") || {
+        echo -e "${RED}Could not fetch OpenRGB releases from Codeberg API.${NC}"
+        return 1
+    }
+
+    local deb_url sha256
+    while IFS=' ' read -r url hash; do
+        deb_url="$url"
+        sha256="$hash"
+    done < <(echo "$json" | jq -r '
+        .[0].assets[] | select(.name | contains("amd64_'"${deb_suffix}"'.deb")) |
+        "\(.browser_download_url) \(.sha256 // "")"
+    ' 2>/dev/null)
+
+    if [ -z "$deb_url" ]; then
+        echo -e "${RED}Could not find OpenRGB .deb for ${DEBIAN_CODENAME^}.${NC}"
         return 1
     fi
 
-    echo -e "${GREEN}[+]${NC} Installing OpenRGB package..."
-    if ! sudo apt install -y "${deb_path}"; then
-        rm -f "${deb_path}"
-        echo -e "${RED}[-]${NC} Package installation failed."
-        return 1
+    _run_cmd "OpenRGB" "curl -L -o '${deb_path}' -A '${ua}' '${deb_url}'" "Downloading OpenRGB..."
+
+    if [ -n "$sha256" ]; then
+        if ! echo "$sha256  $deb_path" | sha256sum -c --strict; then
+            echo -e "${RED}SHA256 mismatch! Downloaded file may be corrupted. Removing.${NC}"
+            rm -f "$deb_path"
+            return 1
+        fi
+        echo -e "${GREEN}SHA256 verified.${NC}"
+    else
+        if ! dpkg-deb --info "$deb_path" >/dev/null 2>&1; then
+            echo -e "${RED}Downloaded .deb is corrupted. Removing.${NC}"
+            rm -f "$deb_path"
+            return 1
+        fi
+        echo -e "${YELLOW}No SHA256 in API, validated via dpkg-deb.${NC}"
     fi
+
+    sudo apt install -y "$deb_path"
+    rm -f "$deb_path"
 
     sudo modprobe i2c-dev
     if ! grep -q "^i2c-dev" /etc/modules 2>/dev/null; then
@@ -62,8 +91,7 @@ install_openrgb() {
     sudo udevadm control --reload-rules && sudo udevadm trigger
     sudo setcap cap_sys_rawio=ep /usr/bin/openrgb 2>/dev/null || true
 
-    rm -f "${deb_path}"
-    echo -e "${GREEN}OpenRGB installed. NOTE: You must reboot or log out/in for the 'i2c' group to take effect.${NC}"
+    echo -e "${GREEN}OpenRGB installed. Reboot or log out/in for i2c group to take effect.${NC}"
     _pause
 }
 

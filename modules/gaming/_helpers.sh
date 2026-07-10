@@ -2,66 +2,79 @@
 # Shared helpers for gaming submodules
 
 _install_mesa_32bit() {
-    local mesa_pkgs=(
-        "mesa-vulkan-drivers" "mesa-vulkan-drivers:i386"
-        "libgl1-mesa-dri"     "libgl1-mesa-dri:i386"
-        "libglx-mesa0"        "libglx-mesa0:i386"
-        "libegl-mesa0"        "libegl-mesa0:i386"
-        "mesa-va-drivers"     "mesa-va-drivers:i386"
+    local base_pkgs=(
+        "mesa-vulkan-drivers"
+        "libgl1-mesa-dri"
+        "libglx-mesa0"
+        "libegl-mesa0"
+        "mesa-va-drivers"
+        "mesa-libgallium"
     )
 
-    local ref_ver
-    ref_ver=$(apt-cache policy mesa-vulkan-drivers:i386 2>/dev/null | awk 'NR==3 {print $2; exit}')
-    local ref_bpo_ver
-    ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers:i386 2>/dev/null | \
-        grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
-    local comp_line="Components: Vulkan:i386, OpenGL:i386, GLX:i386, EGL:i386, VA-API:i386"
+    local i386_active=false
+    dpkg --print-foreign-architectures 2>/dev/null | grep -q i386 && i386_active=true
 
-    if [ "$(is_backports_enabled)" == "true" ] && [ -n "$ref_bpo_ver" ]; then
-        local bpo_pkgs=()
-        local stable_pkgs=()
+    local install_list=()
 
-        for mpkg in "${mesa_pkgs[@]}"; do
-            local bpo_ver
-            bpo_ver=$(apt-cache madison "$mpkg" 2>/dev/null | \
-                grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
-            if [ -n "$bpo_ver" ]; then
-                bpo_pkgs+=("$mpkg")
-            else
-                stable_pkgs+=("$mpkg")
-            fi
-        done
-
-        local src_label="Debian ${DEBIAN_CODENAME^}-Backports"
-        [ ${#stable_pkgs[@]} -gt 0 ] && src_label+=" + Stable"
-
-        local msg="Mesa 32-bit drivers required for gaming.\n\n"
-        msg+="Source: ${src_label}\n"
-        msg+="Mesa ${ref_bpo_ver:-$ref_ver}\n"
-        msg+="${comp_line}\n\n"
-        [ ${#stable_pkgs[@]} -gt 0 ] && msg+="Some packages only available in stable.\n"
-        msg+="Choose version:"
-
-        if _confirm_custom "Mesa 32-bit" "$msg" "Backports" "Stable" 14 70; then
-            _run_cmd "Mesa 32-bit" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${bpo_pkgs[*]}" \
-                "Installing 32-bit Mesa from backports..."
-            if [ ${#stable_pkgs[@]} -gt 0 ]; then
-                _run_cmd "Mesa 32-bit" "sudo apt install -y ${stable_pkgs[*]}" \
-                    "Installing remaining 32-bit Mesa from stable..."
-            fi
-        else
-            _run_cmd "Mesa 32-bit" "sudo apt install -y ${mesa_pkgs[*]}" \
-                "Installing 32-bit Mesa from stable..."
+    for p in "${base_pkgs[@]}"; do
+        if apt-cache show "$p" >/dev/null 2>&1; then
+            install_list+=("$p")
         fi
-    else
-        local msg="Mesa 32-bit drivers required for gaming.\n\n"
-        msg+="Source: Debian Stable\n"
-        msg+="Mesa ${ref_ver}\n"
-        msg+="${comp_line}\n\n"
-        msg+="Install Mesa 32-bit drivers?"
-        if _confirm "Mesa 32-bit" "$msg" 14 70; then
-            _run_cmd "Mesa 32-bit" "sudo apt install -y ${mesa_pkgs[*]}" \
-                "Installing 32-bit Mesa..."
+        if $i386_active && apt-cache show "${p}:i386" >/dev/null 2>&1; then
+            install_list+=("${p}:i386")
         fi
+    done
+
+    if [ ${#install_list[@]} -eq 0 ]; then
+        echo "No Mesa 32-bit packages available for installation."
+        return
+    fi
+
+    _run_cmd "Mesa 32-bit" "sudo apt install -y ${install_list[*]}" \
+        "Installing Mesa drivers (${#install_list[@]} packages)..."
+}
+
+apt_cache_exists() {
+    apt-cache show "$1" >/dev/null 2>&1
+}
+
+_detect_installed_nvidia_driver() {
+    dpkg -l 2>/dev/null | awk '
+        /^ii/ && ($2=="nvidia-driver" || $2=="nvidia-open" ||
+                  $2 ~ /^nvidia-legacy-[0-9]+xx-driver$/ ||
+                  $2 ~ /^nvidia-tesla-[0-9]+-driver$/) {print $2; exit}'
+}
+
+_nvidia_libs_pkg() {
+    case "$1" in
+        nvidia-driver|nvidia-open) echo "nvidia-driver-libs" ;;
+        *) echo "${1}-libs" ;;
+    esac
+}
+
+_install_nvidia_32bit() {
+    local drv_pkg
+    drv_pkg=$(_detect_installed_nvidia_driver)
+    if [ -z "$drv_pkg" ]; then
+        _msg "NVIDIA 32-bit" \
+            "No NVIDIA driver detected.\n\nRun Graphics Drivers (option 5) first,\nthen return to add 32-bit libraries." 10 60
+        return 0
+    fi
+
+    local drv_ver
+    drv_ver=$(dpkg -s "$drv_pkg" 2>/dev/null | sed -n 's/^Version: //p')
+    local libs_pkg
+    libs_pkg=$(_nvidia_libs_pkg "$drv_pkg")
+
+    if ! apt_cache_exists "${libs_pkg}:i386"; then
+        _msg "NVIDIA 32-bit" \
+            "No ${libs_pkg}:i386 available for your driver (${drv_pkg}).\nSkipping 32-bit NVIDIA libraries." 10 60
+        return 0
+    fi
+
+    if _confirm "NVIDIA 32-bit" \
+        "Driver: ${drv_pkg} ${drv_ver}\n\nInstall ${libs_pkg}:i386 (same version to prevent ABI mismatch)." 12 70; then
+        _run_cmd "NVIDIA 32-bit" "sudo apt install -y ${libs_pkg}:i386=${drv_ver}" \
+            "Installing 32-bit NVIDIA libraries (${drv_ver})..."
     fi
 }

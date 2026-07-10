@@ -10,15 +10,14 @@ _cat_cursors() {
     local oxygen_state;    oxygen_state=$(_state "oxygencursors")
 
     local choices
-    choices=$(whiptail --title "Cursor Themes" --checklist \
-        "Select cursor themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Cursor Themes" "Select cursor themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "bibata-cursor-theme"    "Bibata cursors$(_inst bibata-cursor-theme)"          "$bibata_state" \
         "breeze-cursor-theme"    "Breeze cursors (KDE)$(_inst breeze-cursor-theme)"   "$breeze_state" \
         "chameleon-cursor-theme" "Chameleon cursors$(_inst chameleon-cursor-theme)"   "$chameleon_state" \
         "dmz-cursor-theme"       "DMZ cursors$(_inst dmz-cursor-theme)"                "$dmz_state" \
         "xcursor-themes"         "X11 base cursors$(_inst xcursor-themes)"            "$xcursor_state" \
         "oxygencursors"          "Oxygen cursors (KDE legacy)$(_inst oxygencursors)"  "$oxygen_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return
