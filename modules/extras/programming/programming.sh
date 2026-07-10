@@ -22,8 +22,7 @@ _cat_programming() {
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(whiptail --title "Programming Applications" --checklist \
-        "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Programming Applications" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "vim"                "Classic terminal editor$(_inst vim)"                        "$vim_state" \
         "vim-gtk3"           "Vim with GTK3 GUI$(_inst vim-gtk3)"                        "$vimgtk_state" \
         "neovim"             "Modern vim fork$(_inst neovim)"                             "$neovim_state" \
@@ -36,7 +35,7 @@ _cat_programming() {
         "geany"              "Lightweight IDE$(_inst geany)"                              "$geany_state" \
         "gnome-text-editor"  "GNOME modern text editor$(_inst gnome-text-editor)"       "$gte_state" \
         "vscodium"           "VS Code open-source (extrepo)$(_inst codium)"              "$codium_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

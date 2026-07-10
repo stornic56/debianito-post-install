@@ -7,14 +7,13 @@ config_sudo() {
 
     while true; do
         local choice
-        choice=$(whiptail --title "User Privileges & Feedback" --menu \
+        choice=$(_menu "User Privileges & Feedback" \
             "Select an option:" $TUI_ALTO $TUI_ANCHO 6 \
             "1" "Sudo Group Membership" \
             "2" "Passwordless Sudo (maintenance commands)" \
             "3" "Repair Home Directory Ownership" \
             "4" "Sudo Password Feedback (asterisks)" \
-            "5" "Back to main menu" \
-            3>&1 1>&2 2>&3)
+            "5" "Back to main menu")
 
         [ -z "$choice" ] && return
         clear
@@ -67,12 +66,11 @@ _configure_nopasswd() {
   - shutdown / reboot / halt (power commands)\n\n\
 Useful for automation but reduces security." 14 70; then
         local choices
-        choices=$(whiptail --title "NOPASSWD Commands" --checklist \
+        choices=$(_checklist "NOPASSWD Commands" \
             "Select commands to allow without password:" 12 60 3 \
             "apt"       "APT package management" ON \
             "systemctl" "Systemd service management" ON \
-            "power"     "Shutdown, reboot, halt" ON \
-            3>&1 1>&2 2>&3)
+            "power"     "Shutdown, reboot, halt" ON)
         clear
 
         [ -z "$choices" ] && { echo "No commands selected."; return; }
@@ -93,12 +91,10 @@ Useful for automation but reduces security." 14 70; then
             esac
         done
 
-        echo -e "$content" | sudo tee "$nopasswd_file" > /dev/null
-        sudo chmod 0440 "$nopasswd_file"
-        if [ -f "$nopasswd_file" ]; then
+        local content_str; content_str=$(echo -e "$content")
+        if _validate_sudoers "$content_str" "$nopasswd_file"; then
             echo -e "${GREEN}Passwordless sudo configured for selected commands.${NC}"
         else
-            echo -e "${RED}Failed to configure passwordless sudo.${NC}"
             return 1
         fi
     fi
@@ -148,10 +144,9 @@ _toggle_pwfeedback() {
     else
         if _confirm "Password Feedback" \
             "Show asterisks when typing the sudo password?"; then
-            if echo 'Defaults pwfeedback' | sudo tee "$fb_file" > /dev/null 2>&1; then
+            if _validate_sudoers 'Defaults pwfeedback' "$fb_file"; then
                 echo -e "${GREEN}Password feedback enabled.${NC}"
             else
-                echo -e "${RED}Failed to create $fb_file${NC}"
                 return 1
             fi
         fi

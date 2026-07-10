@@ -4,11 +4,10 @@ _cat_software_centers() {
     local de_type
     de_type=$(_detect_desktop_type)
     local sc_choice
-    sc_choice=$(whiptail --title "Software Centers" --menu \
-        "Choose a software store to install:" 12 65 2 \
+    sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 2 \
         "gnome-software"   "Software Center for GNOME$(_inst gnome-software)" \
         "plasma-discover"  "Software manager for Plasma$(_inst plasma-discover)" \
-        3>&1 1>&2 2>&3)
+        )
     [ -z "$sc_choice" ] && return
 
     if { [ "$de_type" = "qt" ] && [ "$sc_choice" = "gnome-software" ]; } || \

@@ -12,8 +12,7 @@ _cat_fonts() {
     local recommended_state; recommended_state=$(_state "fonts-recommended")
 
     local choices
-    choices=$(whiptail --title "Fonts" --checklist \
-        "Select fonts to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Fonts" "Select fonts to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "fonts-bebas-neue"           "Bebas Neue (display)$(_inst fonts-bebas-neue)"                       "$bebas_state" \
         "fonts-anonymous-pro"        "Anonymous Pro (monospace)$(_inst fonts-anonymous-pro)"               "$anon_state" \
         "fonts-adf-verana"           "ADF Verana (sans-serif)$(_inst fonts-adf-verana)"                    "$verana_state" \
@@ -22,7 +21,7 @@ _cat_fonts() {
         "ttf-mscorefonts-installer"  "Microsoft fonts (EULA required)$(_inst ttf-mscorefonts-installer)" "$mscore_state" \
         "fonts-ubuntu"               "Ubuntu font family$(_inst fonts-ubuntu)"                             "$ubuntu_state" \
         "fonts-recommended"          "Debian recommended fonts$(_inst fonts-recommended)"                "$recommended_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

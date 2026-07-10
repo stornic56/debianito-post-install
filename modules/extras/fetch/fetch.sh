@@ -37,10 +37,9 @@ _cat_fetch() {
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(whiptail --title "Fetch Tools" --checklist \
-        "Select system info tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Fetch Tools" "Select system info tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "${items[@]}" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

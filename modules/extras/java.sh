@@ -15,12 +15,11 @@ _enable_temurin_repo() {
 
 install_minecraft_java() {
     local choices
-    choices=$(whiptail --title "Java Runtimes for Minecraft" --checklist \
+    choices=$(_checklist "Java Runtimes for Minecraft" \
         "Select Java version(s) to install:" 14 65 3 \
         "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" OFF \
         "17" "Java 17 — Minecraft 1.17 to 1.20.4" ON \
-        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" OFF \
-        3>&1 1>&2 2>&3)
+        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" OFF)
     [ -z "$choices" ] && { echo "No Java version selected."; return; }
     _enable_temurin_repo
     local cleaned
@@ -33,12 +32,11 @@ install_minecraft_java() {
 
 _install_dev_java() {
     local ver
-    ver=$(whiptail --title "Java Development Kits (JDK)" --menu \
+    ver=$(_menu "Java Development Kits (JDK)" \
         "Select JDK version:" 12 60 3 \
         "17" "Java 17 LTS Development Kit" \
         "21" "Java 21 LTS Development Kit" \
-        "25" "Java 25 LTS Development Kit" \
-        3>&1 1>&2 2>&3)
+        "25" "Java 25 LTS Development Kit")
     [ -z "$ver" ] && { echo "No JDK version selected."; return; }
     _enable_temurin_repo
     _run_install "temurin-${ver}-jdk"

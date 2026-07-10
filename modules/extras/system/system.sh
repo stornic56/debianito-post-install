@@ -61,8 +61,7 @@ _cat_general() {
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(whiptail --title "System Tools" --checklist \
-        "Select system utilities to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "System Tools" "Select system utilities to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "alacritty"       "GPU-accelerated terminal$(_inst alacritty)"            "$alacritty_state" \
         "btop"            "Resource monitor (fancy top)$(_inst btop)"             "$btop_state" \
         "compress"        "Compression tools (zip, unrar, 7z)$(_inst zip)"        "$compress_state" \
@@ -92,7 +91,7 @@ _cat_general() {
         "timeshift"       "System restore snapshots$(_inst timeshift)"            "$timeshift_state" \
         "tmux"            "Terminal multiplexer$(_inst tmux)"                     "$tmux_state" \
         "wine"            "Windows compatibility layer$(_inst wine)"              "$wine_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

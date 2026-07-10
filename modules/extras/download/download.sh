@@ -21,17 +21,15 @@ _cat_download() {
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices1 choices2=""
 
-    choices1=$(whiptail --title "Downloaders" --checklist \
-        "Select download tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "aria2"            "Multiprotocol downloader (CLI)$(_inst aria2)"     "$aria2_state" \
         "filezilla"        "FTP/SFTP client (GUI)$(_inst filezilla)"          "$filezilla_state" \
         "yt-dlp"           "Video downloader CLI$(_inst yt-dlp)"               "$ytdlp_state" \
         "youtubedl-gui"    "GUI for yt-dlp$(_inst youtubedl-gui)"             "$ytdlp_gui_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
-    choices2=$(whiptail --title "Torrent Clients" --checklist \
-        "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices2=$(_checklist "Torrent Clients" "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "deluge"            "BitTorrent client (GTK)$(_inst deluge)"                      "$deluge_state" \
         "deluged"           "BitTorrent daemon/server$(_inst deluged)"                    "$deluged_state" \
         "mktorrent"         "Torrent metainfo creator (CLI)$(_inst mktorrent)"            "$mktorrent_state" \
@@ -40,7 +38,7 @@ _cat_download() {
         "transmission-cli"  "BitTorrent client (CLI)$(_inst transmission-cli)"            "$tr_cli_state" \
         "transmission-gtk"  "BitTorrent client (GTK)$(_inst transmission-gtk)"            "$tr_gtk_state" \
         "transmission-qt"   "BitTorrent client (Qt)$(_inst transmission-qt)"              "$tr_qt_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     local cleaned

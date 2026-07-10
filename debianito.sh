@@ -29,6 +29,7 @@ source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/zram.sh" ]      && source "${MODULES_DIR}/zram.sh"
 [ -f "${MODULES_DIR}/extras/java.sh" ] && source "${MODULES_DIR}/extras/java.sh"
 [ -f "${MODULES_DIR}/rescue.sh" ]    && source "${MODULES_DIR}/rescue.sh"
+[ -f "${MODULES_DIR}/swap.sh" ]     && source "${MODULES_DIR}/swap.sh"
 
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
 if [ -d "${MODULES_DIR}/bullseye" ]; then
@@ -43,7 +44,7 @@ DEBIAN_CODENAME=""
 
 main_menu() {
     # Auto-adjust TUI dimensions for small terminals
-    if [ "$LINES" -lt $((TUI_ALTO + 6)) ] || [ "$COLUMNS" -lt $((TUI_ANCHO + 6)) ]; then
+    if [ "${LINES:-24}" -lt $((TUI_ALTO + 6)) ] || [ "${COLUMNS:-80}" -lt $((TUI_ANCHO + 6)) ]; then
         TUI_ALTO=$((LINES - 4 > 8 ? LINES - 4 : 8))
         TUI_ANCHO=$((COLUMNS - 4 > 50 ? COLUMNS - 4 : 50))
         TUI_ALTO_LISTA=$((TUI_ALTO - 10 > 4 ? TUI_ALTO - 10 : 4))
@@ -51,7 +52,7 @@ main_menu() {
 
     while true; do
         local choice
-        choice=$(whiptail --title "DEBIANITO — simple configurator script" --menu "" \
+        choice=$(_menu "DEBIANITO — simple configurator script" "" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "1" "System Info" \
             "2" "User Privileges & Feedback" \
@@ -60,11 +61,11 @@ main_menu() {
             "5" "Graphics Drivers & Mesa Stack" \
             "6" "Backports Kernel" \
             "7" "Gaming Setup" \
-            "8" "ZRAM (Swap)" \
-            "9" "Install Programs and Software" \
-            "10" "Boot Rescue & Repair" \
-            "11" "Exit" \
-            3>&1 1>&2 2>&3)
+            "8" "ZRAM" \
+            "9" "Swap Management" \
+            "10" "Install Programs and Software" \
+            "11" "Boot Rescue & Repair" \
+            "12" "Exit")
 
         clear
 
@@ -104,15 +105,16 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
                 fi
                 ;;
             8)  install_zram || true ;;
-            9)
+            9)  manage_swap || true ;;
+            10)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
                     install_extras_bullseye || true
                 else
                     install_extras || true
                 fi
                 ;;
-            10) rescue_boot || true ;;
-            11) echo "Exiting."; exit 0 ;;
+            11) rescue_boot || true ;;
+            12) echo "Exiting."; exit 0 ;;
         esac
     done
 }

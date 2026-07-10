@@ -4,13 +4,12 @@
 _cat_customization() {
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local sub
-    sub=$(whiptail --title "Customization System" --menu \
-        "Select type:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    sub=$(_menu "Customization System" "Select type:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "1" "Desktop Themes (GTK/KDE)" \
         "2" "Icon Themes" \
         "3" "Cursor Themes" \
         "4" "Fonts" \
-        3>&1 1>&2 2>&3)
+        )
     [ -z "$sub" ] && return
     case $sub in
         1) _cat_themes ;;

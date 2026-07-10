@@ -56,13 +56,12 @@ _rescue_initramfs() {
 rescue_boot() {
     while true; do
         local choice
-        choice=$(whiptail --title "Boot Rescue & Repair" --menu \
+        choice=$(_menu "Boot Rescue & Repair" \
             "Select a rescue operation${SCROLL_HINT}:" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "1" "Refirm Secure Boot (shim + GRUB)" \
             "2" "Regenerate initramfs (all kernels)" \
-            "3" "Return to main menu" \
-            3>&1 1>&2 2>&3)
+            "3" "Return to main menu")
 
         [ -z "$choice" ] && return
         clear

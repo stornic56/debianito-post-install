@@ -12,7 +12,7 @@ install_zram() {
     local half_ram_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
 
     local algo
-    algo=$(whiptail --title "ZRAM Compression" --menu \
+    algo=$(_menu "ZRAM Compression" \
         "ZRAM compresses a portion of RAM into compressed swap,\
  effectively increasing available memory.
 
@@ -22,8 +22,7 @@ more swap space without disk writes.
 Choose compression algorithm:" \
         $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "lz4"  "Fastest, low CPU (recommended)" \
-        "zstd" "Better ratio, more CPU" \
-        3>&1 1>&2 2>&3)
+        "zstd" "Better ratio, more CPU")
 
     if [ -z "$algo" ]; then
         echo "ZRAM configuration cancelled."
@@ -34,8 +33,7 @@ Choose compression algorithm:" \
     if _confirm "ZRAM Size" "Use recommended size for ZRAM? (${half_ram_mb} MB out of ${RAM_SUMMARY})"; then
         zram_size=$half_ram_mb
     else
-        zram_size=$(whiptail --title "ZRAM Size" --inputbox \
-            "Enter ZRAM size in MB:" 8 60 "$half_ram_mb" 3>&1 1>&2 2>&3)
+        zram_size=$(_inputbox "ZRAM Size" "Enter ZRAM size in MB:" 8 60 "$half_ram_mb")
         if [ -z "$zram_size" ] || ! [[ "$zram_size" =~ ^[0-9]+$ ]] || [ "$zram_size" -eq 0 ]; then
             echo "ZRAM configuration cancelled."
             return 0

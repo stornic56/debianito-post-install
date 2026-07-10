@@ -9,11 +9,10 @@ _cat_players() {
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
-    choices=$(whiptail --title "Media Players" --checklist \
-        "Select media players:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Media Players" "Select media players:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
         "mpv"  "Lightweight media player$(_inst mpv)"  "$mpv_state" \
         "vlc"  "VLC media player$(_inst vlc)"           "$vlc_state" \
-        3>&1 1>&2 2>&3)
+        )
     clear
 
     [ -z "$choices" ] && return

@@ -369,23 +369,31 @@ detect_displayserver() {
 }
 
 # ---------------------------------------
-# Storage summary via lsblk (NVMe / SSD / HDD)
+# Storage summary via lsblk (NVMe / SSD / HDD / USB-SD)
 # ---------------------------------------
 detect_storage() {
     local parts=()
-    local name size rota type
+    local name size rota type rm
 
-    while read -r name size rota; do
+    while read -r name size rota type; do
         [ "$name" = "NAME" ] && continue
+        echo "$name" | grep -q "zram" && continue
+        [ "$type" = "loop" ] || [ "$type" = "rom" ] && continue
+
         if echo "$name" | grep -q "nvme"; then
             type="NVMe"
         elif [ "$rota" = "1" ]; then
             type="HDD"
         else
-            type="SSD"
+            rm=$(cat /sys/block/"$name"/removable 2>/dev/null || echo 0)
+            if [ "$rm" = "1" ]; then
+                type="USB/SD"
+            else
+                type="SSD"
+            fi
         fi
         parts+=("${size} ${type}")
-    done < <(lsblk -d -o NAME,SIZE,ROTA 2>/dev/null || true)
+    done < <(lsblk -d -o NAME,SIZE,ROTA,TYPE -e 7,11 2>/dev/null || true)
 
     if [ ${#parts[@]} -eq 0 ]; then
         STORAGE_SUMMARY="No disks detected"
@@ -539,7 +547,38 @@ _confirm_custom() {
 }
 
 _msg() {
-    whiptail --title "$1" --msgbox "$2" "${3:-10}" "${4:-65}"
+    whiptail --title "$1" --msgbox "$2" "${3:-10}" "${4:-65}" || true
+}
+
+_menu() {
+    local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
+    whiptail --title "$title" --menu "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
+}
+
+_checklist() {
+    local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
+    whiptail --title "$title" --checklist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
+}
+
+_inputbox() {
+    whiptail --title "$1" --inputbox "$2" "${3:-10}" "${4:-60}" "${5:-}" 3>&1 1>&2 2>&3 || true
+}
+
+_validate_sudoers() {
+    local content="$1" dest="$2"
+    local tmpfile
+    tmpfile=$(mktemp) || return 1
+    echo "$content" > "$tmpfile"
+    if ! visudo -cf "$tmpfile" &>/dev/null; then
+        local err
+        err=$(visudo -cf "$tmpfile" 2>&1 || true)
+        rm -f "$tmpfile"
+        _msg "Sudoers Error" "Invalid sudoers syntax in:\n\n${err}\n\nFile was NOT written.\nThis prevents broken sudo access." 12 70
+        return 1
+    fi
+    sudo cp "$tmpfile" "$dest"
+    sudo chmod 0440 "$dest"
+    rm -f "$tmpfile"
 }
 
 _pause() {
@@ -554,7 +593,7 @@ _run_cmd() {
     clear
     echo -e "${GREEN}[+]${NC} $success_msg"
     echo "──────────────────────────────────────────────"
-    eval "$command"
+    bash -c "$command"
     local rc=$?
     echo "──────────────────────────────────────────────"
     if [ $rc -eq 0 ]; then
