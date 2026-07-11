@@ -130,7 +130,7 @@ _is_broadcom_b43() {
     local dec=$((16#$id))
     if [ "$dec" -ge $((16#4301)) ] && [ "$dec" -le $((16#4331)) ]; then return 0; fi
     if [ "$dec" -ge $((16#4336)) ] && [ "$dec" -le $((16#4338)) ]; then return 0; fi
-    case "$id" in 4352|4357|4358|4360|4727) return 0 ;; esac
+    case "$id" in 4352) return 0 ;; esac
     return 1
 }
 
@@ -255,8 +255,22 @@ _handle_wireless() {
             fi
             installed_any=true
         elif _is_broadcom_b43 "$dev_id"; then
-            _run_install_pkg firmware-b43-installer
-            installed_any=true
+            if ! dpkg -l firmware-b43-installer >/dev/null 2>&1; then
+                _run_install_pkg firmware-b43-installer
+            fi
+
+            if [ ! -d /lib/firmware/b43 ] || [ -z "$(ls -A /lib/firmware/b43 2>/dev/null)" ]; then
+                _msg "b43 Firmware Warning" \
+                    "The firmware-b43-installer package was installed, but the\n\
+proprietary firmware download appears to have failed\n\
+(no files found in /lib/firmware/b43).\n\n\
+To fix this, connect a wired network and run:\n\
+  sudo dpkg-reconfigure firmware-b43-installer\n\n\
+After the firmware is downloaded, reboot the system." 14 75
+                _pause
+            else
+                installed_any=true
+            fi
         elif _is_broadcom_b43legacy "$dev_id"; then
             _run_install_pkg firmware-b43legacy-installer
             installed_any=true
@@ -264,9 +278,34 @@ _handle_wireless() {
             local bcm_ver header_ver
             bcm_ver=$(apt-cache policy broadcom-sta-dkms 2>/dev/null | awk 'NR==3 {print $2; exit}')
             header_ver=$(apt-cache policy linux-headers-$(uname -r) 2>/dev/null | awk 'NR==3 {print $2; exit}')
+
+            if ! apt-cache policy "linux-headers-$(uname -r)" 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
+                _msg "Broadcom Error" \
+                    "linux-headers-$(uname -r) not available.\n\nCannot compile broadcom-sta-dkms without kernel headers." 10 60
+                _pause
+                continue
+            fi
+
             if _confirm "Broadcom WiFi" "Install Broadcom driver?\n\nRequired for this chipset. Compiles a kernel module.\n\n  broadcom-sta-dkms          ${bcm_ver:-unknown}\n  linux-headers-$(uname -r)  ${header_ver:-unknown}\n\nProceed?"; then
                 _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y linux-headers-$(uname -r) broadcom-sta-dkms" \
                     "Installing Broadcom driver..."
+
+                local has_broadcom_bt=false
+                for btdev in "${PCI_BT_DEVS[@]}"; do
+                    if echo "$btdev" | grep -qi 'broadcom'; then
+                        has_broadcom_bt=true
+                        break
+                    fi
+                done
+                if $has_broadcom_bt; then
+                    echo -e "${YELLOW}Broadcom combo card (WiFi + Bluetooth) detected.${NC}"
+                    cat > /etc/modprobe.d/broadcom-combo.conf <<'EOF'
+# Broadcom combo: ensure btusb loads after wl
+softdep wl post: btusb
+EOF
+                    echo -e "${YELLOW}A reboot may be required for Bluetooth to work correctly.${NC}"
+                fi
+
                 echo "Broadcom proprietary driver installed. A reboot may be required."
                 _pause
                 installed_any=true
@@ -286,14 +325,44 @@ _handle_wireless() {
     fi
 }
 
+# ── Ensure non-free repository is enabled ──
+_ensure_nonfree_repo() {
+    local nonfree_found=false
+    if [ -f /etc/apt/sources.list ] && grep -Eq '^[^#]*\bnon-free\b' /etc/apt/sources.list 2>/dev/null; then
+        nonfree_found=true
+    fi
+    if ! $nonfree_found && [ -d /etc/apt/sources.list.d ]; then
+        if grep -qr 'Components:.*\bnon-free\b' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+            nonfree_found=true
+        fi
+    fi
+    if $nonfree_found; then
+        return 0
+    fi
+
+    if _confirm "non-free Repository" "Component 'non-free' (and 'non-free-firmware') is required for WiFi/Bluetooth/GPU firmware.\n\nAdd them to your APT repositories?"; then
+        if [ -f /etc/apt/sources.list ]; then
+            sudo sed -i '/^deb / { /non-free/! s/\(main[^ ]*\)/\1 non-free non-free-firmware/ }' /etc/apt/sources.list
+        fi
+        if [ -d /etc/apt/sources.list.d ]; then
+            for f in /etc/apt/sources.list.d/*.sources; do
+                [ -f "$f" ] || continue
+                sudo sed -i '/^Components:/ { /non-free/! s/$/ non-free non-free-firmware/ }' "$f"
+            done
+        fi
+        sudo apt update
+        echo -e "${GREEN}non-free repository enabled.${NC}"
+        return 0
+    fi
+    return 1
+}
+
 # ── Main entry point ──
 install_firmware() {
     echo -e "${YELLOW}Base firmware check...${NC}"
 
-    if ! grep -qr "non-free" /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
-        _msg "Error" "Error: No 'non-free' repositories were detected.\n\
-Please first run the 'Configure repositories' option in the\n\
-main menu to install proprietary firmwares." 10 65
+    if ! _ensure_nonfree_repo; then
+        _msg "Error" "No 'non-free' repositories were enabled and the user declined to add them.\nPlease enable non-free manually or accept the prompt in the Firmware option." 10 65
         return 1
     fi
 
