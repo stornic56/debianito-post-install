@@ -4,14 +4,20 @@
 _cat_players() {
     local headless=false
     _is_headless && headless=true
-    local mpv_state; mpv_state=$(_state "mpv")
-    local vlc_state; vlc_state=$(_state "vlc")
+    local -a items=()
+    if ! $headless; then
+        local mpv_state; mpv_state=$(_state "mpv")
+        local vlc_state; vlc_state=$(_state "vlc")
+        items+=(
+            "mpv"  "Lightweight media player$(_inst mpv)"  "$mpv_state"
+            "vlc"  "VLC media player$(_inst vlc)"           "$vlc_state"
+        )
+    fi
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(_checklist "Media Players" "Select media players:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
-        "mpv"  "Lightweight media player$(_inst mpv)"  "$mpv_state" \
-        "vlc"  "VLC media player$(_inst vlc)"           "$vlc_state" \
+        "${items[@]}" \
         )
     clear
 
@@ -20,10 +26,6 @@ _cat_players() {
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
     for pkg in $cleaned; do
-        if $headless; then
-            echo "Skipping $pkg (headless mode)"
-            continue
-        fi
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else

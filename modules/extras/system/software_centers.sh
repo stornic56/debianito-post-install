@@ -1,6 +1,12 @@
 # software_centers.sh — Standalone Software Center installer
 
 _cat_software_centers() {
+    local headless=false
+    _is_headless && headless=true
+    if $headless; then
+        echo "Software centers require a GUI — skipping."
+        return
+    fi
     local de_type
     de_type=$(_detect_desktop_type)
     local sc_choice

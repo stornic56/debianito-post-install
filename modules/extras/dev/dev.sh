@@ -4,6 +4,7 @@
 _cat_dev() {
     local headless=false
     _is_headless && headless=true
+    local -a items=()
     local apache_state;   apache_state=$(_state "apache2")
     local build_state;    build_state=$(_state "build-essential")
     local certbot_state;  certbot_state=$(_state "certbot")
@@ -19,25 +20,28 @@ _cat_dev() {
     local sqlite_state;   sqlite_state=$(_state "sqlite3")
     local jdk_desc;       jdk_desc=$(_any_jdk_installed_desc)
     local jdk_state;      jdk_state=$(_any_jdk_state)
+    items+=(
+        "apache2"                   "Apache web server$(_inst apache2)"                            "$apache_state"
+        "build-essential"           "C/C++ build tools (gcc, make)$(_inst build-essential)"        "$build_state"
+        "certbot"                   "Let's Encrypt TLS certificates$(_inst certbot)"               "$certbot_state"
+        "docker"                    "Docker + docker-compose$(_inst docker.io)"                    "$docker_state"
+        "mariadb-server"            "MariaDB database server$(_inst mariadb-server)"               "$mariadb_state"
+        "netcat-openbsd"            "TCP/IP networking utility$(_inst netcat-openbsd)"             "$netcat_state"
+        "nginx"                     "Nginx web server$(_inst nginx)"                               "$nginx_state"
+        "openssh-server"            "SSH server$(_inst openssh-server)"                            "$ssh_state"
+        "openssl"                   "OpenSSL cryptography toolkit$(_inst openssl)"                 "$openssl_state"
+        "postgresql"                "PostgreSQL database server$(_inst postgresql)"                 "$pg_state"
+        "python3-pip"               "Python 3 pip + venv + dev$(_inst python3-pip)"                "$pip_state"
+        "redis-server"              "Redis key-value store$(_inst redis-server)"                   "$redis_state"
+        "sqlite3"                   "SQLite database engine$(_inst sqlite3)"                       "$sqlite_state"
+        "jellyfin"                  "Jellyfin Media Server (Web GUI on port 8096)$(_inst jellyfin)" OFF
+        "openjdk-dev-env"           "Adoptium Temurin JDK (17, 21, 25 LTS)${jdk_desc}"             "${jdk_state}"
+    )
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(_checklist "Development & Servers" "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
-        "apache2"                   "Apache web server$(_inst apache2)"                            "$apache_state" \
-        "build-essential"           "C/C++ build tools (gcc, make)$(_inst build-essential)"        "$build_state" \
-        "certbot"                   "Let's Encrypt TLS certificates$(_inst certbot)"               "$certbot_state" \
-        "docker"                    "Docker + docker-compose$(_inst docker.io)"                    "$docker_state" \
-        "mariadb-server"            "MariaDB database server$(_inst mariadb-server)"               "$mariadb_state" \
-        "netcat-openbsd"            "TCP/IP networking utility$(_inst netcat-openbsd)"             "$netcat_state" \
-        "nginx"                     "Nginx web server$(_inst nginx)"                               "$nginx_state" \
-        "openssh-server"            "SSH server$(_inst openssh-server)"                            "$ssh_state" \
-        "openssl"                   "OpenSSL cryptography toolkit$(_inst openssl)"                 "$openssl_state" \
-        "postgresql"                "PostgreSQL database server$(_inst postgresql)"                 "$pg_state" \
-        "python3-pip"               "Python 3 pip + venv + dev$(_inst python3-pip)"                "$pip_state" \
-        "redis-server"              "Redis key-value store$(_inst redis-server)"                   "$redis_state" \
-        "sqlite3"                   "SQLite database engine$(_inst sqlite3)"                       "$sqlite_state" \
-        "jellyfin"                  "Jellyfin Media Server (Web GUI on port 8096)$(_inst jellyfin)" OFF \
-        "openjdk-dev-env"           "Adoptium Temurin JDK (17, 21, 25 LTS)${jdk_desc}"             "${jdk_state}" \
+        "${items[@]}" \
         )
     clear
 

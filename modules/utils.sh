@@ -550,6 +550,10 @@ _msg() {
     whiptail --title "$1" --msgbox "$2" "${3:-10}" "${4:-65}" || true
 }
 
+_msg_red() {
+    whiptail --colors --title "\Z1$1\Zn" --msgbox "\Z1$2\Zn" "${3:-12}" "${4:-70}" || true
+}
+
 _menu() {
     local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
     whiptail --title "$title" --menu "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
@@ -582,9 +586,8 @@ _validate_sudoers() {
 }
 
 _pause() {
-    echo ""
-    echo "Press [ENTER] to continue..."
-    read -r
+    local msg="${1:-Presiona OK para continuar.}"
+    whiptail --title "Continuar" --msgbox "$msg" 8 50 3>&1 1>&2 2>&3 || true
 }
 
 # Blocks 2-4: clear → run → pause
@@ -712,22 +715,31 @@ _check_network() {
 # ----------------------------------
 # LightDM configuration
 # ----------------------------------
-_configure_lightdm() {
+ _configure_lightdm() {
     command -v lightdm &>/dev/null || return 0
 
-    if ! is_installed lightdm-gtk-greeter-settings; then
-        echo -e "${YELLOW}Installing lightdm-gtk-greeter-settings...${NC}"
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y lightdm-gtk-greeter-settings
+    if _confirm "LightDM" "Configure LightDM to show the user list on the login screen?\n\nThis disables greeter-hide-users."; then
+        if ! is_installed lightdm-gtk-greeter-settings; then
+            echo -e "${YELLOW}Installing lightdm-gtk-greeter-settings...${NC}"
+            sudo DEBIAN_FRONTEND=noninteractive apt install -y lightdm-gtk-greeter-settings
+        fi
+
+        local conf_dir="/etc/lightdm/lightdm.conf.d"
+        local conf_file="${conf_dir}/99-show-users.conf"
+
+        if [ -f "$conf_file" ] && grep -q '^greeter-hide-users=false' "$conf_file"; then
+            return
+        fi
+
+        sudo mkdir -p "$conf_dir"
+        printf '[Seat:*]\ngreeter-hide-users=false\n' | sudo tee "$conf_file" > /dev/null
+        echo -e "${GREEN}LightDM configured to show user list.${NC}"
     fi
+}
 
-    local conf_dir="/etc/lightdm/lightdm.conf.d"
-    local conf_file="${conf_dir}/99-show-users.conf"
-
-    if [ -f "$conf_file" ] && grep -q '^greeter-hide-users=false' "$conf_file"; then
-        return
-    fi
-
-    sudo mkdir -p "$conf_dir"
-    printf '[Seat:*]\ngreeter-hide-users=false\n' | sudo tee "$conf_file" > /dev/null
-    echo -e "${GREEN}LightDM configured to show user list.${NC}"
+# ── Lazy system state refresh ──
+refresh_system_state() {
+    detect_debian_version
+    detect_gpu
+    detect_cpu_ram
 }

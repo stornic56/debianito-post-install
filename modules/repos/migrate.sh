@@ -62,7 +62,7 @@ _write_deb822_branch() {
 
 _branch_migration() {
     # ── Screen 1: Risk warning ──
-    _msg "WARNING: Branch Migration" \
+    _msg_red "WARNING: Branch Migration" \
 "Migrating from Debian Stable to Testing or SID is a\n\
 MAJOR change and CAN make your system UNBOOTABLE.\n\n\
 Risks include:\n\
@@ -71,7 +71,7 @@ Risks include:\n\
   • Some packages may be removed or replaced\n\
   • SID (unstable) receives NO security updates\n\n\
 A full persistent backup will be saved to /var/backups/\n\
-so you can restore if things go wrong." 16 70 || true
+so you can restore if things go wrong." 16 70
 
     if ! _confirm "Branch Migration" "Do you want to proceed with the migration?"; then
         echo "Migration cancelled."
@@ -89,7 +89,7 @@ so you can restore if things go wrong." 16 70 || true
     plan+="  7. Run: apt autoremove -y\n\n"
     plan+="If apt update fails, the backup is restored immediately."
 
-    _msg "Migration Plan" "$plan" 16 70 || true
+    _msg_red "Migration Plan" "$plan" 16 70
 
     if ! _confirm "Migration Plan" "Proceed with the plan?"; then
         echo "Migration cancelled."
@@ -145,7 +145,7 @@ so you can restore if things go wrong." 16 70 || true
     if ! sudo apt update; then
         echo -e "${RED}apt update failed. Restoring backup...${NC}"
         _restore_backup
-        _msg "Migration Failed" \
+        _msg_red "Migration Failed" \
 "apt update failed. Backup has been restored from:\n\
 $_MIGRATE_BACKUP\n\n\
 Your system should be back to its previous state.\n\

@@ -60,10 +60,19 @@ install_libreoffice_bpo() {
 }
 
 _cat_office() {
+    local headless=false
+    _is_headless && headless=true
+    local -a items=()
+    if ! $headless; then
+        items+=(
+            "onlyoffice"    "OnlyOffice Desktop Editors (extrepo)" OFF
+            "libreoffice"   "LibreOffice (backports on Bookworm/Trixie)" OFF
+        )
+    fi
+
     local choices
     choices=$(_checklist "Office & Productivity" "Select office applications${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "onlyoffice"    "OnlyOffice Desktop Editors (extrepo)" OFF \
-        "libreoffice"   "LibreOffice (backports on Bookworm/Trixie)" OFF \
+        "${items[@]}" \
         )
 
     [ -z "$choices" ] && return

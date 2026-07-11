@@ -4,40 +4,53 @@
 _cat_download() {
     local headless=false
     _is_headless && headless=true
+    local -a items1=()
+    local -a items2=()
     local aria2_state;       aria2_state=$(_state "aria2")
-    local filezilla_state;   filezilla_state=$(_state "filezilla")
     local ytdlp_state;       ytdlp_state=$(_state "yt-dlp")
-    local ytdlp_gui_state;   ytdlp_gui_state=$(_state "youtubedl-gui")
-
-    local deluge_state;      deluge_state=$(_state "deluge")
     local deluged_state;     deluged_state=$(_state "deluged")
     local mktorrent_state;   mktorrent_state=$(_state "mktorrent")
-    local qbit_state;        qbit_state=$(_state "qbittorrent")
     local qbitnox_state;     qbitnox_state=$(_state "qbittorrent-nox")
     local tr_cli_state;      tr_cli_state=$(_state "transmission-cli")
-    local tr_gtk_state;      tr_gtk_state=$(_state "transmission-gtk")
-    local tr_qt_state;       tr_qt_state=$(_state "transmission-qt")
+    items1+=(
+        "aria2"  "Multiprotocol downloader (CLI)$(_inst aria2)" "$aria2_state"
+        "yt-dlp" "Video downloader CLI$(_inst yt-dlp)"         "$ytdlp_state"
+    )
+    items2+=(
+        "deluged"         "BitTorrent daemon/server$(_inst deluged)"           "$deluged_state"
+        "mktorrent"       "Torrent metainfo creator (CLI)$(_inst mktorrent)"   "$mktorrent_state"
+        "qbittorrent-nox" "BitTorrent WebUI/CLI$(_inst qbittorrent-nox)"      "$qbitnox_state"
+        "transmission-cli" "BitTorrent client (CLI)$(_inst transmission-cli)"  "$tr_cli_state"
+    )
+    if ! $headless; then
+        local filezilla_state;   filezilla_state=$(_state "filezilla")
+        local ytdlp_gui_state;   ytdlp_gui_state=$(_state "youtubedl-gui")
+        local deluge_state;      deluge_state=$(_state "deluge")
+        local qbit_state;        qbit_state=$(_state "qbittorrent")
+        local tr_gtk_state;      tr_gtk_state=$(_state "transmission-gtk")
+        local tr_qt_state;       tr_qt_state=$(_state "transmission-qt")
+        items1+=(
+            "filezilla"     "FTP/SFTP client (GUI)$(_inst filezilla)"     "$filezilla_state"
+            "youtubedl-gui" "GUI for yt-dlp$(_inst youtubedl-gui)"       "$ytdlp_gui_state"
+        )
+        items2+=(
+            "deluge"          "BitTorrent client (GTK)$(_inst deluge)"           "$deluge_state"
+            "qbittorrent"     "BitTorrent client (Qt)$(_inst qbittorrent)"       "$qbit_state"
+            "transmission-gtk" "BitTorrent client (GTK)$(_inst transmission-gtk)" "$tr_gtk_state"
+            "transmission-qt"  "BitTorrent client (Qt)$(_inst transmission-qt)"   "$tr_qt_state"
+        )
+    fi
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices1 choices2=""
 
     choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
-        "aria2"            "Multiprotocol downloader (CLI)$(_inst aria2)"     "$aria2_state" \
-        "filezilla"        "FTP/SFTP client (GUI)$(_inst filezilla)"          "$filezilla_state" \
-        "yt-dlp"           "Video downloader CLI$(_inst yt-dlp)"               "$ytdlp_state" \
-        "youtubedl-gui"    "GUI for yt-dlp$(_inst youtubedl-gui)"             "$ytdlp_gui_state" \
+        "${items1[@]}" \
         )
     clear
 
     choices2=$(_checklist "Torrent Clients" "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "deluge"            "BitTorrent client (GTK)$(_inst deluge)"                      "$deluge_state" \
-        "deluged"           "BitTorrent daemon/server$(_inst deluged)"                    "$deluged_state" \
-        "mktorrent"         "Torrent metainfo creator (CLI)$(_inst mktorrent)"            "$mktorrent_state" \
-        "qbittorrent"       "BitTorrent client (Qt)$(_inst qbittorrent)"                  "$qbit_state" \
-        "qbittorrent-nox"   "BitTorrent WebUI/CLI$(_inst qbittorrent-nox)"               "$qbitnox_state" \
-        "transmission-cli"  "BitTorrent client (CLI)$(_inst transmission-cli)"            "$tr_cli_state" \
-        "transmission-gtk"  "BitTorrent client (GTK)$(_inst transmission-gtk)"            "$tr_gtk_state" \
-        "transmission-qt"   "BitTorrent client (Qt)$(_inst transmission-qt)"              "$tr_qt_state" \
+        "${items2[@]}" \
         )
     clear
 
@@ -58,10 +71,6 @@ _cat_download() {
                 install_backports_or_stable qbittorrent-nox
                 ;;
             *)
-                if $headless; then
-                    echo "Skipping $pkg (headless mode)"
-                    continue
-                fi
                 if ! is_installed "$pkg"; then
                     _run_install "$pkg"
                 else

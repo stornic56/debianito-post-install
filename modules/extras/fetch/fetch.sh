@@ -18,7 +18,7 @@ _cat_fetch() {
         hyfetch_state=$(_state "hyfetch")
     fi
 
-    local items=()
+    local -a items=()
 
     if [ "$fetch_pkg" = "fastfetch" ]; then
         items+=("fastfetch" "System info fetcher$(_inst fastfetch)" "$fetch_state")

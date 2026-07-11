@@ -19,7 +19,7 @@ _detect_desktop_type() {
 _cat_general() {
     local headless=false
     _is_headless && headless=true
-    local alacritty_state; alacritty_state=$(_state "alacritty")
+    local -a items=()
     local btop_state;      btop_state=$(_state "btop")
     local compress_state
     if is_installed "zip" && is_installed "unzip" && is_installed "p7zip-full"; then
@@ -27,8 +27,6 @@ _cat_general() {
     else
         compress_state="OFF"
     fi
-    local conky_state;     conky_state=$(_state "conky")
-    local corectrl_state;  corectrl_state=$(_state "corectrl")
     local cpufetch_state;  cpufetch_state=$(_state "cpufetch")
     local cpu_x_state;     cpu_x_state=$(_state "cpu-x")
     local curl_wget_state
@@ -37,60 +35,70 @@ _cat_general() {
     else
         curl_wget_state="OFF"
     fi
-    local dcgtk_state;     dcgtk_state=$(_state "doublecmd-gtk")
-    local dcqt_state;      dcqt_state=$(_state "doublecmd-qt")
     local extrepo_state;   extrepo_state=$(_state "extrepo")
     local flatpak_state;   flatpak_state=$(_state "flatpak")
     local fwupd_state;     fwupd_state=$(_state "fwupd")
-    local disks_state;     disks_state=$(_state "gnome-disk-utility")
-    local gparted_state;   gparted_state=$(_state "gparted")
-    local hardinfo_state;  hardinfo_state=$(_state "hardinfo")
     local htop_state;      htop_state=$(_state "htop")
     local inxi_state;      inxi_state=$(_state "inxi")
-    local kitty_state;     kitty_state=$(_state "kitty")
     local kvm_state;       kvm_state=$(_state "virt-manager")
     local lshw_state;      lshw_state=$(_state "lshw")
     local mc_state;        mc_state=$(_state "mc")
     local nala_state;      nala_state=$(_state "nala")
     local ncdu_state;      ncdu_state=$(_state "ncdu")
-    local psensor_state;   psensor_state=$(_state "psensor")
-    local timeshift_state; timeshift_state=$(_state "timeshift")
     local tmux_state;      tmux_state=$(_state "tmux")
     local wine_state;      wine_state=$(_state "wine")
     local nvme_state;      nvme_state=$(_state "nvme-cli")
+    items+=(
+        "btop"            "Resource monitor (fancy top)$(_inst btop)"             "$btop_state"
+        "compress"        "Compression tools (zip, unrar, 7z)$(_inst zip)"        "$compress_state"
+        "cpufetch"        "CPU info fetcher$(_inst cpufetch)"                     "$cpufetch_state"
+        "cpu-x"           "CPU-X (alternative to CPU-Z)$(_inst cpu-x)"            "$cpu_x_state"
+        "curl-wget"       "HTTP transfer tools (curl, wget)$(_inst curl)"         "$curl_wget_state"
+        "extrepo"         "External repository manager$(_inst extrepo)"           "$extrepo_state"
+        "flatpak"         "Flatpak sandbox + Flathub$(_inst flatpak)"             "$flatpak_state"
+        "fwupd"           "Firmware update daemon$(_inst fwupd)"                  "$fwupd_state"
+        "htop"            "Interactive process viewer$(_inst htop)"               "$htop_state"
+        "inxi"            "System information tool$(_inst inxi)"                  "$inxi_state"
+        "kvm"             "QEMU/KVM virtualization$(_inst virt-manager)"          "$kvm_state"
+        "lshw"            "List hardware details$(_inst lshw)"                    "$lshw_state"
+        "mc"              "Midnight Commander (file manager)$(_inst mc)"          "$mc_state"
+        "nala"            "APT frontend (parallel downloads)$(_inst nala)"        "$nala_state"
+        "ncdu"            "Disk usage analyzer (ncurses)$(_inst ncdu)"            "$ncdu_state"
+        "nvme-cli"        "NVMe SSD health monitoring$(_inst nvme-cli)"           "$nvme_state"
+        "tmux"            "Terminal multiplexer$(_inst tmux)"                     "$tmux_state"
+        "wine"            "Windows compatibility layer$(_inst wine)"              "$wine_state"
+    )
+    if ! $headless; then
+        local alacritty_state; alacritty_state=$(_state "alacritty")
+        local conky_state;     conky_state=$(_state "conky")
+        local corectrl_state;  corectrl_state=$(_state "corectrl")
+        local dcgtk_state;     dcgtk_state=$(_state "doublecmd-gtk")
+        local dcqt_state;      dcqt_state=$(_state "doublecmd-qt")
+        local disks_state;     disks_state=$(_state "gnome-disk-utility")
+        local gparted_state;   gparted_state=$(_state "gparted")
+        local hardinfo_state;  hardinfo_state=$(_state "hardinfo")
+        local kitty_state;     kitty_state=$(_state "kitty")
+        local psensor_state;   psensor_state=$(_state "psensor")
+        local timeshift_state; timeshift_state=$(_state "timeshift")
+        items+=(
+            "alacritty"       "GPU-accelerated terminal$(_inst alacritty)"            "$alacritty_state"
+            "conky"           "System monitor for desktop$(_inst conky)"              "$conky_state"
+            "corectrl"        "AMD GPU control (CoreCtrl)$(_inst corectrl)"           "$corectrl_state"
+            "doublecmd-gtk"   "Dual-panel file manager (GTK)$(_inst doublecmd-gtk)"  "$dcgtk_state"
+            "doublecmd-qt"    "Dual-panel file manager (Qt)$(_inst doublecmd-qt)"     "$dcqt_state"
+            "gnome-disk-utility" "Disk management GUI$(_inst gnome-disk-utility)"     "$disks_state"
+            "gparted"         "GNOME partition editor$(_inst gparted)"                "$gparted_state"
+            "hardinfo"        "Graphical system profiler$(_inst hardinfo)"            "$hardinfo_state"
+            "kitty"           "GPU-based terminal emulator$(_inst kitty)"             "$kitty_state"
+            "psensor"         "Hardware temperature monitor$(_inst psensor)"          "$psensor_state"
+            "timeshift"       "System restore snapshots$(_inst timeshift)"            "$timeshift_state"
+        )
+    fi
 
     local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local choices
     choices=$(_checklist "System Tools" "Select system utilities to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
-        "alacritty"       "GPU-accelerated terminal$(_inst alacritty)"            "$alacritty_state" \
-        "btop"            "Resource monitor (fancy top)$(_inst btop)"             "$btop_state" \
-        "compress"        "Compression tools (zip, unrar, 7z)$(_inst zip)"        "$compress_state" \
-        "conky"           "System monitor for desktop$(_inst conky)"              "$conky_state" \
-        "corectrl"        "AMD GPU control (CoreCtrl)$(_inst corectrl)"           "$corectrl_state" \
-        "cpufetch"        "CPU info fetcher$(_inst cpufetch)"                     "$cpufetch_state" \
-        "cpu-x"           "CPU-X (alternative to CPU-Z)$(_inst cpu-x)"            "$cpu_x_state" \
-        "curl-wget"       "HTTP transfer tools (curl, wget)$(_inst curl)"         "$curl_wget_state" \
-        "doublecmd-gtk"   "Dual-panel file manager (GTK)$(_inst doublecmd-gtk)"  "$dcgtk_state" \
-        "doublecmd-qt"    "Dual-panel file manager (Qt)$(_inst doublecmd-qt)"     "$dcqt_state" \
-        "extrepo"         "External repository manager$(_inst extrepo)"           "$extrepo_state" \
-        "flatpak"         "Flatpak sandbox + Flathub$(_inst flatpak)"             "$flatpak_state" \
-        "fwupd"           "Firmware update daemon$(_inst fwupd)"                  "$fwupd_state" \
-        "gnome-disk-utility" "Disk management GUI$(_inst gnome-disk-utility)"     "$disks_state" \
-        "gparted"         "GNOME partition editor$(_inst gparted)"                "$gparted_state" \
-        "hardinfo"        "Graphical system profiler$(_inst hardinfo)"            "$hardinfo_state" \
-        "htop"            "Interactive process viewer$(_inst htop)"               "$htop_state" \
-        "inxi"            "System information tool$(_inst inxi)"                  "$inxi_state" \
-        "kitty"           "GPU-based terminal emulator$(_inst kitty)"             "$kitty_state" \
-        "kvm"             "QEMU/KVM virtualization$(_inst virt-manager)"          "$kvm_state" \
-        "lshw"            "List hardware details$(_inst lshw)"                    "$lshw_state" \
-        "mc"              "Midnight Commander (file manager)$(_inst mc)"          "$mc_state" \
-        "nvme-cli"        "NVMe SSD health monitoring$(_inst nvme-cli)"           "$nvme_state" \
-        "nala"            "APT frontend (parallel downloads)$(_inst nala)"        "$nala_state" \
-        "ncdu"            "Disk usage analyzer (ncurses)$(_inst ncdu)"            "$ncdu_state" \
-        "psensor"         "Hardware temperature monitor$(_inst psensor)"          "$psensor_state" \
-        "timeshift"       "System restore snapshots$(_inst timeshift)"            "$timeshift_state" \
-        "tmux"            "Terminal multiplexer$(_inst tmux)"                     "$tmux_state" \
-        "wine"            "Windows compatibility layer$(_inst wine)"              "$wine_state" \
+        "${items[@]}" \
         )
     clear
 
@@ -256,10 +264,6 @@ _cat_general() {
                 fi
                 ;;
             *)
-                if $headless; then
-                    echo "Skipping $pkg (headless mode)"
-                    continue
-                fi
                 if ! is_installed "$pkg"; then
                     _run_install "$pkg"
                 else

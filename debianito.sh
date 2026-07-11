@@ -51,6 +51,8 @@ main_menu() {
     fi
 
     while true; do
+        sudo -v >/dev/null 2>&1 || true
+        local STATE_REFRESHED=false
         local choice
         choice=$(_menu "DEBIANITO — simple configurator script" "" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
@@ -78,6 +80,7 @@ main_menu() {
                 else
                     configure_repos || true
                 fi
+                STATE_REFRESHED=true
                 ;;
             4)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_firmware_bullseye &>/dev/null; then
@@ -86,7 +89,7 @@ main_menu() {
                     install_firmware || true
                 fi
                 ;;
-            5)  install_gpu_drivers || true ;;
+            5)  install_gpu_drivers || true; STATE_REFRESHED=true ;;
             6)
                 if [ "$DEBIAN_VERSION" = "11" ]; then
                     _msg "Not Available" \
@@ -96,6 +99,7 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
                 else
                     install_kernel_backports || true
                 fi
+                STATE_REFRESHED=true
                 ;;
             7)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
@@ -103,9 +107,10 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
                 else
                     install_gaming || true
                 fi
+                STATE_REFRESHED=true
                 ;;
             8)  install_zram || true ;;
-            9)  manage_swap || true ;;
+            9)  manage_swap || true; STATE_REFRESHED=true ;;
             10)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
                     install_extras_bullseye || true
@@ -116,6 +121,9 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
             11) rescue_boot || true ;;
             12) echo "Exiting."; exit 0 ;;
         esac
+        if $STATE_REFRESHED; then
+            refresh_system_state
+        fi
     done
 }
 

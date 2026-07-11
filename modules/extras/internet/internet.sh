@@ -117,55 +117,63 @@ install_protonvpn() {
 _cat_internet() {
     local headless=false
     _is_headless && headless=true
-    local chromium_state;     chromium_state=$(_state "chromium")
-    local dillo_state;        dillo_state=$(_state "dillo")
-    local elinks_state;       elinks_state=$(_state "elinks")
-    local epiphany_state;     epiphany_state=$(_state "epiphany-browser")
-    local falkon_state;       falkon_state=$(_state "falkon")
-    local firefox_state="OFF"
-    if command -v firefox &>/dev/null && ! is_installed "firefox-esr"; then
-        firefox_state="ON"
+    local -a items=()
+    if ! $headless; then
+        local chromium_state;     chromium_state=$(_state "chromium")
+        local dillo_state;        dillo_state=$(_state "dillo")
+        local epiphany_state;     epiphany_state=$(_state "epiphany-browser")
+        local falkon_state;       falkon_state=$(_state "falkon")
+        local firefox_state="OFF"
+        if command -v firefox &>/dev/null && ! is_installed "firefox-esr"; then
+            firefox_state="ON"
+        fi
+        local firefox_esr_state
+        firefox_esr_state=$(_state "firefox-esr")
+        local floorp_state;       floorp_state=$(_state "floorp")
+        local konqueror_state;    konqueror_state=$(_state "konqueror")
+        local librewolf_state;    librewolf_state=$(_state "librewolf")
+        local palemoon_state;     palemoon_state=$(_state "palemoon")
+        local privacybrowser_state; privacybrowser_state=$(_state "privacybrowser")
+        local qutebrowser_state;  qutebrowser_state=$(_state "qutebrowser")
+        local thunderbird_state;  thunderbird_state=$(_state "thunderbird")
+        local torbrowser_state;   torbrowser_state=$(_state "torbrowser-launcher")
+        local mullvadbrowser_state; mullvadbrowser_state=$(_state "mullvad-browser")
+        local protonvpn_state;    protonvpn_state=$(_state "protonvpn")
+        items+=(
+            "chromium"            "Chromium web browser$(_inst chromium)"                  "$chromium_state"
+            "dillo"               "Lightweight graphical browser$(_inst dillo)"            "$dillo_state"
+            "epiphany-browser"    "GNOME web browser$(_inst epiphany-browser)"             "$epiphany_state"
+            "falkon"              "KDE web browser (QtWebEngine)$(_inst falkon)"           "$falkon_state"
+            "firefox"             "Firefox from Mozilla (replaces ESR)"                    "$firefox_state"
+            "firefox-esr"         "Firefox ESR (official Debian + locale auto)"            "$firefox_esr_state"
+            "floorp"              "Firefox-based browser (extrepo)$(_inst floorp)"         "$floorp_state"
+            "konqueror"           "KDE file manager / web browser$(_inst konqueror)"       "$konqueror_state"
+            "librewolf"           "Privacy-focused Firefox fork (extrepo)$(_inst librewolf)" "$librewolf_state"
+            "palemoon"            "Classic Firefox-derived browser (extrepo)"              "$palemoon_state"
+            "privacybrowser"      "Privacy-focused web browser$(_inst privacybrowser)"     "$privacybrowser_state"
+            "qutebrowser"         "Keyboard-driven browser (Qt)$(_inst qutebrowser)"       "$qutebrowser_state"
+            "thunderbird"         "Email client$(_inst thunderbird)"                       "$thunderbird_state"
+            "torbrowser-launcher" "Tor Browser launcher$(_inst torbrowser-launcher)"       "$torbrowser_state"
+            "mullvad-browser"     "Mullvad privacy browser$(_inst mullvad-browser)"        "$mullvadbrowser_state"
+            "protonvpn"           "ProtonVPN client$(_inst protonvpn)"                     "$protonvpn_state"
+        )
     fi
-    local firefox_esr_state
-    firefox_esr_state=$(_state "firefox-esr")
-    local floorp_state;       floorp_state=$(_state "floorp")
-    local konqueror_state;    konqueror_state=$(_state "konqueror")
-    local librewolf_state;    librewolf_state=$(_state "librewolf")
-    local palemoon_state;     palemoon_state=$(_state "palemoon")
-    local privacybrowser_state; privacybrowser_state=$(_state "privacybrowser")
-    local qutebrowser_state;  qutebrowser_state=$(_state "qutebrowser")
-    local riseupvpn_state;    riseupvpn_state=$(_state "riseup-vpn")
-    local thunderbird_state;  thunderbird_state=$(_state "thunderbird")
-    local torbrowser_state;   torbrowser_state=$(_state "torbrowser-launcher")
-    local w3m_state;          w3m_state=$(_state "w3m")
-    local tailscale_state;    tailscale_state=$(_state "tailscale")
-    local mullvad_state;      mullvad_state=$(_state "mullvad-vpn")
-    local mullvadbrowser_state; mullvadbrowser_state=$(_state "mullvad-browser")
-    local protonvpn_state;    protonvpn_state=$(_state "protonvpn")
+    local elinks_state;    elinks_state=$(_state "elinks")
+    local riseupvpn_state; riseupvpn_state=$(_state "riseup-vpn")
+    local w3m_state;       w3m_state=$(_state "w3m")
+    local tailscale_state; tailscale_state=$(_state "tailscale")
+    local mullvad_state;   mullvad_state=$(_state "mullvad-vpn")
+    items+=(
+        "elinks"     "Text-mode web browser$(_inst elinks)"                   "$elinks_state"
+        "riseup-vpn" "Riseup VPN client$(_inst riseup-vpn)"                   "$riseupvpn_state"
+        "w3m"        "Text-mode browser + deps (w3m-img)$(_inst w3m)"         "$w3m_state"
+        "tailscale"  "Zero-config VPN & mesh networking$(_inst tailscale)"    "$tailscale_state"
+        "mullvad-vpn" "Mullvad VPN client (WireGuard)$(_inst mullvad-vpn)"    "$mullvad_state"
+    )
 
     local choices
     choices=$(_checklist "Internet" "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "chromium"            "Chromium web browser$(_inst chromium)"                  "$chromium_state" \
-        "dillo"               "Lightweight graphical browser$(_inst dillo)"            "$dillo_state" \
-        "elinks"              "Text-mode web browser$(_inst elinks)"                   "$elinks_state" \
-        "epiphany-browser"    "GNOME web browser$(_inst epiphany-browser)"             "$epiphany_state" \
-        "falkon"              "KDE web browser (QtWebEngine)$(_inst falkon)"           "$falkon_state" \
-        "firefox"             "Firefox from Mozilla (replaces ESR)"                    "$firefox_state" \
-        "firefox-esr"         "Firefox ESR (official Debian + locale auto)"            "$firefox_esr_state" \
-        "floorp"              "Firefox-based browser (extrepo)$(_inst floorp)"         "$floorp_state" \
-        "konqueror"           "KDE file manager / web browser$(_inst konqueror)"       "$konqueror_state" \
-        "librewolf"           "Privacy-focused Firefox fork (extrepo)$(_inst librewolf)" "$librewolf_state" \
-        "palemoon"            "Classic Firefox-derived browser (extrepo)"              "$palemoon_state" \
-        "privacybrowser"      "Privacy-focused web browser$(_inst privacybrowser)"     "$privacybrowser_state" \
-        "qutebrowser"         "Keyboard-driven browser (Qt)$(_inst qutebrowser)"       "$qutebrowser_state" \
-        "riseup-vpn"          "Riseup VPN client$(_inst riseup-vpn)"                   "$riseupvpn_state" \
-        "thunderbird"         "Email client$(_inst thunderbird)"                       "$thunderbird_state" \
-        "torbrowser-launcher" "Tor Browser launcher$(_inst torbrowser-launcher)"       "$torbrowser_state" \
-        "w3m"                 "Text-mode browser + deps (w3m-img)$(_inst w3m)"         "$w3m_state" \
-        "tailscale"           "Zero-config VPN & mesh networking$(_inst tailscale)"    "$tailscale_state" \
-        "mullvad-vpn"         "Mullvad VPN client (WireGuard)$(_inst mullvad-vpn)"     "$mullvad_state" \
-        "mullvad-browser"     "Mullvad privacy browser$(_inst mullvad-browser)"        "$mullvadbrowser_state" \
-        "protonvpn"           "ProtonVPN client$(_inst protonvpn)"                     "$protonvpn_state" \
+        "${items[@]}" \
         )
     clear
 
@@ -233,10 +241,6 @@ _cat_internet() {
                 fi
                 ;;
             *)
-                if $headless; then
-                    echo "Skipping $pkg (headless mode)"
-                    continue
-                fi
                 if ! is_installed "$pkg"; then
                     _run_install "$pkg"
                 else
