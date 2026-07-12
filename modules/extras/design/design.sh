@@ -19,26 +19,28 @@ _cat_design() {
         local scribus_state;   scribus_state=$(_state "scribus")
         local shotcut_state;   shotcut_state=$(_state "shotcut")
         items+=(
-            "audacity"   "Audio editor/recorder$(_inst audacity)"                  "$audacity_state"
-            "ardour"     "Digital audio workstation$(_inst ardour)"                "$ardour_state"
-            "blender"    "3D modeling/animation suite$(_inst blender)"             "$blender_state"
-            "gimp"       "Image editor (Photoshop alternative)$(_inst gimp)"       "$gimp_state"
-            "handbrake"  "Video transcoder (DVD ripper)$(_inst handbrake)"         "$handbrake_state"
-            "inkscape"   "Vector graphics editor$(_inst inkscape)"                 "$inkscape_state"
-            "kdenlive"   "Video editor (KDE)$(_inst kdenlive)"                     "$kdenlive_state"
-            "krita"      "Digital painting/illustration$(_inst krita)"             "$krita_state"
-            "obs-studio" "Screen recording/streaming$(_inst obs-studio)"           "$obs_state"
-            "openshot-qt" "Video editor (simple)$(_inst openshot-qt)"              "$openshot_state"
-            "scribus"    "Desktop publishing (DTP)$(_inst scribus)"                "$scribus_state"
-            "shotcut"    "Video editor (cross-platform)$(_inst shotcut)"           "$shotcut_state"
+            "audacity"     "Audio editor/recorder"      "$audacity_state"
+            "ardour"       "Digital audio workstation"        "$ardour_state"
+            "blender"      "3D modeling/animation"       "$blender_state"
+            "gimp"         "Image editor"          "$gimp_state"
+            "handbrake"    "Video transcoder"     "$handbrake_state"
+            "inkscape"     "Vector graphics editor"      "$inkscape_state"
+            "kdenlive"     "Video editor (KDE)"      "$kdenlive_state"
+            "krita"        "Digital painting"         "$krita_state"
+            "obs-studio"   "Screen recording"   "$obs_state"
+            "openshot-qt"  "Simple video editor"   "$openshot_state"
+            "scribus"      "Desktop publishing"       "$scribus_state"
+            "shotcut"      "Cross-platform video editor"       "$shotcut_state"
         )
     fi
     local ffmpeg_state; ffmpeg_state=$(_state "ffmpeg")
-    items+=("ffmpeg" "Multimedia framework (CLI)$(_inst ffmpeg)" "$ffmpeg_state")
+    items+=("ffmpeg" "Multimedia framework (CLI)" "$ffmpeg_state")
 
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
     choices=$(_checklist "Multimedia & Design" "Select multimedia and design tools${SCROLL_HINT}:" \
-        $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA "${items[@]}")
+        $TUI_ALTO $TUI_ANCHO $lista_alto "${items[@]}")
     clear
 
     [ -z "$choices" ] && return

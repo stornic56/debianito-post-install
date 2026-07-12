@@ -49,24 +49,24 @@ _cat_general() {
     local wine_state;      wine_state=$(_state "wine")
     local nvme_state;      nvme_state=$(_state "nvme-cli")
     items+=(
-        "btop"            "Resource monitor (fancy top)$(_inst btop)"             "$btop_state"
-        "compress"        "Compression tools (zip, unrar, 7z)$(_inst zip)"        "$compress_state"
-        "cpufetch"        "CPU info fetcher$(_inst cpufetch)"                     "$cpufetch_state"
-        "cpu-x"           "CPU-X (alternative to CPU-Z)$(_inst cpu-x)"            "$cpu_x_state"
-        "curl-wget"       "HTTP transfer tools (curl, wget)$(_inst curl)"         "$curl_wget_state"
-        "extrepo"         "External repository manager$(_inst extrepo)"           "$extrepo_state"
-        "flatpak"         "Flatpak sandbox + Flathub$(_inst flatpak)"             "$flatpak_state"
-        "fwupd"           "Firmware update daemon$(_inst fwupd)"                  "$fwupd_state"
-        "htop"            "Interactive process viewer$(_inst htop)"               "$htop_state"
-        "inxi"            "System information tool$(_inst inxi)"                  "$inxi_state"
-        "kvm"             "QEMU/KVM virtualization$(_inst virt-manager)"          "$kvm_state"
-        "lshw"            "List hardware details$(_inst lshw)"                    "$lshw_state"
-        "mc"              "Midnight Commander (file manager)$(_inst mc)"          "$mc_state"
-        "nala"            "APT frontend (parallel downloads)$(_inst nala)"        "$nala_state"
-        "ncdu"            "Disk usage analyzer (ncurses)$(_inst ncdu)"            "$ncdu_state"
-        "nvme-cli"        "NVMe SSD health monitoring$(_inst nvme-cli)"           "$nvme_state"
-        "tmux"            "Terminal multiplexer$(_inst tmux)"                     "$tmux_state"
-        "wine"            "Windows compatibility layer$(_inst wine)"              "$wine_state"
+        "btop"            "Resource monitor (fancy top)"             "$btop_state"
+        "compress"        "Compression tools (zip, unrar, 7z)"        "$compress_state"
+        "cpufetch"        "CPU info fetcher"                     "$cpufetch_state"
+        "cpu-x"           "CPU-X (alternative to CPU-Z)"            "$cpu_x_state"
+        "curl-wget"       "HTTP transfer tools (curl, wget)"         "$curl_wget_state"
+        "extrepo"         "External repository manager"           "$extrepo_state"
+        "flatpak"         "Flatpak sandbox + Flathub"             "$flatpak_state"
+        "fwupd"           "Firmware update daemon"                  "$fwupd_state"
+        "htop"            "Interactive process viewer"               "$htop_state"
+        "inxi"            "System information tool"                  "$inxi_state"
+        "kvm"             "QEMU/KVM virtualization"          "$kvm_state"
+        "lshw"            "List hardware details"                    "$lshw_state"
+        "mc"              "Midnight Commander (file manager)"          "$mc_state"
+        "nala"            "APT frontend (parallel downloads)"        "$nala_state"
+        "ncdu"            "Disk usage analyzer (ncurses)"            "$ncdu_state"
+        "nvme-cli"        "NVMe SSD health monitoring"           "$nvme_state"
+        "tmux"            "Terminal multiplexer"                     "$tmux_state"
+        "wine"            "Windows compatibility layer"              "$wine_state"
     )
     if ! $headless; then
         local alacritty_state; alacritty_state=$(_state "alacritty")
@@ -81,23 +81,24 @@ _cat_general() {
         local psensor_state;   psensor_state=$(_state "psensor")
         local timeshift_state; timeshift_state=$(_state "timeshift")
         items+=(
-            "alacritty"       "GPU-accelerated terminal$(_inst alacritty)"            "$alacritty_state"
-            "conky"           "System monitor for desktop$(_inst conky)"              "$conky_state"
-            "corectrl"        "AMD GPU control (CoreCtrl)$(_inst corectrl)"           "$corectrl_state"
-            "doublecmd-gtk"   "Dual-panel file manager (GTK)$(_inst doublecmd-gtk)"  "$dcgtk_state"
-            "doublecmd-qt"    "Dual-panel file manager (Qt)$(_inst doublecmd-qt)"     "$dcqt_state"
-            "gnome-disk-utility" "Disk management GUI$(_inst gnome-disk-utility)"     "$disks_state"
-            "gparted"         "GNOME partition editor$(_inst gparted)"                "$gparted_state"
-            "hardinfo"        "Graphical system profiler$(_inst hardinfo)"            "$hardinfo_state"
-            "kitty"           "GPU-based terminal emulator$(_inst kitty)"             "$kitty_state"
-            "psensor"         "Hardware temperature monitor$(_inst psensor)"          "$psensor_state"
-            "timeshift"       "System restore snapshots$(_inst timeshift)"            "$timeshift_state"
+            "alacritty"       "GPU-accelerated terminal"            "$alacritty_state"
+            "conky"           "System monitor for desktop"              "$conky_state"
+            "corectrl"        "AMD GPU control (CoreCtrl)"           "$corectrl_state"
+            "doublecmd-gtk"   "Dual-panel file manager (GTK)"  "$dcgtk_state"
+            "doublecmd-qt"    "Dual-panel file manager (Qt)"     "$dcqt_state"
+            "gnome-disk-utility" "Disk management GUI"     "$disks_state"
+            "gparted"         "GNOME partition editor"                "$gparted_state"
+            "hardinfo"        "Graphical system profiler"            "$hardinfo_state"
+            "kitty"           "GPU-based terminal emulator"             "$kitty_state"
+            "psensor"         "Hardware temperature monitor"          "$psensor_state"
+            "timeshift"       "System restore snapshots"            "$timeshift_state"
         )
     fi
 
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "System Tools" "Select system utilities to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "System Tools" "Select system utilities to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

@@ -24,25 +24,27 @@ _cat_icons() {
         fi
 
         items=(
-            "breeze-icon-theme"     "Breeze icon theme$(_inst breeze-icon-theme)"           "$breeze_state"
-            "deepin-icon-theme"     "Deepin icon theme$(_inst deepin-icon-theme)"           "$deepin_state"
-            "elementary-icon-theme" "Elementary icon theme$(_inst elementary-icon-theme)"   "$ele_state"
-            "elementary-xfce-icon-theme" "Elementary Xfce icons$(_inst elementary-xfce-icon-theme)" "$ele_xfce_state"
-            "moka-icon-theme"       "Moka icon theme$(_inst moka-icon-theme)"               "$moka_state"
-            "numix-icon-theme"      "Numix icon theme$(_inst numix-icon-theme)"             "$numix_state"
-            "numix-icon-theme-circle" "Numix Circle icon theme$(_inst numix-icon-theme-circle)" "$numix_c_state"
-            "obsidian-icon-theme"   "Obsidian icon theme$(_inst obsidian-icon-theme)"       "$obsidian_state"
-            "papirus-icon-theme"    "Papirus icon theme$(_inst papirus-icon-theme)"         "$papirus_state"
-            "paper-icon-theme"      "Paper icon theme$(_inst paper-icon-theme)"             "$paper_state"
-            "suru-icon-theme"       "Suru icon theme$(_inst suru-icon-theme)"               "$suru_state"
+            "breeze-icon-theme"     "Breeze icon theme"           "$breeze_state"
+            "deepin-icon-theme"     "Deepin icon theme"           "$deepin_state"
+            "elementary-icon-theme" "Elementary icon theme"   "$ele_state"
+            "elementary-xfce-icon-theme" "Elementary Xfce icons" "$ele_xfce_state"
+            "moka-icon-theme"       "Moka icon theme"               "$moka_state"
+            "numix-icon-theme"      "Numix icon theme"             "$numix_state"
+            "numix-icon-theme-circle" "Numix Circle icon theme" "$numix_c_state"
+            "obsidian-icon-theme"   "Obsidian icon theme"       "$obsidian_state"
+            "papirus-icon-theme"    "Papirus icon theme"         "$papirus_state"
+            "paper-icon-theme"      "Paper icon theme"             "$paper_state"
+            "suru-icon-theme"       "Suru icon theme"               "$suru_state"
         )
         if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-            items+=("kf6-breeze-icon-theme" "KF6 Breeze icon theme$(_inst kf6-breeze-icon-theme)" "$kf6_state")
+            items+=("kf6-breeze-icon-theme" "KF6 Breeze icon theme" "$kf6_state")
         fi
     fi
 
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Icon Themes" "Select icon themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Icon Themes" "Select icon themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

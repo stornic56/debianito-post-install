@@ -11,8 +11,8 @@ _cat_software_centers() {
     de_type=$(_detect_desktop_type)
     local sc_choice
     sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 2 \
-        "gnome-software"   "Software Center for GNOME$(_inst gnome-software)" \
-        "plasma-discover"  "Software manager for Plasma$(_inst plasma-discover)" \
+        "gnome-software"   "Software Center for GNOME" \
+        "plasma-discover"  "Software manager for Plasma" \
         )
     [ -z "$sc_choice" ] && return
 

@@ -378,7 +378,6 @@ install_firmware() {
     # 3. Confirm
     if ! _confirm "Firmware" "Apply the network & firmware plan?"; then
         echo "Firmware installation skipped."
-        _pause
         return
     fi
 
@@ -400,7 +399,6 @@ install_firmware() {
             fi
         else
             echo "$fw_pkg already installed."
-            _pause
         fi
     else
         local msg="firmware-linux-nonfree provides hardware drivers for:\n"

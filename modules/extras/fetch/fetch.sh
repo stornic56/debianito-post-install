@@ -21,23 +21,24 @@ _cat_fetch() {
     local -a items=()
 
     if [ "$fetch_pkg" = "fastfetch" ]; then
-        items+=("fastfetch" "System info fetcher$(_inst fastfetch)" "$fetch_state")
+        items+=("fastfetch" "System info fetcher" "$fetch_state")
         if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-            items+=("hyfetch" "Neofetch with pride flags$(_inst hyfetch)" "$hyfetch_state")
+            items+=("hyfetch" "Neofetch with pride flags" "$hyfetch_state")
         fi
     fi
-    items+=("linuxlogo" "Linux logo + system info$(_inst linuxlogo)" "$linuxlogo_state")
+    items+=("linuxlogo" "Linux logo + system info" "$linuxlogo_state")
     if [ "$fetch_pkg" = "neofetch" ]; then
-        items+=("neofetch" "System info fetcher$(_inst neofetch)" "$fetch_state")
+        items+=("neofetch" "System info fetcher" "$fetch_state")
         if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-            items+=("hyfetch" "Neofetch with pride flags$(_inst hyfetch)" "$hyfetch_state")
+            items+=("hyfetch" "Neofetch with pride flags" "$hyfetch_state")
         fi
     fi
-    items+=("screenfetch" "System info (BSD/Linux)$(_inst screenfetch)" "$screenfetch_state")
+    items+=("screenfetch" "System info (BSD/Linux)" "$screenfetch_state")
 
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Fetch Tools" "Select system info tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Fetch Tools" "Select system info tools:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

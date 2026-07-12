@@ -158,10 +158,6 @@ is_installed() {
     dpkg -l "$1" 2>/dev/null | grep -q '^ii'
 }
 
-_inst() {
-    if is_installed "$1"; then echo " *"; else echo ""; fi
-}
-
 _state() {
     is_installed "$1" && echo "ON" || echo "OFF"
 }
@@ -573,9 +569,9 @@ _validate_sudoers() {
     local tmpfile
     tmpfile=$(mktemp) || return 1
     echo "$content" > "$tmpfile"
-    if ! visudo -cf "$tmpfile" &>/dev/null; then
+    if ! /usr/sbin/visudo -cf "$tmpfile" &>/dev/null; then
         local err
-        err=$(visudo -cf "$tmpfile" 2>&1 || true)
+        err=$(/usr/sbin/visudo -cf "$tmpfile" 2>&1 || true)
         rm -f "$tmpfile"
         _msg "Sudoers Error" "Invalid sudoers syntax in:\n\n${err}\n\nFile was NOT written.\nThis prevents broken sudo access." 12 70
         return 1
@@ -586,14 +582,14 @@ _validate_sudoers() {
 }
 
 _pause() {
-    local msg="${1:-Presiona OK para continuar.}"
-    whiptail --title "Continuar" --msgbox "$msg" 8 50 3>&1 1>&2 2>&3 || true
+    local msg="${1:-Press Enter to continue...}"
+    echo -e "$msg"
+    read -r || true
 }
 
-# Blocks 2-4: clear → run → pause
+# Blocks 2-4: run → pause
 _run_cmd() {
     local title="$1" command="$2" success_msg="${3:-Running...}"
-    clear
     echo -e "${GREEN}[+]${NC} $success_msg"
     echo "──────────────────────────────────────────────"
     bash -c "$command"
@@ -607,7 +603,7 @@ _run_cmd() {
     _pause
 }
 
-# Blocks 1-4: confirm → clear → run → pause
+# Blocks 1-4: confirm → run → pause
 _run() {
     if _confirm "$1" "$2"; then
         _run_cmd "$1" "$3" "$4"

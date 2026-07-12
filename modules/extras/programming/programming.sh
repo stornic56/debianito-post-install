@@ -11,11 +11,11 @@ _cat_programming() {
     local nano_state;   nano_state=$(_state "nano")
     local emacs_state;  emacs_state=$(_state "emacs")
     items+=(
-        "vim"    "Classic terminal editor$(_inst vim)"    "$vim_state"
-        "neovim" "Modern vim fork$(_inst neovim)"         "$neovim_state"
-        "hx"     "Helix modal editor (Rust)$(_inst hx)"   "$hx_state"
-        "nano"   "Simple terminal editor$(_inst nano)"    "$nano_state"
-        "emacs"  "Extensible editor / IDE$(_inst emacs)"  "$emacs_state"
+        "vim"    "Classic terminal editor"    "$vim_state"
+        "neovim" "Modern vim fork"         "$neovim_state"
+        "hx"     "Helix modal editor (Rust)"   "$hx_state"
+        "nano"   "Simple terminal editor"    "$nano_state"
+        "emacs"  "Extensible editor / IDE"  "$emacs_state"
     )
     if ! $headless; then
         local vimgtk_state;   vimgtk_state=$(_state "vim-gtk3")
@@ -29,19 +29,20 @@ _cat_programming() {
             codium_state="ON"
         fi
         items+=(
-            "vim-gtk3"          "Vim with GTK3 GUI$(_inst vim-gtk3)"                    "$vimgtk_state"
-            "kate"              "KDE advanced text editor$(_inst kate)"                 "$kate_state"
-            "mousepad"          "Xfce text editor$(_inst mousepad)"                     "$mousepad_state"
-            "gedit"             "GNOME text editor$(_inst gedit)"                       "$gedit_state"
-            "geany"             "Lightweight IDE$(_inst geany)"                         "$geany_state"
-            "gnome-text-editor" "GNOME modern text editor$(_inst gnome-text-editor)"    "$gte_state"
-            "vscodium"          "VS Code open-source (extrepo)$(_inst codium)"          "$codium_state"
+            "vim-gtk3"          "Vim with GTK3 GUI"                    "$vimgtk_state"
+            "kate"              "KDE advanced text editor"                 "$kate_state"
+            "mousepad"          "Xfce text editor"                     "$mousepad_state"
+            "gedit"             "GNOME text editor"                       "$gedit_state"
+            "geany"             "Lightweight IDE"                         "$geany_state"
+            "gnome-text-editor" "GNOME modern text editor"    "$gte_state"
+            "vscodium"          "VS Code open-source (extrepo)"          "$codium_state"
         )
     fi
 
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Programming Applications" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Programming Applications" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

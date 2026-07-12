@@ -13,14 +13,14 @@ _cat_download() {
     local qbitnox_state;     qbitnox_state=$(_state "qbittorrent-nox")
     local tr_cli_state;      tr_cli_state=$(_state "transmission-cli")
     items1+=(
-        "aria2"  "Multiprotocol downloader (CLI)$(_inst aria2)" "$aria2_state"
-        "yt-dlp" "Video downloader CLI$(_inst yt-dlp)"         "$ytdlp_state"
+        "aria2"  "Multiprotocol downloader (CLI)" "$aria2_state"
+        "yt-dlp" "Video downloader CLI"         "$ytdlp_state"
     )
     items2+=(
-        "deluged"         "BitTorrent daemon/server$(_inst deluged)"           "$deluged_state"
-        "mktorrent"       "Torrent metainfo creator (CLI)$(_inst mktorrent)"   "$mktorrent_state"
-        "qbittorrent-nox" "BitTorrent WebUI/CLI$(_inst qbittorrent-nox)"      "$qbitnox_state"
-        "transmission-cli" "BitTorrent client (CLI)$(_inst transmission-cli)"  "$tr_cli_state"
+        "deluged"         "BitTorrent daemon/server"           "$deluged_state"
+        "mktorrent"       "Torrent metainfo creator (CLI)"   "$mktorrent_state"
+        "qbittorrent-nox" "BitTorrent WebUI/CLI"      "$qbitnox_state"
+        "transmission-cli" "BitTorrent client (CLI)"  "$tr_cli_state"
     )
     if ! $headless; then
         local filezilla_state;   filezilla_state=$(_state "filezilla")
@@ -30,26 +30,29 @@ _cat_download() {
         local tr_gtk_state;      tr_gtk_state=$(_state "transmission-gtk")
         local tr_qt_state;       tr_qt_state=$(_state "transmission-qt")
         items1+=(
-            "filezilla"     "FTP/SFTP client (GUI)$(_inst filezilla)"     "$filezilla_state"
-            "youtubedl-gui" "GUI for yt-dlp$(_inst youtubedl-gui)"       "$ytdlp_gui_state"
+            "filezilla"     "FTP/SFTP client (GUI)"     "$filezilla_state"
+            "youtubedl-gui" "GUI for yt-dlp"       "$ytdlp_gui_state"
         )
         items2+=(
-            "deluge"          "BitTorrent client (GTK)$(_inst deluge)"           "$deluge_state"
-            "qbittorrent"     "BitTorrent client (Qt)$(_inst qbittorrent)"       "$qbit_state"
-            "transmission-gtk" "BitTorrent client (GTK)$(_inst transmission-gtk)" "$tr_gtk_state"
-            "transmission-qt"  "BitTorrent client (Qt)$(_inst transmission-qt)"   "$tr_qt_state"
+            "deluge"          "BitTorrent client (GTK)"           "$deluge_state"
+            "qbittorrent"     "BitTorrent client (Qt)"       "$qbit_state"
+            "transmission-gtk" "BitTorrent client (GTK)" "$tr_gtk_state"
+            "transmission-qt"  "BitTorrent client (Qt)"   "$tr_qt_state"
         )
     fi
 
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local item_count1=${#items1[@]}
+    local lista_alto1=$((item_count1 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count1))
     local choices1 choices2=""
 
-    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO $lista_alto1 \
         "${items1[@]}" \
         )
     clear
 
-    choices2=$(_checklist "Torrent Clients" "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    local item_count2=${#items2[@]}
+    local lista_alto2=$((item_count2 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count2))
+    choices2=$(_checklist "Torrent Clients" "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $lista_alto2 \
         "${items2[@]}" \
         )
     clear

@@ -322,10 +322,16 @@ configure_repos() {
 
 _components_enabled() {
     if [ -f /etc/apt/sources.list.d/debian.sources ]; then
-        grep -qE "^Components:.*\b(contrib|non-free)\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null && return 0
+        for c in $(grep "^Components:" /etc/apt/sources.list.d/debian.sources 2>/dev/null | cut -d: -f2-); do
+            [ "$c" = "contrib" ] || [ "$c" = "non-free" ] && return 0
+        done
     fi
     if [ -f /etc/apt/sources.list ]; then
-        grep -qE "^[^#]*\b(contrib|non-free)\b" /etc/apt/sources.list 2>/dev/null && return 0
+        local components
+        components=$(grep "^[^#]*deb .* main" /etc/apt/sources.list 2>/dev/null | head -1 | sed 's/.*main\s*//')
+        for c in $components; do
+            [ "$c" = "contrib" ] || [ "$c" = "non-free" ] && return 0
+        done
     fi
     return 1
 }
@@ -362,8 +368,8 @@ _repos_enable_components() {
     else
         if ! _confirm "Enable Components" \
             "Enable contrib and non-free components?\n\n\
-Needed for proprietary drivers, firmware, and other popular\n\
-software (like gaming platforms and proprietary tools)." 12 60; then
+Needed for proprietary drivers, firmware, and other
+popular software (like gaming platforms and proprietary tools)." 12 60; then
             echo "No changes made."
             _pause
             return

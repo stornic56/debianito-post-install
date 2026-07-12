@@ -9,8 +9,8 @@ _cat_security() {
         local wireshark_state; wireshark_state=$(_state "wireshark")
         local zenmap_state;    zenmap_state=$(_state "zenmap")
         items+=(
-            "wireshark" "Network protocol analyzer (GUI)$(_inst wireshark)"  "$wireshark_state"
-            "zenmap"    "Network scanner GUI (Nmap frontend)$(_inst zenmap)" "$zenmap_state"
+            "wireshark" "Network protocol analyzer (GUI)"  "$wireshark_state"
+            "zenmap"    "Network scanner GUI (Nmap frontend)" "$zenmap_state"
         )
     fi
     local tcpdump_state;  tcpdump_state=$(_state "tcpdump")
@@ -18,15 +18,16 @@ _cat_security() {
     local ufw_state;      ufw_state=$(_state "ufw")
     local clamav_state;   clamav_state=$(_state "clamav")
     items+=(
-        "tcpdump" "Command-line packet analyzer$(_inst tcpdump)"   "$tcpdump_state"
-        "fail2ban" "Brute-force protection daemon$(_inst fail2ban)" "$fail2ban_state"
-        "ufw"      "Uncomplicated firewall$(_inst ufw)"             "$ufw_state"
-        "clamav"   "Antivirus engine (ClamAV)$(_inst clamav)"       "$clamav_state"
+        "tcpdump" "Command-line packet analyzer"   "$tcpdump_state"
+        "fail2ban" "Brute-force protection daemon" "$fail2ban_state"
+        "ufw"      "Uncomplicated firewall"             "$ufw_state"
+        "clamav"   "Antivirus engine (ClamAV)"       "$clamav_state"
     )
 
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Security & Networking" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Security & Networking" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

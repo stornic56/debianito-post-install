@@ -140,22 +140,22 @@ _cat_internet() {
         local mullvadbrowser_state; mullvadbrowser_state=$(_state "mullvad-browser")
         local protonvpn_state;    protonvpn_state=$(_state "protonvpn")
         items+=(
-            "chromium"            "Chromium web browser$(_inst chromium)"                  "$chromium_state"
-            "dillo"               "Lightweight graphical browser$(_inst dillo)"            "$dillo_state"
-            "epiphany-browser"    "GNOME web browser$(_inst epiphany-browser)"             "$epiphany_state"
-            "falkon"              "KDE web browser (QtWebEngine)$(_inst falkon)"           "$falkon_state"
+            "chromium"            "Chromium web browser"                  "$chromium_state"
+            "dillo"               "Lightweight graphical browser"            "$dillo_state"
+            "epiphany-browser"    "GNOME web browser"             "$epiphany_state"
+            "falkon"              "KDE web browser (QtWebEngine)"           "$falkon_state"
             "firefox"             "Firefox from Mozilla (replaces ESR)"                    "$firefox_state"
             "firefox-esr"         "Firefox ESR (official Debian + locale auto)"            "$firefox_esr_state"
-            "floorp"              "Firefox-based browser (extrepo)$(_inst floorp)"         "$floorp_state"
-            "konqueror"           "KDE file manager / web browser$(_inst konqueror)"       "$konqueror_state"
-            "librewolf"           "Privacy-focused Firefox fork (extrepo)$(_inst librewolf)" "$librewolf_state"
+            "floorp"              "Firefox-based browser (extrepo)"         "$floorp_state"
+            "konqueror"           "KDE file manager / web browser"       "$konqueror_state"
+            "librewolf"           "Privacy-focused Firefox fork (extrepo)" "$librewolf_state"
             "palemoon"            "Classic Firefox-derived browser (extrepo)"              "$palemoon_state"
-            "privacybrowser"      "Privacy-focused web browser$(_inst privacybrowser)"     "$privacybrowser_state"
-            "qutebrowser"         "Keyboard-driven browser (Qt)$(_inst qutebrowser)"       "$qutebrowser_state"
-            "thunderbird"         "Email client$(_inst thunderbird)"                       "$thunderbird_state"
-            "torbrowser-launcher" "Tor Browser launcher$(_inst torbrowser-launcher)"       "$torbrowser_state"
-            "mullvad-browser"     "Mullvad privacy browser$(_inst mullvad-browser)"        "$mullvadbrowser_state"
-            "protonvpn"           "ProtonVPN client$(_inst protonvpn)"                     "$protonvpn_state"
+            "privacybrowser"      "Privacy-focused web browser"     "$privacybrowser_state"
+            "qutebrowser"         "Keyboard-driven browser (Qt)"       "$qutebrowser_state"
+            "thunderbird"         "Email client"                       "$thunderbird_state"
+            "torbrowser-launcher" "Tor Browser launcher"       "$torbrowser_state"
+            "mullvad-browser"     "Mullvad privacy browser"        "$mullvadbrowser_state"
+            "protonvpn"           "ProtonVPN client"                     "$protonvpn_state"
         )
     fi
     local elinks_state;    elinks_state=$(_state "elinks")
@@ -164,15 +164,17 @@ _cat_internet() {
     local tailscale_state; tailscale_state=$(_state "tailscale")
     local mullvad_state;   mullvad_state=$(_state "mullvad-vpn")
     items+=(
-        "elinks"     "Text-mode web browser$(_inst elinks)"                   "$elinks_state"
-        "riseup-vpn" "Riseup VPN client$(_inst riseup-vpn)"                   "$riseupvpn_state"
-        "w3m"        "Text-mode browser + deps (w3m-img)$(_inst w3m)"         "$w3m_state"
-        "tailscale"  "Zero-config VPN & mesh networking$(_inst tailscale)"    "$tailscale_state"
-        "mullvad-vpn" "Mullvad VPN client (WireGuard)$(_inst mullvad-vpn)"    "$mullvad_state"
+        "elinks"     "Text-mode web browser"                   "$elinks_state"
+        "riseup-vpn" "Riseup VPN client"                   "$riseupvpn_state"
+        "w3m"        "Text-mode browser + deps (w3m-img)"         "$w3m_state"
+        "tailscale"  "Zero-config VPN & mesh networking"    "$tailscale_state"
+        "mullvad-vpn" "Mullvad VPN client (WireGuard)"    "$mullvad_state"
     )
 
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Internet" "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Internet" "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

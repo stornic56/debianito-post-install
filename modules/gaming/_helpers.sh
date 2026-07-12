@@ -32,6 +32,7 @@ _install_mesa_32bit() {
 
     _run_cmd "Mesa 32-bit" "sudo apt install -y ${install_list[*]}" \
         "Installing Mesa drivers (${#install_list[@]} packages)..."
+    echo -e "${GREEN}Mesa 32-bit libraries installed.${NC}"
 }
 
 apt_cache_exists() {

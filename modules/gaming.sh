@@ -59,9 +59,9 @@ install_gaming() {
         "goverlay" "MangoHud config GUI" ON \
         "heroic"   "Heroic Launcher (Epic/GOG)" OFF \
         "java"     "Minecraft Java Runtime" OFF \
-        "openrgb"  "OpenRGB (RGB lighting control)$(_inst openrgb)" OFF \
+        "openrgb"  "OpenRGB (RGB lighting control)" OFF \
         "lutris"   "Lutris + Wine (requires 32-bit support)" OFF \
-        "retroarch" "RetroArch Emulator Frontend$(_inst retroarch)" OFF \
+        "retroarch" "RetroArch Emulator Frontend" OFF \
         "i386"     "Enable 32-bit (i386) architecture" ON)
 
     if [ -z "$choices" ]; then

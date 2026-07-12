@@ -2,9 +2,8 @@
 # themes.sh — Customization submenu dispatcher
 
 _cat_customization() {
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local sub
-    sub=$(_menu "Customization System" "Select type:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    sub=$(_menu "Customization System" "Select type:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "1" "Desktop Themes (GTK/KDE)" \
         "2" "Icon Themes" \
         "3" "Cursor Themes" \
