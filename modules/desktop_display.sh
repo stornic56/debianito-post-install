@@ -52,14 +52,20 @@ lightdm_config_menu() {
     for item in $cleaned; do
         case $item in
             install_lightdm)
-                if is_installed lightdm; then
-                    echo -e "${GREEN}LightDM is already installed.${NC}"
+                if ! is_installed lightdm; then
+                    _run_cmd "LightDM" "sudo apt install -y lightdm" "Installing LightDM..."
                 else
-                    _run_cmd "LightDM" "sudo apt install -y lightdm lightdm-gtk-greeter-settings" "Installing LightDM..."
+                    echo -e "${GREEN}[LightDM] already installed, skipping...${NC}"
+                fi
+                if ! is_installed lightdm-gtk-greeter-settings; then
+                    _run_cmd "LightDM Settings" "sudo apt install -y lightdm-gtk-greeter-settings" "Installing LightDM Settings..."
+                else
+                    echo -e "${GREEN}[LightDM Settings] already installed, skipping...${NC}"
                 fi
                 ;;
             enable_userlist)
                 local conf="/etc/lightdm/lightdm.conf.d/50-debianito-userlist.conf"
+                sudo mkdir -p "$(dirname "$conf")"
                 if echo "[Seat:*]
 greeter-hide-users=false" | sudo tee "$conf" > /dev/null; then
                     echo -e "${GREEN}User list enabled in LightDM.${NC}"

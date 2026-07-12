@@ -67,7 +67,7 @@ main_menu() {
             "8" "ZRAM" \
             "9" "Swap Management" \
             "10" "Install Programs and Software" \
-            "11" "Boot Rescue & Repair" \
+            "11" "Boot Rescue + GRUB" \
             "12" "Desktop & Display" \
             "13" "Exit")
 
