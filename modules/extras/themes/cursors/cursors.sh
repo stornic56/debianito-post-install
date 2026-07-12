@@ -13,17 +13,19 @@ _cat_cursors() {
         local xcursor_state;   xcursor_state=$(_state "xcursor-themes")
         local oxygen_state;    oxygen_state=$(_state "oxygencursors")
         items+=(
-            "bibata-cursor-theme"    "Bibata cursors$(_inst bibata-cursor-theme)"          "$bibata_state"
-            "breeze-cursor-theme"    "Breeze cursors (KDE)$(_inst breeze-cursor-theme)"   "$breeze_state"
-            "chameleon-cursor-theme" "Chameleon cursors$(_inst chameleon-cursor-theme)"   "$chameleon_state"
-            "dmz-cursor-theme"       "DMZ cursors$(_inst dmz-cursor-theme)"                "$dmz_state"
-            "xcursor-themes"         "X11 base cursors$(_inst xcursor-themes)"            "$xcursor_state"
-            "oxygencursors"          "Oxygen cursors (KDE legacy)$(_inst oxygencursors)"  "$oxygen_state"
+            "bibata-cursor-theme"    "Bibata cursors"          "$bibata_state"
+            "breeze-cursor-theme"    "Breeze cursors (KDE)"   "$breeze_state"
+            "chameleon-cursor-theme" "Chameleon cursors"   "$chameleon_state"
+            "dmz-cursor-theme"       "DMZ cursors"                "$dmz_state"
+            "xcursor-themes"         "X11 base cursors"            "$xcursor_state"
+            "oxygencursors"          "Oxygen cursors (KDE legacy)"  "$oxygen_state"
         )
     fi
 
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Cursor Themes" "Select cursor themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Cursor Themes" "Select cursor themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

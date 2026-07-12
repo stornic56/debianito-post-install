@@ -56,14 +56,12 @@ _swap_recommend_gb() {
 # ── Menu options ──
 
 _swap_current_status() {
-    echo "── Current swap ──"
-    sudo swapon --show 2>/dev/null || echo "(none active)"
-    echo ""
-    echo "swappiness: $(cat /proc/sys/vm/swappiness)"
-    echo ""
-    echo "fstab swap entries:"
-    grep -E 'swap|SWAP' /etc/fstab 2>/dev/null || echo "(none in fstab)"
-    _pause
+    local info="── Current swap ──\n"
+    info+="$(sudo swapon --show 2>/dev/null || echo '(none active)')\n\n"
+    info+="swappiness: $(cat /proc/sys/vm/swappiness)\n\n"
+    info+="fstab swap entries:\n"
+    info+="$(grep -E 'swap|SWAP' /etc/fstab 2>/dev/null || echo '(none in fstab)')"
+    _msg "Swap Status" "$info" 14 65
 }
 
 _swap_create_file() {

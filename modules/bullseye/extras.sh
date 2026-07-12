@@ -58,9 +58,8 @@ Instalar?"; then
 # ======================================================================
 
 _cat_customization_bullseye() {
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
     local sub
-    sub=$(_menu "Customization (Bullseye)" "Select type:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    sub=$(_menu "Customization (Bullseye)" "Select type:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "1" "Desktop Themes (GTK/KDE)" \
         "2" "Icon Themes" \
         "3" "Cursor Themes" \
@@ -76,14 +75,16 @@ _cat_customization_bullseye() {
 }
 
 _cat_themes_bullseye() {
+    local item_count=6
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Desktop Themes (Bullseye)" "Select desktop themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "arc-theme"             "Arc GTK theme$(_inst arc-theme)"                     "$(_state arc-theme)" \
-        "blackbird-gtk-theme"   "Blackbird GTK theme$(_inst blackbird-gtk-theme)"     "$(_state blackbird-gtk-theme)" \
-        "bluebird-gtk-theme"    "Bluebird GTK theme$(_inst bluebird-gtk-theme)"       "$(_state bluebird-gtk-theme)" \
-        "breeze-gtk-theme"      "Breeze GTK theme (KDE port)$(_inst breeze-gtk-theme)" "$(_state breeze-gtk-theme)" \
-        "greybird-gtk-theme"    "Greybird GTK theme$(_inst greybird-gtk-theme)"       "$(_state greybird-gtk-theme)" \
-        "numix-gtk-theme"       "Numix GTK theme$(_inst numix-gtk-theme)"             "$(_state numix-gtk-theme)" \
+    choices=$(_checklist "Desktop Themes (Bullseye)" "Select desktop themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "arc-theme"             "Arc GTK theme"                     "$(_state arc-theme)" \
+        "blackbird-gtk-theme"   "Blackbird GTK theme"     "$(_state blackbird-gtk-theme)" \
+        "bluebird-gtk-theme"    "Bluebird GTK theme"       "$(_state bluebird-gtk-theme)" \
+        "breeze-gtk-theme"      "Breeze GTK theme (KDE port)" "$(_state breeze-gtk-theme)" \
+        "greybird-gtk-theme"    "Greybird GTK theme"       "$(_state greybird-gtk-theme)" \
+        "numix-gtk-theme"       "Numix GTK theme"             "$(_state numix-gtk-theme)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -96,18 +97,20 @@ _cat_themes_bullseye() {
 
 _cat_icons_bullseye() {
     local items=(
-        "breeze-icon-theme"         "Breeze icon theme$(_inst breeze-icon-theme)"               "$(_state breeze-icon-theme)"
-        "deepin-icon-theme"         "Deepin icon theme$(_inst deepin-icon-theme)"               "$(_state deepin-icon-theme)"
-        "moka-icon-theme"           "Moka icon theme$(_inst moka-icon-theme)"                   "$(_state moka-icon-theme)"
-        "numix-icon-theme"          "Numix icon theme$(_inst numix-icon-theme)"                 "$(_state numix-icon-theme)"
-        "numix-icon-theme-circle"   "Numix Circle icon theme$(_inst numix-icon-theme-circle)"   "$(_state numix-icon-theme-circle)"
-        "obsidian-icon-theme"       "Obsidian icon theme$(_inst obsidian-icon-theme)"           "$(_state obsidian-icon-theme)"
-        "papirus-icon-theme"        "Papirus icon theme$(_inst papirus-icon-theme)"             "$(_state papirus-icon-theme)"
-        "paper-icon-theme"          "Paper icon theme$(_inst paper-icon-theme)"                 "$(_state paper-icon-theme)"
-        "suru-icon-theme"           "Suru icon theme$(_inst suru-icon-theme)"                   "$(_state suru-icon-theme)"
+        "breeze-icon-theme"         "Breeze icon theme"               "$(_state breeze-icon-theme)"
+        "deepin-icon-theme"         "Deepin icon theme"               "$(_state deepin-icon-theme)"
+        "moka-icon-theme"           "Moka icon theme"                   "$(_state moka-icon-theme)"
+        "numix-icon-theme"          "Numix icon theme"                 "$(_state numix-icon-theme)"
+        "numix-icon-theme-circle"   "Numix Circle icon theme"   "$(_state numix-icon-theme-circle)"
+        "obsidian-icon-theme"       "Obsidian icon theme"           "$(_state obsidian-icon-theme)"
+        "papirus-icon-theme"        "Papirus icon theme"             "$(_state papirus-icon-theme)"
+        "paper-icon-theme"          "Paper icon theme"                 "$(_state paper-icon-theme)"
+        "suru-icon-theme"           "Suru icon theme"                   "$(_state suru-icon-theme)"
     )
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Icon Themes (Bullseye)" "Select icon themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Icon Themes (Bullseye)" "Select icon themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" )
     clear
     [ -z "$choices" ] && return
@@ -119,13 +122,15 @@ _cat_icons_bullseye() {
 }
 
 _cat_cursors_bullseye() {
+    local item_count=5
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Cursor Themes (Bullseye)" "Select cursor themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "breeze-cursor-theme"    "Breeze cursors (KDE)$(_inst breeze-cursor-theme)"       "$(_state breeze-cursor-theme)" \
-        "chameleon-cursor-theme" "Chameleon cursors$(_inst chameleon-cursor-theme)"       "$(_state chameleon-cursor-theme)" \
-        "dmz-cursor-theme"       "DMZ cursors$(_inst dmz-cursor-theme)"                   "$(_state dmz-cursor-theme)" \
-        "oxygencursors"          "Oxygen cursors (KDE legacy)$(_inst oxygencursors)"       "$(_state oxygencursors)" \
-        "xcursor-themes"         "X11 base cursors$(_inst xcursor-themes)"                "$(_state xcursor-themes)" \
+    choices=$(_checklist "Cursor Themes (Bullseye)" "Select cursor themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "breeze-cursor-theme"    "Breeze cursors (KDE)"       "$(_state breeze-cursor-theme)" \
+        "chameleon-cursor-theme" "Chameleon cursors"       "$(_state chameleon-cursor-theme)" \
+        "dmz-cursor-theme"       "DMZ cursors"                   "$(_state dmz-cursor-theme)" \
+        "oxygencursors"          "Oxygen cursors (KDE legacy)"       "$(_state oxygencursors)" \
+        "xcursor-themes"         "X11 base cursors"                "$(_state xcursor-themes)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -137,12 +142,14 @@ _cat_cursors_bullseye() {
 }
 
 _cat_fonts_bullseye() {
+    local item_count=4
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Fonts (Bullseye)" "Available fonts${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "fonts-firacode"    "Fira Code monospace font$(_inst fonts-firacode)"           "$(_state fonts-firacode)" \
-        "fonts-noto"        "Noto fonts (Google)$(_inst fonts-noto)"                    "$(_state fonts-noto)" \
-        "fonts-dejavu-core" "DejaVu core fonts$(_inst fonts-dejavu-core)"               "$(_state fonts-dejavu-core)" \
-        "ttf-mscorefonts-installer" "Microsoft Core Fonts$(_inst ttf-mscorefonts-installer)" "$(_state ttf-mscorefonts-installer)" \
+    choices=$(_checklist "Fonts (Bullseye)" "Available fonts${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "fonts-firacode"    "Fira Code monospace font"           "$(_state fonts-firacode)" \
+        "fonts-noto"        "Noto fonts (Google)"                    "$(_state fonts-noto)" \
+        "fonts-dejavu-core" "DejaVu core fonts"               "$(_state fonts-dejavu-core)" \
+        "ttf-mscorefonts-installer" "Microsoft Core Fonts" "$(_state ttf-mscorefonts-installer)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -156,21 +163,25 @@ _cat_fonts_bullseye() {
 _cat_download_bullseye() {
     local choices1 choices2=""
 
-    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "aria2"      "Multiprotocol downloader (CLI)$(_inst aria2)"    "$(_state aria2)" \
-        "filezilla"  "FTP/SFTP client (GUI)$(_inst filezilla)"        "$(_state filezilla)" \
+    local item_count1=2
+    local lista_alto1=$((item_count1 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count1))
+    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO $lista_alto1 \
+        "aria2"      "Multiprotocol downloader (CLI)"    "$(_state aria2)" \
+        "filezilla"  "FTP/SFTP client (GUI)"        "$(_state filezilla)" \
         )
     clear
 
-    choices2=$(_checklist "Torrent Clients" "Select torrent clients${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "deluge"            "BitTorrent client (GTK)$(_inst deluge)"               "$(_state deluge)" \
-        "deluged"           "BitTorrent daemon/server$(_inst deluged)"             "$(_state deluged)" \
-        "mktorrent"         "Torrent metainfo creator (CLI)$(_inst mktorrent)"     "$(_state mktorrent)" \
-        "qbittorrent"       "BitTorrent client (Qt)$(_inst qbittorrent)"           "$(_state qbittorrent)" \
-        "qbittorrent-nox"   "BitTorrent WebUI/CLI$(_inst qbittorrent-nox)"        "$(_state qbittorrent-nox)" \
-        "transmission-cli"  "BitTorrent client (CLI)$(_inst transmission-cli)"     "$(_state transmission-cli)" \
-        "transmission-gtk"  "BitTorrent client (GTK)$(_inst transmission-gtk)"     "$(_state transmission-gtk)" \
-        "transmission-qt"   "BitTorrent client (Qt)$(_inst transmission-qt)"       "$(_state transmission-qt)" \
+    local item_count2=8
+    local lista_alto2=$((item_count2 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count2))
+    choices2=$(_checklist "Torrent Clients" "Select torrent clients${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto2 \
+        "deluge"            "BitTorrent client (GTK)"               "$(_state deluge)" \
+        "deluged"           "BitTorrent daemon/server"             "$(_state deluged)" \
+        "mktorrent"         "Torrent metainfo creator (CLI)"     "$(_state mktorrent)" \
+        "qbittorrent"       "BitTorrent client (Qt)"           "$(_state qbittorrent)" \
+        "qbittorrent-nox"   "BitTorrent WebUI/CLI"        "$(_state qbittorrent-nox)" \
+        "transmission-cli"  "BitTorrent client (CLI)"     "$(_state transmission-cli)" \
+        "transmission-gtk"  "BitTorrent client (GTK)"     "$(_state transmission-gtk)" \
+        "transmission-qt"   "BitTorrent client (Qt)"       "$(_state transmission-qt)" \
         )
     clear
 
@@ -189,19 +200,21 @@ _cat_download_bullseye() {
 }
 
 _cat_internet_bullseye() {
+    local item_count=11
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Internet (Bullseye)" "Select browsers, email${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "chromium"            "Chromium web browser$(_inst chromium)"                   "$(_state chromium)" \
-        "dillo"               "Lightweight graphical browser$(_inst dillo)"             "$(_state dillo)" \
-        "elinks"              "Text-mode web browser$(_inst elinks)"                    "$(_state elinks)" \
-        "epiphany-browser"    "GNOME web browser$(_inst epiphany-browser)"             "$(_state epiphany-browser)" \
-        "falkon"              "KDE web browser (QtWebEngine)$(_inst falkon)"            "$(_state falkon)" \
-        "firefox-esr"         "Firefox ESR (official Debian)$(_inst firefox-esr)"      "$(_state firefox-esr)" \
-        "konqueror"           "KDE file manager / web browser$(_inst konqueror)"       "$(_state konqueror)" \
-        "qutebrowser"         "Keyboard-driven browser (Qt)$(_inst qutebrowser)"       "$(_state qutebrowser)" \
-        "thunderbird"         "Email client$(_inst thunderbird)"                        "$(_state thunderbird)" \
-        "torbrowser-launcher" "Tor Browser launcher$(_inst torbrowser-launcher)"       "$(_state torbrowser-launcher)" \
-        "w3m"                 "Text-mode browser + deps$(_inst w3m)"                   "$(_state w3m)" \
+    choices=$(_checklist "Internet (Bullseye)" "Select browsers, email${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "chromium"            "Chromium web browser"                   "$(_state chromium)" \
+        "dillo"               "Lightweight graphical browser"             "$(_state dillo)" \
+        "elinks"              "Text-mode web browser"                    "$(_state elinks)" \
+        "epiphany-browser"    "GNOME web browser"             "$(_state epiphany-browser)" \
+        "falkon"              "KDE web browser (QtWebEngine)"            "$(_state falkon)" \
+        "firefox-esr"         "Firefox ESR (official Debian)"      "$(_state firefox-esr)" \
+        "konqueror"           "KDE file manager / web browser"       "$(_state konqueror)" \
+        "qutebrowser"         "Keyboard-driven browser (Qt)"       "$(_state qutebrowser)" \
+        "thunderbird"         "Email client"                        "$(_state thunderbird)" \
+        "torbrowser-launcher" "Tor Browser launcher"       "$(_state torbrowser-launcher)" \
+        "w3m"                 "Text-mode browser + deps"                   "$(_state w3m)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -229,10 +242,12 @@ _cat_internet_bullseye() {
 }
 
 _cat_players_bullseye() {
+    local item_count=2
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Media Players (Bullseye)" "Select media players${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "mpv"  "Lightweight media player$(_inst mpv)"  "$(_state mpv)" \
-        "vlc"  "VLC media player$(_inst vlc)"          "$(_state vlc)" \
+    choices=$(_checklist "Media Players (Bullseye)" "Select media players${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "mpv"  "Lightweight media player"  "$(_state mpv)" \
+        "vlc"  "VLC media player"          "$(_state vlc)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -248,21 +263,23 @@ _cat_players_bullseye() {
 }
 
 _cat_design_bullseye() {
+    local item_count=13
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Multimedia & Design (Bullseye)" "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "ardour"      "Digital audio workstation$(_inst ardour)"                  "$(_state ardour)" \
-        "audacity"    "Audio editor/recorder$(_inst audacity)"                   "$(_state audacity)" \
-        "blender"     "3D modeling/animation suite$(_inst blender)"              "$(_state blender)" \
-        "ffmpeg"      "Multimedia framework (CLI)$(_inst ffmpeg)"                "$(_state ffmpeg)" \
-        "gimp"        "Image editor$(_inst gimp)"                                "$(_state gimp)" \
-        "handbrake"   "Video transcoder (DVD ripper)$(_inst handbrake)"          "$(_state handbrake)" \
-        "inkscape"    "Vector graphics editor$(_inst inkscape)"                  "$(_state inkscape)" \
-        "kdenlive"    "Video editor (KDE)$(_inst kdenlive)"                      "$(_state kdenlive)" \
-        "krita"       "Digital painting/illustration$(_inst krita)"              "$(_state krita)" \
-        "obs-studio"  "Screen recording/streaming$(_inst obs-studio)"            "$(_state obs-studio)" \
-        "openshot-qt" "Video editor (simple)$(_inst openshot-qt)"                "$(_state openshot-qt)" \
-        "scribus"     "Desktop publishing (DTP)$(_inst scribus)"                 "$(_state scribus)" \
-        "shotcut"     "Video editor (cross-platform)$(_inst shotcut)"            "$(_state shotcut)" \
+    choices=$(_checklist "Multimedia & Design (Bullseye)" "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "ardour"      "Digital audio workstation"                  "$(_state ardour)" \
+        "audacity"    "Audio editor/recorder"                   "$(_state audacity)" \
+        "blender"     "3D modeling/animation suite"              "$(_state blender)" \
+        "ffmpeg"      "Multimedia framework (CLI)"                "$(_state ffmpeg)" \
+        "gimp"        "Image editor"                                "$(_state gimp)" \
+        "handbrake"   "Video transcoder (DVD ripper)"          "$(_state handbrake)" \
+        "inkscape"    "Vector graphics editor"                  "$(_state inkscape)" \
+        "kdenlive"    "Video editor (KDE)"                      "$(_state kdenlive)" \
+        "krita"       "Digital painting/illustration"              "$(_state krita)" \
+        "obs-studio"  "Screen recording/streaming"            "$(_state obs-studio)" \
+        "openshot-qt" "Video editor (simple)"                "$(_state openshot-qt)" \
+        "scribus"     "Desktop publishing (DTP)"                 "$(_state scribus)" \
+        "shotcut"     "Video editor (cross-platform)"            "$(_state shotcut)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -278,17 +295,19 @@ _cat_design_bullseye() {
 }
 
 _cat_programming_bullseye() {
+    local item_count=9
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Code Editors & IDEs (Bullseye)" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "vim"        "Classic terminal editor$(_inst vim)"          "$(_state vim)" \
-        "vim-gtk3"   "Vim with GTK3 GUI$(_inst vim-gtk3)"         "$(_state vim-gtk3)" \
-        "neovim"     "Modern vim fork$(_inst neovim)"              "$(_state neovim)" \
-        "nano"       "Simple terminal editor$(_inst nano)"         "$(_state nano)" \
-        "emacs"      "Extensible editor / IDE$(_inst emacs)"       "$(_state emacs)" \
-        "kate"       "KDE advanced text editor$(_inst kate)"       "$(_state kate)" \
-        "mousepad"   "Xfce text editor$(_inst mousepad)"           "$(_state mousepad)" \
-        "gedit"      "GNOME text editor$(_inst gedit)"             "$(_state gedit)" \
-        "geany"      "Lightweight IDE$(_inst geany)"               "$(_state geany)" \
+    choices=$(_checklist "Code Editors & IDEs (Bullseye)" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "vim"        "Classic terminal editor"          "$(_state vim)" \
+        "vim-gtk3"   "Vim with GTK3 GUI"         "$(_state vim-gtk3)" \
+        "neovim"     "Modern vim fork"              "$(_state neovim)" \
+        "nano"       "Simple terminal editor"         "$(_state nano)" \
+        "emacs"      "Extensible editor / IDE"       "$(_state emacs)" \
+        "kate"       "KDE advanced text editor"       "$(_state kate)" \
+        "mousepad"   "Xfce text editor"           "$(_state mousepad)" \
+        "gedit"      "GNOME text editor"             "$(_state gedit)" \
+        "geany"      "Lightweight IDE"               "$(_state geany)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -304,21 +323,23 @@ _cat_programming_bullseye() {
 }
 
 _cat_dev_bullseye() {
+    local item_count=14
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Servers & Dev Tools (Bullseye)" "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "apache2"         "Apache web server$(_inst apache2)"                        "$(_state apache2)" \
-        "build-essential" "C/C++ build tools (gcc, make)$(_inst build-essential)"   "$(_state build-essential)" \
-        "docker"          "Docker container runtime$(_inst docker.io)"               "$(_state docker.io)" \
-        "mariadb-server"  "MariaDB database server$(_inst mariadb-server)"           "$(_state mariadb-server)" \
-        "netcat-openbsd"  "TCP/IP networking utility$(_inst netcat-openbsd)"         "$(_state netcat-openbsd)" \
-        "nginx"           "Nginx web server$(_inst nginx)"                          "$(_state nginx)" \
-        "openssh-server"  "SSH server$(_inst openssh-server)"                       "$(_state openssh-server)" \
-        "openssl"         "OpenSSL cryptography toolkit$(_inst openssl)"             "$(_state openssl)" \
-        "postgresql"      "PostgreSQL database server$(_inst postgresql)"            "$(_state postgresql)" \
-        "python3-pip"     "Python 3 pip + venv + dev$(_inst python3-pip)"            "$(_state python3-pip)" \
-        "redis-server"    "Redis key-value store$(_inst redis-server)"               "$(_state redis-server)" \
-        "sqlite3"         "SQLite database engine$(_inst sqlite3)"                   "$(_state sqlite3)" \
-        "jellyfin"        "Jellyfin Media Server (Web GUI on port 8096)$(_inst jellyfin)" OFF \
+    choices=$(_checklist "Servers & Dev Tools (Bullseye)" "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "apache2"         "Apache web server"                        "$(_state apache2)" \
+        "build-essential" "C/C++ build tools (gcc, make)"   "$(_state build-essential)" \
+        "docker"          "Docker container runtime"               "$(_state docker.io)" \
+        "mariadb-server"  "MariaDB database server"           "$(_state mariadb-server)" \
+        "netcat-openbsd"  "TCP/IP networking utility"         "$(_state netcat-openbsd)" \
+        "nginx"           "Nginx web server"                          "$(_state nginx)" \
+        "openssh-server"  "SSH server"                       "$(_state openssh-server)" \
+        "openssl"         "OpenSSL cryptography toolkit"             "$(_state openssl)" \
+        "postgresql"      "PostgreSQL database server"            "$(_state postgresql)" \
+        "python3-pip"     "Python 3 pip + venv + dev"            "$(_state python3-pip)" \
+        "redis-server"    "Redis key-value store"               "$(_state redis-server)" \
+        "sqlite3"         "SQLite database engine"                   "$(_state sqlite3)" \
+        "jellyfin"        "Jellyfin Media Server (Web GUI on port 8096)" OFF \
         "openjdk-dev-env" "Adoptium Temurin JDK (17, 21, 25 LTS)$(_any_jdk_installed_desc)" "$(_any_jdk_state)" \
         )
     clear
@@ -366,13 +387,15 @@ _cat_dev_bullseye() {
     echo -e "${GREEN}Servers & dev tools installed.${NC}"
 }
 _cat_security_bullseye() {
+    local item_count=5
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Security & Networking (Bullseye)" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "wireshark"   "Network protocol analyzer (GUI)$(_inst wireshark)"       "$(_state wireshark)" \
-        "tcpdump"     "Command-line packet analyzer$(_inst tcpdump)"            "$(_state tcpdump)" \
-        "fail2ban"    "Brute-force protection daemon$(_inst fail2ban)"          "$(_state fail2ban)" \
-        "ufw"         "Uncomplicated firewall$(_inst ufw)"                      "$(_state ufw)" \
-        "clamav"      "Antivirus engine (ClamAV)$(_inst clamav)"                "$(_state clamav)" \
+    choices=$(_checklist "Security & Networking (Bullseye)" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "wireshark"   "Network protocol analyzer (GUI)"       "$(_state wireshark)" \
+        "tcpdump"     "Command-line packet analyzer"            "$(_state tcpdump)" \
+        "fail2ban"    "Brute-force protection daemon"          "$(_state fail2ban)" \
+        "ufw"         "Uncomplicated firewall"                      "$(_state ufw)" \
+        "clamav"      "Antivirus engine (ClamAV)"                "$(_state clamav)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -395,27 +418,29 @@ _cat_security_bullseye() {
 }
 
 _cat_general_bullseye() {
+    local item_count=18
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "System Tools (Bullseye)" "Select system utilities${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "compress"           "Compression tools (zip, unrar, p7zip)$(_inst zip)"          "$(_state zip)" \
-        "conky"              "System monitor for desktop$(_inst conky)"                    "$(_state conky)" \
-        "cpu-x"              "CPU-X (alternative to CPU-Z)$(_inst cpu-x)"                  "$(_state cpu-x)" \
-        "curl-wget"          "HTTP transfer tools (curl, wget)$(_inst curl)"               "$(_state curl)" \
-        "flatpak"            "Flatpak sandbox (Bullseye native)$(_inst flatpak)"           "$(_state flatpak)" \
-        "fwupd"              "Firmware update daemon$(_inst fwupd)"                        "$(_state fwupd)" \
-        "gnome-disk-utility" "Disk management GUI$(_inst gnome-disk-utility)"              "$(_state gnome-disk-utility)" \
-        "gparted"            "Partition editor$(_inst gparted)"                             "$(_state gparted)" \
-        "htop"               "Interactive process viewer$(_inst htop)"                      "$(_state htop)" \
-        "inxi"               "System information tool$(_inst inxi)"                         "$(_state inxi)" \
-        "kvm"                "QEMU/KVM virtualization$(_inst virt-manager)"                 "$(_state virt-manager)" \
-        "lshw"               "List hardware details$(_inst lshw)"                           "$(_state lshw)" \
-        "mc"                 "Midnight Commander$(_inst mc)"                                "$(_state mc)" \
-        "nvme-cli"           "NVMe SSD health monitoring$(_inst nvme-cli)"                   "$(_state nvme-cli)" \
-        "ncdu"               "Disk usage analyzer$(_inst ncdu)"                             "$(_state ncdu)" \
-        "psensor"            "Temperature monitor$(_inst psensor)"                          "$(_state psensor)" \
-        "timeshift"          "System restore snapshots$(_inst timeshift)"                   "$(_state timeshift)" \
-        "tmux"               "Terminal multiplexer$(_inst tmux)"                            "$(_state tmux)" \
-        "wine"               "Windows compatibility layer$(_inst wine)"                     "$(_state wine)" \
+    choices=$(_checklist "System Tools (Bullseye)" "Select system utilities${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+        "compress"           "Compression tools (zip, unrar, p7zip)"          "$(_state zip)" \
+        "conky"              "System monitor for desktop"                    "$(_state conky)" \
+        "cpu-x"              "CPU-X (alternative to CPU-Z)"                  "$(_state cpu-x)" \
+        "curl-wget"          "HTTP transfer tools (curl, wget)"               "$(_state curl)" \
+        "flatpak"            "Flatpak sandbox (Bullseye native)"           "$(_state flatpak)" \
+        "fwupd"              "Firmware update daemon"                        "$(_state fwupd)" \
+        "gnome-disk-utility" "Disk management GUI"              "$(_state gnome-disk-utility)" \
+        "gparted"            "Partition editor"                             "$(_state gparted)" \
+        "htop"               "Interactive process viewer"                      "$(_state htop)" \
+        "inxi"               "System information tool"                         "$(_state inxi)" \
+        "kvm"                "QEMU/KVM virtualization"                 "$(_state virt-manager)" \
+        "lshw"               "List hardware details"                           "$(_state lshw)" \
+        "mc"                 "Midnight Commander"                                "$(_state mc)" \
+        "nvme-cli"           "NVMe SSD health monitoring"                   "$(_state nvme-cli)" \
+        "ncdu"               "Disk usage analyzer"                             "$(_state ncdu)" \
+        "psensor"            "Temperature monitor"                          "$(_state psensor)" \
+        "timeshift"          "System restore snapshots"                   "$(_state timeshift)" \
+        "tmux"               "Terminal multiplexer"                            "$(_state tmux)" \
+        "wine"               "Windows compatibility layer"                     "$(_state wine)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -499,13 +524,14 @@ _cat_general_bullseye() {
 
 _cat_fetch_bullseye() {
     local items=(
-        "neofetch"    "System info fetcher$(_inst neofetch)"        "$(_state neofetch)"
-        "screenfetch" "System info (BSD/Linux)$(_inst screenfetch)" "$(_state screenfetch)"
-        "linuxlogo"   "Linux logo + system info$(_inst linuxlogo)" "$(_state linuxlogo)"
+        "neofetch"    "System info fetcher"        "$(_state neofetch)"
+        "screenfetch" "System info (BSD/Linux)" "$(_state screenfetch)"
+        "linuxlogo"   "Linux logo + system info" "$(_state linuxlogo)"
     )
-    local TUI_ANCHO_REFORZADO=$((TUI_ANCHO + 6))
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Fetch Tools (Bullseye)" "Select system info tools:" $TUI_ALTO $TUI_ANCHO_REFORZADO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Fetch Tools (Bullseye)" "Select system info tools:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" )
     clear
     [ -z "$choices" ] && return
@@ -570,8 +596,8 @@ install_extras_bullseye() {
 _cat_software_centers_bullseye() {
     local sc_choice
     sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 2 \
-        "gnome-software"   "Software Center for GNOME$(_inst gnome-software)" \
-        "plasma-discover"  "Software manager for Plasma$(_inst plasma-discover)" \
+        "gnome-software"   "Software Center for GNOME" \
+        "plasma-discover"  "Software manager for Plasma" \
         )
     [ -z "$sc_choice" ] && return
 

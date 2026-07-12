@@ -30,6 +30,7 @@ source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/extras/java.sh" ] && source "${MODULES_DIR}/extras/java.sh"
 [ -f "${MODULES_DIR}/rescue.sh" ]    && source "${MODULES_DIR}/rescue.sh"
 [ -f "${MODULES_DIR}/swap.sh" ]     && source "${MODULES_DIR}/swap.sh"
+[ -f "${MODULES_DIR}/desktop_display.sh" ] && source "${MODULES_DIR}/desktop_display.sh"
 
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
 if [ -d "${MODULES_DIR}/bullseye" ]; then
@@ -67,7 +68,8 @@ main_menu() {
             "9" "Swap Management" \
             "10" "Install Programs and Software" \
             "11" "Boot Rescue & Repair" \
-            "12" "Exit")
+            "12" "Desktop & Display" \
+            "13" "Exit")
 
         clear
 
@@ -119,7 +121,8 @@ kernels. Use the stable kernel provided by Bullseye." 10 60
                 fi
                 ;;
             11) rescue_boot || true ;;
-            12) echo "Exiting."; exit 0 ;;
+            12) manage_desktop_display || true ;;
+            13) echo "Exiting."; exit 0 ;;
         esac
         if $STATE_REFRESHED; then
             refresh_system_state

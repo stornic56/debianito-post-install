@@ -14,18 +14,20 @@ _cat_themes() {
         local numix_gtk_state;  numix_gtk_state=$(_state "numix-gtk-theme")
         local orchis_state;     orchis_state=$(_state "orchis-gtk-theme")
         items+=(
-            "arc-theme"           "Arc GTK theme$(_inst arc-theme)"                 "$arc_state"
-            "blackbird-gtk-theme" "Blackbird GTK theme$(_inst blackbird-gtk-theme)" "$blackbird_state"
-            "bluebird-gtk-theme"  "Bluebird GTK theme$(_inst bluebird-gtk-theme)"   "$bluebird_state"
-            "breeze-gtk-theme"    "Breeze GTK theme (KDE port)$(_inst breeze-gtk-theme)" "$breeze_gtk_state"
-            "greybird-gtk-theme"  "Greybird GTK theme$(_inst greybird-gtk-theme)"   "$greybird_state"
-            "numix-gtk-theme"     "Numix GTK theme$(_inst numix-gtk-theme)"         "$numix_gtk_state"
-            "orchis-gtk-theme"    "Orchis GTK theme$(_inst orchis-gtk-theme)"       "$orchis_state"
+            "arc-theme"           "Arc GTK theme"                 "$arc_state"
+            "blackbird-gtk-theme" "Blackbird GTK theme" "$blackbird_state"
+            "bluebird-gtk-theme"  "Bluebird GTK theme"   "$bluebird_state"
+            "breeze-gtk-theme"    "Breeze GTK theme (KDE port)" "$breeze_gtk_state"
+            "greybird-gtk-theme"  "Greybird GTK theme"   "$greybird_state"
+            "numix-gtk-theme"     "Numix GTK theme"         "$numix_gtk_state"
+            "orchis-gtk-theme"    "Orchis GTK theme"       "$orchis_state"
         )
     fi
 
+    local item_count=${#items[@]}
+    local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Desktop Themes (GTK/KDE)" "Select desktop themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    choices=$(_checklist "Desktop Themes (GTK/KDE)" "Select desktop themes to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

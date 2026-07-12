@@ -190,7 +190,7 @@ offer_generic_tools() {
     if _confirm "GPU Tools" "Install monitoring and info tools?\n\n${tool_pkgs}"; then
         _run_cmd "GPU Tools" "sudo apt install -y nvtop vainfo" "Installing GPU tools..."
         vainfo
-        _pause
+        _pause "vainfo output shown above."
     else
         echo "Skipping GPU monitoring tools."
     fi
