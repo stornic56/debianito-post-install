@@ -373,7 +373,7 @@ install_firmware() {
     # 2. Plan
     local plan
     plan=$(_build_firmware_plan)
-    _msg "Firmware & Wireless Setup" "$plan" 22 72
+    _msg "Firmware, Wireless & Bluetooth Setup" "$plan" 22 72
 
     # 3. Confirm
     if ! _confirm "Firmware" "Apply the network & firmware plan?"; then

@@ -55,11 +55,11 @@ main_menu() {
         sudo -v >/dev/null 2>&1 || true
         local STATE_REFRESHED=false
         local choice
-        choice=$(_menu "DEBIANITO — simple configurator script" "" \
+        choice=$(_menu "DEBIANITO — Simple Configurator Script" "" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-            "1" "System Info" \
+            "1" "System Information" \
             "2" "User Privileges & Feedback" \
-            "3" "Configure repositories" \
+            "3" "Configure Repositories" \
             "4" "Firmware, Wireless & Bluetooth" \
             "5" "Graphics Drivers & Mesa Stack" \
             "6" "Backports Kernel" \

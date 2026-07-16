@@ -161,7 +161,7 @@ manage_swap() {
 
     while true; do
         local choice
-        choice=$(_menu "Swap Management (disk)" \
+        choice=$(_menu "Swap Management" \
             "Select an option:" $TUI_ALTO $TUI_ANCHO 6 \
             "1" "Show current swap & swappiness" \
             "2" "Create / resize swapfile" \

@@ -12,17 +12,11 @@ install_zram() {
     local half_ram_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
 
     local algo
-    algo=$(_menu "ZRAM Compression" \
-        "ZRAM compresses a portion of RAM into compressed swap,\
- effectively increasing available memory.
-
-Useful for systems with limited RAM or when you need
-more swap space without disk writes.
-
-Choose compression algorithm:" \
+    algo=$(_menu "ZRAM Configuration" \
+        "ZRAM creates a compressed block device in RAM to use as swap. This reduces disk I/O and can significantly improve responsiveness on systems with limited memory (e.g., 4GB RAM or less), at the cost of a small amount of CPU usage." \
         $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "lz4"  "Fastest, low CPU (recommended)" \
-        "zstd" "Better ratio, more CPU")
+        "lz4"  "Fastest compression/decompression. Lowest CPU overhead. (Default)" \
+        "zstd" "Higher compression ratio. Saves slightly more memory but uses more CPU.")
 
     if [ -z "$algo" ]; then
         echo "ZRAM configuration cancelled."
