@@ -1,10 +1,11 @@
-# Debianito - Post-Installation Automation for Debian
+<h1 align="center">Debianito - Post-Installation Automation for Debian</h1>
 
 <div align="center">
 
-Debianito is a user-friendly post-installation automation script for Debian 11 (Bullseye), Debian 12 (Bookworm) and Debian 13 (Trixie). It streamlines system configuration, driver installation (including NVIDIA drivers with legacy support via rescue environment), repository setup with backports support, gaming tools integration, and more with an interactive menu-driven interface.
+Debianito is a user-friendly post-installation automation script for Debian 11 (Bullseye), Debian 12 (Bookworm) and Debian 13 (Trixie). It streamlines system configuration, driver installation (including NVIDIA drivers), repository setup with backports support, gaming tools integration, and more with an interactive menu-driven interface.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-red.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://github.com/stornic56/debianito-post-install/blob/main/LICENSE)
+![Script](media/gift/script.gif)
 
 </div>
 
@@ -55,10 +56,11 @@ After running the script:
 | **6** | [Backports Kernel](/docs/kernel.md) | Install latest kernel from Debian backports|
 | **7** | [Gaming Setup ](/docs/gaming.md)| Steam, Heroic Games Launcher, [RetroArch](/docs/retroarch.md) GameMode, MangoHud, OpenRGB, Java JRE (Temurin 8/17/21) |
 | **8** | [ZRAM](/docs/zram.md)| Configure compressed RAM for memory optimization|
-| **9** | Swap Management| Manage swap file or partition size and enable/disable swap space for system stability|
+| **9** | [Swap Management](/docs/swap.md)| Manage swap file or partition size and enable/disable swap space for system stability|
 | **10** | Install Programs and Software | Browse and install packages by category (Development, Themes, System Tools, etc.) using APT |
-| **11** | Boot Rescue & Repair| Fix GRUB bootloader issues, chroot repair, or restore system boot configuration|
-| **12** | Exit | Return to terminal |
+| **11** | [Boot Rescue + GRUB](/docs/boot.md))| Config and fix GRUB bootloader issues, chroot repair, or restore system boot configuration|
+| **12** | [Desktop & Display](/docs/desktops_display.md)| Install and configure desktops and display managers|
+| **13** | Exit | Return to terminal |
 
 ### Install Programs and Software (Option 10)
 
@@ -76,9 +78,10 @@ The submenu offers the next categories:
 | **7** | Servers & Dev Tools | Web servers (Nginx/Apache), databases (PostgreSQL/MariaDB), Java Development Kit (Temurin 17/21/25 JDK), Docker, Python, SSH tools, Jellyfin Server and essential utilities |
 | **8** | Security & Networking | Wireshark, tcpdump, Zenmap, ClamAV, UFW, fail2ban |
 | **9** | Software Centers | Choose a software store to install. |
-| **10** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, nvme-cli, Flatpak support, extension repository manager and qemu/virtmanager |
-| **11** | Fetch / System Info | fastfetch/neofetch, hyfetch, Linux logo and screenfetch |
-| **12** | Back to Main Menu | Return directly to the main Debianito menu (exit submenu) |
+| **10** | Office & Productivity | Choose a software store to install. |
+| **12** | System Tools | htop/btop, ncdu, Timeshift, tmux/screen, nvme-cli, Flatpak support, extension repository manager and qemu/virtmanager |
+| **12** | Fetch / System Info | fastfetch/neofetch, hyfetch, Linux logo and screenfetch |
+| **13** | Back to Main Menu | Return directly to the main Debianito menu (exit submenu) |
 
 ---
 
@@ -94,34 +97,6 @@ The submenu offers the next categories:
 | `modules/gaming/` | Gaming launcher and optimization scripts: Steam, Heroic, Lutris, performance tools. |
 | `modules/gpu/` | GPU driver installation scripts for AMD and NVIDIA with architecture detection. |
 | `modules/repos/` | Repository management scripts: migration tool (`migrate.sh`) and format detection (`repo_detect.sh`). |
-| `modules/extras/design/` | Multimedia & design tools installer (Blender, GIMP, Kdenlive, OBS). |
-| `modules/extras/dev/` | Development tools installer with special handling for Jellyfin and Java. |
-| `modules/extras/download/` | Download tools installer (aria2, FileZilla) and torrent clients (qBittorrent, Transmission). |
-| `modules/extras/essential/` | Essential package installer for basic system utilities on older Debian versions. |
-| `modules/extras/fetch/` | System information fetcher tools (neofetch, screenfetch, linuxlogo). |
-| `modules/extras/internet/` | Internet tools installer: browsers, email clients, download managers. |
-| `modules/extras/java.sh` | Java runtime installer for Minecraft and development (Temurin 8/17/21). |
-| `modules/extras/office/` | Office productivity suite installer (LibreOffice, GIMP alternatives). |
-| `modules/extras/players/` | Media player installer (MPV, VLC) with codec support. |
-| `modules/extras/programming/` | Code editors and IDEs installer (Vim, Neovim, Emacs, Kate). |
-| `modules/extras/security/` | Security tools installer: ClamAV, Fail2Ban, UFW, Wireshark. |
-| `modules/extras/system/` | System utilities installer with software center options (GNOME Software, Discover). |
-| `modules/extras/themes/` | Desktop customization installer: themes, icons, cursors, fonts. |
-| `modules/gaming/_helpers.sh` | Shared helper functions for gaming modules (32-bit support, Mesa drivers). |
-| `modules/gpu/amd_intel.sh` | AMD and Intel GPU firmware + monitoring tools (radeontop, nvtop, vainfo). |
-| `modules/gpu/_helpers.sh` | Shared helper functions for GPU detection (NVIDIA architecture checks). |
-| `modules/nvidia.sh` | NVIDIA driver installer with multi-architecture support (Kepler, Fermi, Maxwell, Pascal, Blackwell). |
-| `modules/amd_intel.sh` | AMD and Intel GPU firmware + monitoring tools installation. |
-| `modules/kernel.sh` | Kernel management: backports kernel installation and detection. |
-| `modules/repos/migrate.sh` | Branch migration tool for Debian stable → testing/SID with backup/rollback. |
-| `modules/repos/repo_detect.sh` | Repository format detection (DEB822 vs classic) for idempotent configuration. |
-| `modules/rescue.sh` | Boot rescue and repair tools: GRUB fix, chroot repair, system restore. |
-| `modules/sudo_config.sh` | Sudo configuration: group membership, passwordless sudo, home directory ownership. |
-| `modules/swap.sh` | Swap management: file/partition size configuration and enable/disable swap space. |
-| `modules/sysinfo.sh` | System information detection and display (OS, CPU, RAM, GPU, storage). |
-| `modules/utils.sh` | Utility functions shared across modules (color codes, confirmation dialogs, installation helpers). |
-| `modules/zram.sh` | ZRAM configuration for compressed RAM optimization. |
-| `README.md` | Project documentation and usage instructions. |
 
 ```bash
 ├── debianito.sh
@@ -135,12 +110,16 @@ The submenu offers the next categories:
 │   ├── system_info.md
 │   ├── user_priv_feed.md
 │   └── zram.md
+├── media
+│   └── gift
+│       └── script.gif
 ├── modules
 │   ├── bluetooth.sh
 │   ├── bullseye
 │   │   ├── extras.sh
 │   │   ├── legacy.sh
 │   │   └── repos.sh
+│   ├── desktop_display.sh
 │   ├── extras
 │   │   ├── design
 │   │   │   └── design.sh

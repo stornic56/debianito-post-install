@@ -282,13 +282,13 @@ configure_repos() {
         local repo_choice
 
         if [ "$DEBIAN_CODENAME" = "sid" ]; then
-            repo_choice=$(_menu "Repositories" \
+            repo_choice=$(_menu "Configure Repositories" \
                 "Select an option:" $TUI_ALTO $TUI_ANCHO 6 \
                 "1" "Enable Contrib & Non-Free Components" \
                 "2" "Migrate traditional sources.list to DEB822 format" \
                 "3" "Back to main menu")
         else
-            repo_choice=$(_menu "Repositories" \
+            repo_choice=$(_menu "Configure Repositories" \
                 "Select an option:" $TUI_ALTO $TUI_ANCHO 6 \
                 "1" "Enable Contrib & Non-Free Components" \
                 "2" "Migrate traditional sources.list to DEB822 format" \

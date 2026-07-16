@@ -36,7 +36,7 @@ deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmwa
 ```yaml
 Types: deb
 URIs: https://deb.debian.org/debian
-Suites: bookworm bookworm-updates
+Suites: trixie trixie-updates
 Components: main contrib non-free non-free-firmware
 ```
 
@@ -51,6 +51,7 @@ The script automatically detects your current format and offers migration option
 ### 3. Logical Decision Tree (Step-by-Step Execution Flow)
 
 The `configure_repos()` function in `repos.sh` executes the following sequence:
+
 
 ```bash
 ┌─────────────────────────────────────────────────────────────┐
@@ -71,51 +72,61 @@ The `configure_repos()` function in `repos.sh` executes the following sequence:
 ┌─────────────────────────────────────────────────────────────┐
 │                   USER INTERACTION PHASE                    │
 ├─────────────────────────────────────────────────────────────┤
-│ 4. Repository Format Selection (Trixie only)                │
-│    └── whiptail yesno: Migrate to DEB822? (default NO)      │
+│ 4. Repository Menu Loop (while true)                        │
+│    └── _menu: Select action from multiple options           │
 │                                                             │
-│ 5. Backports Enablement                                     │
-│    └── whiptail confirm: Enable Backports?                  │
+│    Options Available:                                       │
+│    ├── Debian 13+ (Trixie):                                 │
+│    │   ├── 1. Enable Contrib & Non-Free Components          │
+│    │   ├── 2. Migrate traditional sources.list to DEB822    │
+│    │   ├── 3. Setup/Update Backports repositories           │
+│    │   ├── 4. [ADVANCED] Upgrade system branch (Testing/SID)│
+│    │   └── 5. Back to main menu                             │
+│                                                             │
+│    └── Other Versions:                                      │
+│        ├── 1-3 same as above                                │
+│        └── No option 4 (branch upgrade not available)       │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   DECISION MATRIX PHASE                     │
 ├─────────────────────────────────────────────────────────────┤
-│ 6. Determine Action Type                                    │
+│ 5. Determine Action Type (per menu selection)               │
 │    ├── If format changed → "migrate"                        │
-│    ├── If nothing changed → "update" (skip)                 │
+│    ├── If nothing changed → "skip" (idempotent)             │
 │    └── Otherwise → "write"                                  │
 │                                                             │
-│ 7. Idempotency Check                                        │
+│ 6. Idempotency Check                                        │
 │    └── content_differs() compares generated vs existing     │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   EXECUTION PHASE                           │
 ├─────────────────────────────────────────────────────────────┤
-│ 8. Backup Current Repositories                              │
+│ 7. Backup Current Repositories                              │
 │    └── backup_current_repos() → temp directory              │
 │                                                             │
-│ 9. Write Configuration                                      │
+│ 8. Write Configuration                                      │
 │    ├── _write_deb822() OR _write_classic()                  │
 │    ├── Creates appropriate file(s)                          │
 │    └── Includes main + backports if enabled                 │
 │                                                             │
-│ 10. Update Package Lists                                    │
+│ 9. Update Package Lists                                     │
 │     └── sudo apt update                                     │
 └─────────────────────────────────────────────────────────────┘
                           ↓
 ┌─────────────────────────────────────────────────────────────┐
 │                   POST-EXECUTION PHASE                      │
 ├─────────────────────────────────────────────────────────────┤
-│ 11. Success Path                                            │
+│ 10. Success Path                                            │
 │     ├── REPOS_CONFIGURED=true                               │
 │     ├── Cleanup disabled files                              │
 │     └── Optional: Upgrade system if packages available      │
 │                                                             │
-│ 12. Failure Path (apt update failed)                        │
+│ 11. Failure Path (apt update failed)                        │
 │     └── restore_previous_repos() → rollback to backup       │
 └─────────────────────────────────────────────────────────────┘
+
 ```
 
 **Key Safety Mechanisms:**
@@ -134,7 +145,7 @@ The script enables specific APT component branches that are essential for hardwa
 |-----------|---------|--------------|---------------------|
 | **main** | Free, open-source software (Debian official) | All packages | Always enabled |
 | **contrib** | Free software that uses non-free components | Proprietary codecs, drivers | Enabled in all versions |
-| **non-free** | Non-free firmware and proprietary software | NVIDIA/AMD GPU drivers, Wi-Fi firmware | Required for hardware support |
+| **non-free** | Non-free firmware and proprietary software | NVIDIA GPU drivers, Wi-Fi firmware | Required for hardware support |
 | **non-free-firmware** | Firmware blobs (Wi-Fi, Bluetooth, etc.) | Wireless adapters, embedded chips | **Critical from Debian 12+** |
 
 #### Why `non-free-firmware` is Vital (Debian 12+)
@@ -143,7 +154,7 @@ Starting with Debian Bookworm (12.0), the `non-free-firmware` component was sepa
 
 ```bash
 # Before Debian 12 (Bookworm)
-deb https://deb.debian.org/debian bookworm main contrib non-free
+deb https://deb.debian.org/debian bullseye main contrib non-free
 
 # After Debian 12 (Bookworm+) - SEPARATE COMPONENTS
 deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmware
@@ -221,7 +232,7 @@ The script includes a detailed explanation because backports enable critical fea
 
 | Feature | Without Backports | With Backports |
 |---------|-------------------|----------------|
-| **Linux Kernel** | Stable kernel only (e.g., 5.10) | Newer kernels (e.g., 6.x series) |
+| **Linux Kernel** | Stable kernel only (e.g., 6.1-6.12) | Newer kernels (e.g., 6.x/7.x series) |
 | **GPU "Drivers"** | Latest Mesa from stable | Latest Mesa from testing |
 | **Wi-Fi Firmware** | Older firmware versions | Newest firmware for modern cards |
 | **System Stability** | Maximum stability | Tested-but-newer packages |
