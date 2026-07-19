@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Graphics Stack — sources submodules and provides install_gpu_drivers()
+# Graphics Stack — sources submodules, provides AMD/Intel and NVIDIA top-level functions
 
 _GPU_DIR="${MODULES_DIR}/gpu"
 source "${_GPU_DIR}/_helpers.sh"
@@ -9,8 +9,7 @@ source "${_GPU_DIR}/nvidia.sh"
 # Consumed by gaming.sh to know which NVIDIA driver path was taken
 NVIDIA_DRIVER_MODE=""
 
-install_gpu_drivers() {
-    # ── Unknown GPU / VM block ──
+_install_amd_intel_stack() {
     if [ "$GPU_TYPE" = "unknown" ] || [ -z "$GPU_TYPE" ]; then
         local mesa_pkgs=(mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl-mesa0 mesa-va-drivers)
         local ref_ver
@@ -50,9 +49,7 @@ install_gpu_drivers() {
         return
     fi
 
-    # ── Detectable GPU: build plan ──
-    local plan="The script has automatically detected your graphics hardware\n"
-    plan+="and prepared a personalized installation plan.\n\n"
+    local plan="The script has detected your graphics hardware.\n\n"
     plan+="Detected GPUs:\n"
     local gpu_count=0
     while IFS= read -r gpu_line; do
@@ -70,10 +67,7 @@ install_gpu_drivers() {
     if $HAS_AMD; then
         plan+="  [+] AMD firmware (firmware-amd-graphics)\n"
     fi
-    if $HAS_NVIDIA; then
-        plan+="  [+] NVIDIA driver (proprietary)\n"
-    fi
-    plan+="  [+] Mesa (version selected in next step)\n"
+    plan+="  [+] Mesa (OpenGL/Vulkan/VA-API)\n"
 
     _msg "Graphics Stack — Plan" "$plan" 16 70
 
@@ -82,77 +76,115 @@ install_gpu_drivers() {
         return
     fi
 
-    # ── Sequential firmware / driver installs ──
     if $HAS_INTEL; then
         install_intel_firmware
     fi
-
     if $HAS_AMD; then
         install_amd_firmware
     fi
 
-    if $HAS_NVIDIA; then
-        if [ "$DEBIAN_VERSION" = "11" ]; then
-            if type install_nvidia_bullseye &>/dev/null; then
-                install_nvidia_bullseye
-            else
-                install_nvidia_driver
-            fi
-        elif [ "$DEBIAN_VERSION" = "12" ]; then
-            if [ "$(is_nvidia_kepler)" = "true" ]; then
-                if type _install_nvidia_bookworm_kepler &>/dev/null; then
-                    _install_nvidia_bookworm_kepler
-                else
-                    install_nvidia_driver
-                fi
-            elif [ "$(is_nvidia_fermi)" = "true" ]; then
-                _msg "NVIDIA Fermi — Bookworm" \
-                    "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."
-                NVIDIA_DRIVER_MODE=""
-            else
-                install_nvidia_driver
-            fi
-        elif [ "$DEBIAN_VERSION" = "13" ]; then
-            if [ "$(is_nvidia_kepler)" = "true" ] || [ "$(is_nvidia_fermi)" = "true" ]; then
-                _msg "NVIDIA — Trixie" \
-                    "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
-                NVIDIA_DRIVER_MODE=""
-            else
-                install_nvidia_driver
-            fi
-        else
-            install_nvidia_driver
-        fi
-    fi
-
-    # ── Mesa (once) ──
     _install_mesa_backports
 
-    # ── Refresh GPU_VERSION after Mesa install ──
     local mesa_ver
     mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//')
     [ -n "$mesa_ver" ] && GPU_VERSION="Mesa ${mesa_ver}"
 
-    # ── Vendor-specific tools ──
     if $HAS_INTEL; then
         offer_intel_tools
     fi
     if $HAS_AMD; then
         offer_amd_tools
     fi
-    if $HAS_NVIDIA; then
+    if ! $HAS_INTEL && ! $HAS_AMD; then
         offer_generic_tools
     fi
 
-    # ── Build summary ──
-    local summary=""
-    summary+="Mesa:    ${GPU_VERSION:-not available}\n"
-    if $HAS_NVIDIA; then
-        local nv_mode="${NVIDIA_DRIVER_MODE:-unknown}"
-        summary+="NVIDIA:  ${nv_mode}\n"
-    fi
+    local summary="Mesa: ${GPU_VERSION:-not available}\n"
     summary+="Firmware: installed for detected GPUs\n"
-    summary+="Tools:   installed per vendor selection"
-
+    summary+="Tools: installed per vendor"
     _msg "Graphics Stack — Complete" "$summary" 12 65
+}
+
+_install_nvidia_stack() {
+    if ! $HAS_NVIDIA; then
+        _msg "NVIDIA Not Found" "No NVIDIA GPU was detected.\n\nPlease check your hardware and try again." 10 60
+        return
+    fi
+
+    local plan="The script has detected your NVIDIA GPU.\n\n"
+    plan+="Detected GPUs:\n"
+    local gpu_count=0
+    while IFS= read -r gpu_line; do
+        gpu_count=$((gpu_count + 1))
+        local desc
+        desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
+        plan+="  GPU ${gpu_count}:  ${desc}\n"
+    done < <(lspci -nn | grep -E "VGA|3D" || true)
+    plan+="\nPlanned:\n  [+] NVIDIA proprietary driver"
+
+    _msg "NVIDIA Stack — Plan" "$plan" 14 65
+    if ! _confirm "NVIDIA Stack" "Install the NVIDIA proprietary driver?"; then
+        echo "Skipping NVIDIA driver installation."
+        return
+    fi
+
+    NVIDIA_DRIVER_MODE=""
+
+    if [ "$DEBIAN_VERSION" = "11" ]; then
+        install_nvidia_bullseye
+
+    elif [ "$DEBIAN_VERSION" = "12" ]; then
+        if [ "$(is_nvidia_kepler)" = "true" ]; then
+            if type _install_nvidia_bookworm_kepler &>/dev/null; then
+                _install_nvidia_bookworm_kepler
+            else
+                _install_nvidia_standard
+            fi
+        elif [ "$(is_nvidia_fermi)" = "true" ]; then
+            _msg "NVIDIA Fermi — Bookworm" \
+                "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."
+            NVIDIA_DRIVER_MODE=""
+        elif [ "$(is_backports_kernel)" = "true" ]; then
+            _install_nvidia_bookworm_bpo
+        else
+            _install_nvidia_standard
+        fi
+
+    elif [ "$DEBIAN_VERSION" = "13" ]; then
+        if [ "$(is_nvidia_blackwell)" = "true" ]; then
+            _install_nvidia_cuda_repo
+        elif [ "$(is_nvidia_kepler)" = "true" ] || [ "$(is_nvidia_fermi)" = "true" ]; then
+            _msg "NVIDIA — Trixie" \
+                "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
+            NVIDIA_DRIVER_MODE=""
+        elif [ "$(is_backports_kernel)" = "true" ]; then
+            if [ "$(is_nvidia_maxwell)" = "true" ] || [ "$(is_nvidia_pascal)" = "true" ]; then
+                local gpu_gen="Maxwell"
+                [ "$(is_nvidia_pascal)" = "true" ] && gpu_gen="Pascal"
+                _msg "NVIDIA — Trixie + Backports" \
+                    "INCOMPATIBILITY DETECTED: Your NVIDIA ${gpu_gen} GPU\n\
+is NOT supported by the modern v590 driver.\n\n\
+To run NVIDIA safely on Debian 13 (Trixie), you MUST use\n\
+the official Debian v550 driver, which requires the\n\
+standard STABLE Kernel.\n\n\
+Forcing the stable driver path." 14 70
+                _install_nvidia_standard
+                NVIDIA_DRIVER_MODE="stable"
+            else
+                _install_nvidia_cuda_repo
+            fi
+        else
+            _install_nvidia_standard
+        fi
+
+    else
+        _install_nvidia_standard
+    fi
+
+    if [ -n "$NVIDIA_DRIVER_MODE" ]; then
+        offer_generic_tools
+        local summary="NVIDIA: ${NVIDIA_DRIVER_MODE}\n"
+        summary+="Tools:  nvtop + vainfo"
+        _msg "NVIDIA Stack — Complete" "$summary" 10 55
+    fi
 }

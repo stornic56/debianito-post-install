@@ -40,6 +40,7 @@ _cat_general() {
     local fwupd_state;     fwupd_state=$(_state "fwupd")
     local htop_state;      htop_state=$(_state "htop")
     local inxi_state;      inxi_state=$(_state "inxi")
+    local jq_state;        jq_state=$(_state "jq")
     local kvm_state;       kvm_state=$(_state "virt-manager")
     local lshw_state;      lshw_state=$(_state "lshw")
     local mc_state;        mc_state=$(_state "mc")
@@ -59,6 +60,7 @@ _cat_general() {
         "fwupd"           "Firmware update daemon"                  "$fwupd_state"
         "htop"            "Interactive process viewer"               "$htop_state"
         "inxi"            "System information tool"                  "$inxi_state"
+        "jq"              "JSON command-line processor"              "$jq_state"
         "kvm"             "QEMU/KVM virtualization"          "$kvm_state"
         "lshw"            "List hardware details"                    "$lshw_state"
         "mc"              "Midnight Commander (file manager)"          "$mc_state"
@@ -69,27 +71,27 @@ _cat_general() {
         "wine"            "Windows compatibility layer"              "$wine_state"
     )
     if ! $headless; then
-        local alacritty_state; alacritty_state=$(_state "alacritty")
+        local bleachbit_state; bleachbit_state=$(_state "bleachbit")
         local conky_state;     conky_state=$(_state "conky")
+        local gdebi_state;     gdebi_state=$(_state "gdebi")
         local corectrl_state;  corectrl_state=$(_state "corectrl")
         local dcgtk_state;     dcgtk_state=$(_state "doublecmd-gtk")
         local dcqt_state;      dcqt_state=$(_state "doublecmd-qt")
         local disks_state;     disks_state=$(_state "gnome-disk-utility")
         local gparted_state;   gparted_state=$(_state "gparted")
         local hardinfo_state;  hardinfo_state=$(_state "hardinfo")
-        local kitty_state;     kitty_state=$(_state "kitty")
         local psensor_state;   psensor_state=$(_state "psensor")
         local timeshift_state; timeshift_state=$(_state "timeshift")
         items+=(
-            "alacritty"       "GPU-accelerated terminal"            "$alacritty_state"
+            "bleachbit"       "System cleaner (GUI)"                "$bleachbit_state"
             "conky"           "System monitor for desktop"              "$conky_state"
+            "gdebi"           "Install .deb packages with deps"         "$gdebi_state"
             "corectrl"        "AMD GPU control (CoreCtrl)"           "$corectrl_state"
             "doublecmd-gtk"   "Dual-panel file manager (GTK)"  "$dcgtk_state"
             "doublecmd-qt"    "Dual-panel file manager (Qt)"     "$dcqt_state"
             "gnome-disk-utility" "Disk management GUI"     "$disks_state"
             "gparted"         "GNOME partition editor"                "$gparted_state"
             "hardinfo"        "Graphical system profiler"            "$hardinfo_state"
-            "kitty"           "GPU-based terminal emulator"             "$kitty_state"
             "psensor"         "Hardware temperature monitor"          "$psensor_state"
             "timeshift"       "System restore snapshots"            "$timeshift_state"
         )

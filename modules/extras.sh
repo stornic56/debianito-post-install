@@ -33,16 +33,17 @@ install_extras() {
             "1" "Customization System" \
             "2" "Download & Network" \
             "3" "Internet (Browsers, Email, VPN)" \
-            "4" "Media Players" \
-            "5" "Multimedia & Design" \
-            "6" "Code Editors & IDEs" \
-            "7" "Servers & Dev Tools" \
-            "8" "Security & Networking" \
-            "9" "Software Centers" \
-            "10" "Office & Productivity" \
-            "11" "System Tools" \
-            "12" "Fetch / System Info" \
-            "13" "Back to main menu")
+            "4" "Communication" \
+            "5" "Media Players" \
+            "6" "Multimedia & Design" \
+            "7" "Code Editors & IDEs" \
+            "8" "Servers & Dev Tools" \
+            "9" "Security & Networking" \
+            "10" "Software Centers" \
+            "11" "Office & Productivity" \
+            "12" "System Tools" \
+            "13" "Fetch / System Info" \
+            "14" "Back to main menu")
 
         [ -z "$cat_choice" ] && return
         clear
@@ -52,16 +53,17 @@ install_extras() {
             1)  _cat_customization ;;
             2)  _cat_download ;;
             3)  _cat_internet ;;
-            4)  _cat_players ;;
-            5)  _cat_design ;;
-            6)  _cat_programming ;;
-            7)  _cat_dev ;;
-            8)  _cat_security ;;
-            9)  _cat_software_centers ;;
-            10) _cat_office ;;
-            11) _cat_general ;;
-            12) _cat_fetch ;;
-            13) return ;;
+            4)  _cat_communication ;;
+            5)  _cat_players ;;
+            6)  _cat_design ;;
+            7)  _cat_programming ;;
+            8)  _cat_dev ;;
+            9)  _cat_security ;;
+            10) _cat_software_centers ;;
+            11) _cat_office ;;
+            12) _cat_general ;;
+            13) _cat_fetch ;;
+            14) return ;;
         esac
         clear
     done

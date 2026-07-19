@@ -40,7 +40,13 @@ display_manager_menu() {
             1) lightdm_config_menu ;;
             2) configure_gdm3 ;;
             3) configure_sddm ;;
-            4) configure_greetd ;;
+            4)
+                if [ "$DEBIAN_VERSION" = "12" ] || [ "$DEBIAN_VERSION" = "13" ]; then
+                    configure_greetd
+                else
+                    break
+                fi
+                ;;
             5) break ;;
         esac
     done

@@ -26,6 +26,25 @@ Version:    ${ver:-unknown}"; then
     fi
 }
 
+# ── Joplin (extrepo, solo Debian 12+) ──
+install_joplin() {
+    if [ "$DEBIAN_VERSION" != "12" ] && [ "$DEBIAN_VERSION" != "13" ]; then
+        _msg "Joplin" "Joplin via extrepo is only available on\nDebian 12 (Bookworm) and 13 (Trixie)." 10 60
+        return 1
+    fi
+    _ensure_extrepo
+    if [ ! -f /etc/apt/sources.list.d/extrepo_joplin.sources ]; then
+        _run_cmd "Joplin" "sudo extrepo enable joplin" "Enabling Joplin repository..."
+    fi
+    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    if ! is_installed "joplin"; then
+        _run_cmd "Joplin" "sudo apt install -y joplin" "Installing Joplin..."
+        echo -e "${GREEN}Joplin installed.${NC}"
+    else
+        echo "Joplin already installed."
+    fi
+}
+
 # ── LibreOffice (backports) ──
 install_libreoffice_bpo() {
     if [ "$DEBIAN_VERSION" != "12" ] && [ "$DEBIAN_VERSION" != "13" ]; then
@@ -68,6 +87,11 @@ _cat_office() {
             "onlyoffice"    "OnlyOffice Desktop Editors (extrepo)" OFF
             "libreoffice"   "LibreOffice (backports on Bookworm/Trixie)" OFF
         )
+        if [ "$DEBIAN_VERSION" = "12" ] || [ "$DEBIAN_VERSION" = "13" ]; then
+            items+=(
+                "joplin" "Joplin note-taking (extrepo)" OFF
+            )
+        fi
     fi
 
     local item_count=${#items[@]}
@@ -84,6 +108,7 @@ _cat_office() {
         case $pkg in
             onlyoffice)  install_onlyoffice ;;
             libreoffice) install_libreoffice_bpo ;;
+            joplin)      install_joplin ;;
         esac
     done
 }

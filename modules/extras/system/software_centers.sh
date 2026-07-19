@@ -10,11 +10,18 @@ _cat_software_centers() {
     local de_type
     de_type=$(_detect_desktop_type)
     local sc_choice
-    sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 2 \
+    sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 3 \
         "gnome-software"   "Software Center for GNOME" \
         "plasma-discover"  "Software manager for Plasma" \
+        "synaptic"         "Classic APT package manager (GTK)" \
         )
     [ -z "$sc_choice" ] && return
+
+    if [ "$sc_choice" = "synaptic" ]; then
+        _run_cmd "Install" "sudo apt install -y synaptic" "Installing synaptic..."
+        echo -e "${GREEN}synaptic installed.${NC}"
+        return
+    fi
 
     if { [ "$de_type" = "qt" ] && [ "$sc_choice" = "gnome-software" ]; } || \
        { [ "$de_type" = "gtk" ] && [ "$sc_choice" = "plasma-discover" ]; }; then

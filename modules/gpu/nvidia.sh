@@ -5,6 +5,7 @@
 # CASE B : Bookworm + backports kernel → Debian backports (-t bookworm-backports)
 # CASE C : Kernel stable (any distro)  → Debian stable (optional backports)
 
+# --- DEPRECATED (Replaced by _install_nvidia_stack in gpu.sh) ---
 install_nvidia_driver() {
     echo -e "${YELLOW}NVIDIA GPU detected.${NC}"
     NVIDIA_DRIVER_MODE=""

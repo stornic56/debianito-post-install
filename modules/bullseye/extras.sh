@@ -4,18 +4,20 @@
 
 # ── Essential Pack (Bullseye) ──
 _quick_install_bullseye() {
-    _msg "Essential Pack — Bullseye" \
+    _msg "Essential Pack" \
         "Install basic programs:\n\n\
-  - Compression (zip, unrar, p7zip-full)\n\
-  - System tools (htop, inxi, neofetch, bpytop)\n\
-  - VLC media player\n\
-  - Microsoft fonts" 13 60
+  - Compression (zip, unrar, 7z)\n\
+  - System tools (htop, inxi, neofetch)\n\
+  - Networking (curl, wget, ufw)\n\
+  - CA certs & GPG\n\
+  - VLC media player" 13 60
 
     local quick_pkgs=(
         zip unzip rar unrar p7zip-full p7zip-rar
-        neofetch bpytop htop inxi vlc
-        ttf-mscorefonts-installer
+        neofetch htop inxi curl wget ufw
+        ca-certificates gnupg lsb-release
     )
+    _is_headless || quick_pkgs+=(vlc)
     _run_install_batch "${quick_pkgs[@]}"
     echo -e "${GREEN}Essential Pack installed.${NC}"
 }
@@ -64,6 +66,7 @@ _cat_customization_bullseye() {
         "2" "Icon Themes" \
         "3" "Cursor Themes" \
         "4" "Fonts" \
+        "5" "Terminals" \
         )
     [ -z "$sub" ] && return
     case $sub in
@@ -71,6 +74,7 @@ _cat_customization_bullseye() {
         2)  _cat_icons_bullseye ;;
         3)  _cat_cursors_bullseye ;;
         4)  _cat_fonts_bullseye ;;
+        5)  _cat_terminals ;;
     esac
 }
 
@@ -418,7 +422,7 @@ _cat_security_bullseye() {
 }
 
 _cat_general_bullseye() {
-    local item_count=18
+    local item_count=22
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
     choices=$(_checklist "System Tools (Bullseye)" "Select system utilities${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
@@ -432,6 +436,7 @@ _cat_general_bullseye() {
         "gparted"            "Partition editor"                             "$(_state gparted)" \
         "htop"               "Interactive process viewer"                      "$(_state htop)" \
         "inxi"               "System information tool"                         "$(_state inxi)" \
+        "jq"                 "JSON command-line processor"                     "$(_state jq)" \
         "kvm"                "QEMU/KVM virtualization"                 "$(_state virt-manager)" \
         "lshw"               "List hardware details"                           "$(_state lshw)" \
         "mc"                 "Midnight Commander"                                "$(_state mc)" \
@@ -441,6 +446,8 @@ _cat_general_bullseye() {
         "timeshift"          "System restore snapshots"                   "$(_state timeshift)" \
         "tmux"               "Terminal multiplexer"                            "$(_state tmux)" \
         "wine"               "Windows compatibility layer"                     "$(_state wine)" \
+        "bleachbit"          "System cleaner (GUI)"                           "$(_state bleachbit)" \
+        "gdebi"              "Install .deb packages with deps (GUI)"           "$(_state gdebi)" \
         )
     clear
     [ -z "$choices" ] && return
@@ -560,15 +567,16 @@ install_extras_bullseye() {
             "1"  "Customization System" \
             "2"  "Download & Network" \
             "3"  "Internet (Browsers, Email)" \
-            "4"  "Media Players" \
-            "5"  "Multimedia & Design" \
-            "6"  "Code Editors & IDEs" \
-            "7"  "Servers & Dev Tools" \
-            "8"  "Security & Networking" \
-            "9"  "Software Centers" \
-            "10" "System Tools" \
-            "11" "Fetch / System Info" \
-            "12" "Back to main menu" \
+            "4"  "Communication" \
+            "5"  "Media Players" \
+            "6"  "Multimedia & Design" \
+            "7"  "Code Editors & IDEs" \
+            "8"  "Servers & Dev Tools" \
+            "9"  "Security & Networking" \
+            "10" "Software Centers" \
+            "11" "System Tools" \
+            "12" "Fetch / System Info" \
+            "13" "Back to main menu" \
             )
 
         [ -z "$cat_choice" ] && return
@@ -579,15 +587,16 @@ install_extras_bullseye() {
             1)  _cat_customization_bullseye ;;
             2)  _cat_download_bullseye ;;
             3)  _cat_internet_bullseye ;;
-            4)  _cat_players_bullseye ;;
-            5)  _cat_design_bullseye ;;
-            6)  _cat_programming_bullseye ;;
-            7)  _cat_dev_bullseye ;;
-            8)  _cat_security_bullseye ;;
-            9)  _cat_software_centers_bullseye ;;
-            10) _cat_general_bullseye ;;
-            11) _cat_fetch_bullseye ;;
-            12) return ;;
+            4)  _cat_communication ;;
+            5)  _cat_players_bullseye ;;
+            6)  _cat_design_bullseye ;;
+            7)  _cat_programming_bullseye ;;
+            8)  _cat_dev_bullseye ;;
+            9)  _cat_security_bullseye ;;
+            10) _cat_software_centers_bullseye ;;
+            11) _cat_general_bullseye ;;
+            12) _cat_fetch_bullseye ;;
+            13) return ;;
         esac
         clear
     done
@@ -595,11 +604,18 @@ install_extras_bullseye() {
 
 _cat_software_centers_bullseye() {
     local sc_choice
-    sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 2 \
+    sc_choice=$(_menu "Software Centers" "Choose a software store to install:" 12 65 3 \
         "gnome-software"   "Software Center for GNOME" \
         "plasma-discover"  "Software manager for Plasma" \
+        "synaptic"         "Classic APT package manager (GTK)" \
         )
     [ -z "$sc_choice" ] && return
+
+    if [ "$sc_choice" = "synaptic" ]; then
+        _run_cmd "Install" "sudo apt install -y synaptic" "Installing synaptic..."
+        echo -e "${GREEN}synaptic installed.${NC}"
+        return
+    fi
 
     _run_cmd "Install" "sudo apt install -y $sc_choice" "Installing ${sc_choice}..."
 

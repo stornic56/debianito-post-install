@@ -91,13 +91,23 @@ main_menu() {
                     install_firmware || true
                 fi
                 ;;
-            5)  install_gpu_drivers || true; STATE_REFRESHED=true ;;
+            5)
+                local gpu_sub
+                gpu_sub=$(_menu "Graphics Drivers" "" 12 50 2 \
+                    "1" "Radeon/Intel Mesa" \
+                    "2" "NVIDIA Drivers")
+                [ -z "$gpu_sub" ] && continue
+                clear
+                case $gpu_sub in
+                    1) _install_amd_intel_stack || true ;;
+                    2) _install_nvidia_stack || true ;;
+                esac
+                STATE_REFRESHED=true
+                ;;
             6)
                 if [ "$DEBIAN_VERSION" = "11" ]; then
                     _msg "Not Available" \
-                        "Backports Kernel is not available on Debian 11 Bullseye.\n\n\
-Ultra Minimalist Rescue Mode does not include third-party\n\
-kernels. Use the stable kernel provided by Bullseye." 10 60
+                        "Backports Kernel is not available on Debian 11 Bullseye.\n\nThe stable kernel provided by Bullseye is the only option." 10 60
                 else
                     install_kernel_backports || true
                 fi
