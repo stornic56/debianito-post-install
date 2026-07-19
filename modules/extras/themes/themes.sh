@@ -8,6 +8,7 @@ _cat_customization() {
         "2" "Icon Themes" \
         "3" "Cursor Themes" \
         "4" "Fonts" \
+        "5" "Terminals" \
         )
     [ -z "$sub" ] && return
     case $sub in
@@ -15,5 +16,6 @@ _cat_customization() {
         2) _cat_icons ;;
         3) _cat_cursors ;;
         4) _cat_fonts ;;
+        5) _cat_terminals ;;
     esac
 }

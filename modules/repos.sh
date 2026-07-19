@@ -374,7 +374,11 @@ popular software (like gaming platforms and proprietary tools)." 12 60; then
             _pause
             return
         fi
-        components="main contrib non-free non-free-firmware"
+        if [ "$DEBIAN_VERSION" = "11" ]; then
+            components="main contrib non-free"
+        else
+            components="main contrib non-free non-free-firmware"
+        fi
     fi
 
     bp_enabled=false
@@ -398,6 +402,10 @@ popular software (like gaming platforms and proprietary tools)." 12 60; then
         cleanup_repo_backup
         echo -e "${GREEN}Repository components configured.${NC}"
         _repos_offer_upgrade
+        echo -e "${GREEN}Cleaning old packages...${NC}"
+        sudo apt autoremove -y
+        sudo apt autoclean
+        echo -e "${GREEN}System packages cleaned.${NC}"
     else
         restore_previous_repos
         echo -e "${RED}apt update failed. Previous configuration restored.${NC}"

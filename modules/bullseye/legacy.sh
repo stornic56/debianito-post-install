@@ -103,77 +103,22 @@ install_nvidia_bullseye() {
 # 32-bit Mesa/NVIDIA + gamemode + mangohud + goverlay + lutris
 # ---------------------------------------------------------------------------
 install_gaming_bullseye() {
-    echo -e "${YELLOW}Lightweight Gaming (Bullseye mode).${NC}"
+    echo -e "${YELLOW}Gaming setup (Bullseye)...${NC}"
 
-    local enable_32bit=false
-    if _confirm "32-bit Support" \
-        "Enable i386 architecture for 32-bit games?\n\n\
-Required by Steam/Proton for 32-bit games.\n\
-Installs matching 32-bit graphics drivers."; then
-        enable_32bit=true
-    fi
-
-    if $enable_32bit; then
-        echo "Enabling i386 multi-architecture support..."
-        if ! dpkg --print-foreign-architectures | grep -q i386; then
-            sudo dpkg --add-architecture i386
-        fi
-        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
-
-        if [ "$GPU_TYPE" = "nvidia" ]; then
-            local nv32_pkg="nvidia-driver-libs:i386"
-            local nv32_ver
-            nv32_ver=$(apt-cache policy "$nv32_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-            if [ -n "$nv32_ver" ] && [ "$nv32_ver" != "(none)" ]; then
-                local msg="Source: Debian Bullseye Stable\n"
-                msg+="NVIDIA 32-bit Libraries ${nv32_ver}\n\n"
-                msg+="[+] nvidia-driver-libs:i386"
-                if _confirm "NVIDIA 32-bit" "$msg" 12 70; then
-                    _run_cmd "32-bit NVIDIA" "sudo apt install -y ${nv32_pkg}" \
-                        "Installing NVIDIA 32-bit libraries..."
-                fi
-            else
-                echo "nvidia-driver-libs:i386 not available on Bullseye."
-            fi
-        else
-            # Mesa 32-bit
-            local mesa_32=(
-                "mesa-vulkan-drivers:i386"
-                "libgl1-mesa-dri:i386"
-                "libglx-mesa0:i386"
-                "libegl-mesa0:i386"
-                "mesa-va-drivers:i386"
-            )
-            local ref_ver
-            ref_ver=$(apt-cache policy "mesa-vulkan-drivers:i386" 2>/dev/null | \
-                awk 'NR==3 {print $2; exit}')
-            local comp_line="Components: Vulkan:i386, OpenGL:i386, GLX:i386, EGL:i386, VA-API:i386"
-
-            local msg="Mesa 32-bit drivers for gaming.\n\n"
-            msg+="Source: Debian Bullseye Stable\n"
-            msg+="Mesa ${ref_ver}\n"
-            msg+="${comp_line}\n\n"
-            msg+="Install 32-bit drivers?"
-
-            if _confirm "Mesa 32-bit" "$msg" 14 70; then
-                _run_cmd "Mesa 32-bit" "sudo apt install -y ${mesa_32[*]}" \
-                    "Installing Mesa 32-bit..."
-            fi
-        fi
-    fi
-
-    # Gaming tools checklist (no Steam, no Heroic)
     local choices
-    choices=$(_checklist "Gaming Tools — Bullseye" \
-        "Select gaming optimization tools:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "gamemode" "Game performance optimization" ON \
+    choices=$(_checklist "Gaming Setup — Bullseye" \
+        "Select gaming packages to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "steam"    "Steam (requires 32-bit support)" ON \
+        "gamemode" "Game performance optimization" OFF \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "goverlay" "MangoHud config GUI" ON \
-        "lutris"   "Game launcher/manager" OFF \
-        "java"     "Java Runtimes (8, 17, 21)" OFF)
+        "java"     "Minecraft Java Runtime" OFF \
+        "lutris"   "Lutris + Wine (requires 32-bit support)" OFF \
+        "retroarch" "RetroArch Emulator Frontend" OFF \
+        "i386"     "Enable 32-bit (i386) architecture" ON)
 
     if [ -z "$choices" ]; then
-        echo "No gaming tools selected."
+        echo "No gaming packages selected."
         _pause
         return
     fi
@@ -181,34 +126,50 @@ Installs matching 32-bit graphics drivers."; then
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
 
-    for pkg in $cleaned; do
+    local need_32bit=false
+    for p in $cleaned; do
+        case $p in steam|lutris) need_32bit=true ;; esac
+    done
+    echo "$cleaned" | grep -qw i386 && need_32bit=true
+
+    local install_list
+    install_list=$(echo "$cleaned" | tr ' ' '\n' | grep -v '^i386$' | tr '\n' ' ')
+    install_list=${install_list% }
+
+    if $need_32bit && ! dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
+        echo -e "${YELLOW}Enabling i386 architecture...${NC}"
+        sudo dpkg --add-architecture i386
+        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    fi
+
+    if $need_32bit; then
+        echo "Installing 32-bit graphics drivers..."
+        if [ "$GPU_TYPE" = "nvidia" ]; then
+            _install_nvidia_32bit
+        else
+            _install_mesa_32bit
+        fi
+    fi
+
+    for pkg in $install_list; do
         case $pkg in
-            mangohud)
-                local mh_pkgs="mangohud"
-                if $enable_32bit; then
-                    local mh32_ver
-                    mh32_ver=$(apt-cache policy mangohud:i386 2>/dev/null | \
-                        awk 'NR==3 {print $2; exit}')
-                    if [ -n "$mh32_ver" ] && [ "$mh32_ver" != "(none)" ]; then
-                        mh_pkgs+=" mangohud:i386"
-                    fi
+            steam)
+                if ensure_contrib_repo; then
+                    install_steam
+                else
+                    echo -e "${YELLOW}Skipping Steam installation (contrib repository not enabled).${NC}"
                 fi
-                _run_cmd "MangoHud" "sudo apt install -y $mh_pkgs" "Installing MangoHud (64 + 32-bit)..."
                 ;;
-            gamemode)  _run_cmd "GameMode" "sudo apt install -y gamemode" "Installing GameMode..." ;;
-            goverlay)  _run_cmd "GOverlay" "sudo apt install -y goverlay" "Installing GOverlay..." ;;
-            lutris)
-                local pkgs="lutris wine64"
-                if dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
-                    pkgs+=" wine32"
-                fi
-                _run_cmd "Lutris" "sudo apt install -y $pkgs" "Installing Lutris + Wine..."
-                ;;
-            java)      _install_gaming_java ;;
-            *)         _run_install "$pkg" ;;
+            java)     install_minecraft_java ;;
+            mangohud) install_mangohud ;;
+            gamemode) install_gamemode ;;
+            goverlay) install_goverlay ;;
+            lutris)   install_lutris ;;
+            retroarch)  install_retroarch ;;
+            *)        _run_install "$pkg" ;;
         esac
     done
 
-    echo -e "${GREEN}Lightweight gaming setup complete.${NC}"
+    echo -e "${GREEN}Gaming setup complete.${NC}"
     _pause
 }

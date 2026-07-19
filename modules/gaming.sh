@@ -54,7 +54,7 @@ install_gaming() {
     choices=$(_checklist "Gaming Setup" \
         "Select gaming packages to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
         "steam"    "Steam (requires 32-bit support)" ON \
-        "gamemode" "Game performance optimization" ON \
+        "gamemode" "Game performance optimization" OFF \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "goverlay" "MangoHud config GUI" ON \
         "heroic"   "Heroic Launcher (Epic/GOG)" OFF \

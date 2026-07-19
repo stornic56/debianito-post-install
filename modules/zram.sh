@@ -13,10 +13,10 @@ install_zram() {
 
     local algo
     algo=$(_menu "ZRAM Configuration" \
-        "ZRAM creates a compressed block device in RAM to use as swap. This reduces disk I/O and can significantly improve responsiveness on systems with limited memory (e.g., 4GB RAM or less), at the cost of a small amount of CPU usage." \
+        "ZRAM creates a compressed swap device in RAM to reduce disk I/O and boost speed. Data is stored compressed in memory. Choose an algorithm below to balance CPU usage and compression ratio:" \
         $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "lz4"  "Fastest compression/decompression. Lowest CPU overhead. (Default)" \
-        "zstd" "Higher compression ratio. Saves slightly more memory but uses more CPU.")
+        "lz4"  "Fastest compression. Lowest CPU overhead. (Default)" \
+        "zstd" "Higher compression ratio. Saves more RAM, uses more CPU.")
 
     if [ -z "$algo" ]; then
         echo "ZRAM configuration cancelled."

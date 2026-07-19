@@ -58,7 +58,7 @@ After running the script:
 | **8** | [ZRAM](/docs/zram.md)| Configure compressed RAM for memory optimization|
 | **9** | [Swap Management](/docs/swap.md)| Manage swap file or partition size and enable/disable swap space for system stability|
 | **10** | Install Programs and Software | Browse and install packages by category (Development, Themes, System Tools, etc.) using APT |
-| **11** | [Boot Rescue + GRUB](/docs/boot.md))| Config and fix GRUB bootloader issues, chroot repair, or restore system boot configuration|
+| **11** | [Boot Rescue + GRUB](/docs/boot.md)| Config and fix GRUB bootloader issues, chroot repair, or restore system boot configuration|
 | **12** | [Desktop & Display](/docs/desktops_display.md)| Install and configure desktops and display managers|
 | **13** | Exit | Return to terminal |
 
@@ -71,7 +71,7 @@ The submenu offers the next categories:
 | **0** | Essential Pack | Quick install of common tools (compression, system info, VLC, MS fonts)|
 | **1** | Customization System | Desktop themes, icon themes, cursor themes, and fonts |
 | **2** | Download & Network | Downloaders (aria2, ytdlp, FileZilla) + Torrent clients (qBittorrent, Deluge, Transmission) |
-| **3** | Internet (Browsers, Email Clients, VPN) | Web browsers (Firefox/Mozilla, LibreWolf, Floorp, Chromium, Brave, Tor), email client (Thunderbird), and VPN tools (RiseUp, Proton, Mullvad)|
+| **3** | Internet (Browsers, Email Clients, VPN) | Web browsers (Firefox, LibreWolf, Floorp, Chromium, Tor), email client (Thunderbird), and VPN tools (RiseUp, Proton, Mullvad)|
 | **4** | Media Players | Multimedia playback with VLC media player and MPV for advanced video/audio support |
 | **5** | Multimedia & Design | image editing (GIMP), video editing (Kdenlive, HandBrake), 3D modeling (Blender), audio recording (Audacity), and graphics design (Inkscape) |
 | **6** | Code Editors & IDEs | vim, vim-gtk3, Neovim, Helix, nano, Emacs, Kate, Mousepad, Gedit, Geany, GNOME Text Editor, and VSCodium (VS Code open-source) |
