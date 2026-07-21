@@ -27,7 +27,11 @@ _install_amd_intel_stack() {
             header+="${comp_line}\n\n"
             header+="Choose version:"
             if _confirm_custom "No GPU Detected" "$header" "Backports" "Stable" 14 70; then
-                _run_cmd "Mesa" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${mesa_pkgs[*]}" \
+                local _bpo_list=()
+                for _p in "${mesa_pkgs[@]}"; do
+                    [ "$_p" != "mesa-va-drivers" ] && _bpo_list+=("$_p")
+                done
+                _run_cmd "Mesa" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${_bpo_list[*]}" \
                     "Installing Mesa from backports..."
             else
                 _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \

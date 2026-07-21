@@ -200,5 +200,41 @@ _show_sysinfo() {
         fi
     fi
 
-    _msg "System Information" "$msg" 22 76
+    # ════════════════════════════════════════════════════════════
+    # Dynamic dimension calculation
+    # ════════════════════════════════════════════════════════════
+
+    local term_cols
+    term_cols=$(tput cols 2>/dev/null || echo 80)
+    [ "$term_cols" -lt 50 ] && term_cols=50
+
+    local max_pct=$(( term_cols * 95 / 100 ))
+    [ "$max_pct" -lt 50 ] && max_pct=50
+
+    local longest=0
+    while IFS= read -r line; do
+        local len=${#line}
+        [ "$len" -gt "$longest" ] && longest=$len
+    done < <(echo -e "$msg")
+
+    local width=$(( longest + 6 ))
+    [ "$width" -lt 80 ] && width=80
+    [ "$width" -gt "$max_pct" ] && width=$max_pct
+
+    local truncated=""
+    while IFS= read -r line; do
+        if [ ${#line} -gt "$width" ]; then
+            truncated+="${line:0:$((width - 4))}...\\n"
+        else
+            truncated+="${line}\\n"
+        fi
+    done < <(echo -e "$msg")
+
+    local lines
+    lines=$(echo -e "$truncated" | wc -l)
+    local height=$(( lines + 6 ))
+    [ "$height" -gt 22 ] && height=22
+    [ "$height" -lt 10 ] && height=10
+
+    _msg "System Information" "$truncated" "$height" "$width"
 }

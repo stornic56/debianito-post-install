@@ -121,7 +121,7 @@ main_menu() {
                 fi
                 STATE_REFRESHED=true
                 ;;
-            8)  install_zram || true ;;
+            8)  zram_menu || true ;;
             9)  manage_swap || true; STATE_REFRESHED=true ;;
             10)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
