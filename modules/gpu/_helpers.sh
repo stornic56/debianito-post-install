@@ -133,6 +133,14 @@ _install_mesa_backports() {
         fi
     done
 
+    # Mesa >= 25.3.3 unificó VA-API dentro de mesa-libgallium.
+    # mesa-va-drivers desde backports rompe con la nueva mesa-libgallium.
+    local _bpo_filtered=()
+    for _p in "${bpo_pkgs[@]}"; do
+        [ "$_p" != "mesa-va-drivers" ] && _bpo_filtered+=("$_p")
+    done
+    bpo_pkgs=("${_bpo_filtered[@]}")
+
     local ref_ver
     ref_ver=$(apt-cache policy mesa-vulkan-drivers 2>/dev/null | awk 'NR==3 {print $2; exit}')
     local ref_bpo_ver
