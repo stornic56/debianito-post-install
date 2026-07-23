@@ -97,7 +97,7 @@ _cat_office() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Office & Productivity" "Select office applications${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Office & Productivity" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
 

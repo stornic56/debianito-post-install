@@ -107,15 +107,15 @@ install_gaming_bullseye() {
 
     local choices
     choices=$(_checklist "Gaming Setup — Bullseye" \
-        "Select gaming packages to install${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "i386"     "Enable 32-bit (i386) architecture" ON \
         "steam"    "Steam (requires 32-bit support)" ON \
-        "gamemode" "Game performance optimization" OFF \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
+        "gamemode" "Game performance optimization" OFF \
         "goverlay" "MangoHud config GUI" ON \
         "java"     "Minecraft Java Runtime" OFF \
         "lutris"   "Lutris + Wine (requires 32-bit support)" OFF \
-        "retroarch" "RetroArch Emulator Frontend" OFF \
-        "i386"     "Enable 32-bit (i386) architecture" ON)
+        "retroarch" "RetroArch Emulator Frontend" OFF)
 
     if [ -z "$choices" ]; then
         echo "No gaming packages selected."

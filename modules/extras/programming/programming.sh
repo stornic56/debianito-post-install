@@ -42,7 +42,7 @@ _cat_programming() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Programming Applications" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Programming Applications" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

@@ -11,13 +11,6 @@ install_amd_firmware() {
 
 offer_amd_tools() {
     local amd_tools=("radeontop")
-    local corectrl_available=false
-
-    if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-        corectrl_available=true
-    elif [ "$(is_backports_enabled)" = "true" ] && apt-cache madison corectrl 2>/dev/null | grep -q "bookworm-backports"; then
-        corectrl_available=true
-    fi
 
     local pkgs
     if [ "$DEBIAN_VERSION" = "11" ]; then
@@ -25,13 +18,8 @@ offer_amd_tools() {
     else
         pkgs=$(pkg_versions "${amd_tools[@]}" nvtop vainfo)
     fi
-    if $corectrl_available; then
-        local ctrl_ver
-        ctrl_ver=$(apt-cache policy corectrl 2>/dev/null | awk 'NR==3 {print $2; exit}')
-        pkgs+="  - corectrl  ${ctrl_ver}\n"
-    fi
 
-    if ! _confirm "AMD Tools" "Install AMD monitoring and control tools?\n\n${pkgs}"; then
+    if ! _confirm "AMD Tools" "Install AMD monitoring tools?\n\n${pkgs}"; then
         echo "Skipping AMD tools."
         return
     fi
@@ -43,14 +31,6 @@ offer_amd_tools() {
     fi
     vainfo
     _pause "vainfo output shown above."
-
-    if $corectrl_available; then
-        if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-            _run_cmd "corectrl" "sudo apt install -y corectrl" "Installing corectrl..."
-        else
-            _run_cmd "corectrl" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports corectrl" "Installing corectrl from backports..."
-        fi
-    fi
 
     echo -e "${GREEN}AMD tools installed.${NC}"
 }

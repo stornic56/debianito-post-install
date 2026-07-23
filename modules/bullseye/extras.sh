@@ -82,7 +82,7 @@ _cat_themes_bullseye() {
     local item_count=6
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Desktop Themes (Bullseye)" "Select desktop themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Desktop Themes (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "arc-theme"             "Arc GTK theme"                     "$(_state arc-theme)" \
         "blackbird-gtk-theme"   "Blackbird GTK theme"     "$(_state blackbird-gtk-theme)" \
         "bluebird-gtk-theme"    "Bluebird GTK theme"       "$(_state bluebird-gtk-theme)" \
@@ -114,7 +114,7 @@ _cat_icons_bullseye() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Icon Themes (Bullseye)" "Select icon themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Icon Themes (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" )
     clear
     [ -z "$choices" ] && return
@@ -129,7 +129,7 @@ _cat_cursors_bullseye() {
     local item_count=5
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Cursor Themes (Bullseye)" "Select cursor themes${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Cursor Themes (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "breeze-cursor-theme"    "Breeze cursors (KDE)"       "$(_state breeze-cursor-theme)" \
         "chameleon-cursor-theme" "Chameleon cursors"       "$(_state chameleon-cursor-theme)" \
         "dmz-cursor-theme"       "DMZ cursors"                   "$(_state dmz-cursor-theme)" \
@@ -149,7 +149,7 @@ _cat_fonts_bullseye() {
     local item_count=4
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Fonts (Bullseye)" "Available fonts${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Fonts (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "fonts-firacode"    "Fira Code monospace font"           "$(_state fonts-firacode)" \
         "fonts-noto"        "Noto fonts (Google)"                    "$(_state fonts-noto)" \
         "fonts-dejavu-core" "DejaVu core fonts"               "$(_state fonts-dejavu-core)" \
@@ -169,7 +169,7 @@ _cat_download_bullseye() {
 
     local item_count1=2
     local lista_alto1=$((item_count1 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count1))
-    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO $lista_alto1 \
+    choices1=$(_checklist "Downloaders" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto1 \
         "aria2"      "Multiprotocol downloader (CLI)"    "$(_state aria2)" \
         "filezilla"  "FTP/SFTP client (GUI)"        "$(_state filezilla)" \
         )
@@ -177,7 +177,7 @@ _cat_download_bullseye() {
 
     local item_count2=8
     local lista_alto2=$((item_count2 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count2))
-    choices2=$(_checklist "Torrent Clients" "Select torrent clients${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto2 \
+    choices2=$(_checklist "Torrent Clients" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto2 \
         "deluge"            "BitTorrent client (GTK)"               "$(_state deluge)" \
         "deluged"           "BitTorrent daemon/server"             "$(_state deluged)" \
         "mktorrent"         "Torrent metainfo creator (CLI)"     "$(_state mktorrent)" \
@@ -207,7 +207,7 @@ _cat_internet_bullseye() {
     local item_count=11
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Internet (Bullseye)" "Select browsers, email${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Internet (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "chromium"            "Chromium web browser"                   "$(_state chromium)" \
         "dillo"               "Lightweight graphical browser"             "$(_state dillo)" \
         "elinks"              "Text-mode web browser"                    "$(_state elinks)" \
@@ -249,7 +249,7 @@ _cat_players_bullseye() {
     local item_count=2
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Media Players (Bullseye)" "Select media players${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Media Players (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "mpv"  "Lightweight media player"  "$(_state mpv)" \
         "vlc"  "VLC media player"          "$(_state vlc)" \
         )
@@ -270,7 +270,7 @@ _cat_design_bullseye() {
     local item_count=13
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Multimedia & Design (Bullseye)" "Select multimedia and design tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Multimedia & Design (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "ardour"      "Digital audio workstation"                  "$(_state ardour)" \
         "audacity"    "Audio editor/recorder"                   "$(_state audacity)" \
         "blender"     "3D modeling/animation suite"              "$(_state blender)" \
@@ -302,7 +302,7 @@ _cat_programming_bullseye() {
     local item_count=9
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Code Editors & IDEs (Bullseye)" "Select editors and IDEs${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Code Editors & IDEs (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "vim"        "Classic terminal editor"          "$(_state vim)" \
         "vim-gtk3"   "Vim with GTK3 GUI"         "$(_state vim-gtk3)" \
         "neovim"     "Modern vim fork"              "$(_state neovim)" \
@@ -330,7 +330,7 @@ _cat_dev_bullseye() {
     local item_count=14
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Servers & Dev Tools (Bullseye)" "Select development tools and servers${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Servers & Dev Tools (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "apache2"         "Apache web server"                        "$(_state apache2)" \
         "build-essential" "C/C++ build tools (gcc, make)"   "$(_state build-essential)" \
         "docker"          "Docker container runtime"               "$(_state docker.io)" \
@@ -394,7 +394,7 @@ _cat_security_bullseye() {
     local item_count=5
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Security & Networking (Bullseye)" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Security & Networking (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "wireshark"   "Network protocol analyzer (GUI)"       "$(_state wireshark)" \
         "tcpdump"     "Command-line packet analyzer"            "$(_state tcpdump)" \
         "fail2ban"    "Brute-force protection daemon"          "$(_state fail2ban)" \
@@ -425,7 +425,7 @@ _cat_general_bullseye() {
     local item_count=22
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "System Tools (Bullseye)" "Select system utilities${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "System Tools (Bullseye)" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "compress"           "Compression tools (zip, unrar, p7zip)"          "$(_state zip)" \
         "conky"              "System monitor for desktop"                    "$(_state conky)" \
         "cpu-x"              "CPU-X (alternative to CPU-Z)"                  "$(_state cpu-x)" \
@@ -562,7 +562,7 @@ install_extras_bullseye() {
 
     while true; do
         local cat_choice
-    cat_choice=$(_menu "Extra Software — Bullseye" "Select a category${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+    cat_choice=$(_menu "Extra Software — Bullseye" "Select a category:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "0"  "Essential Pack" \
             "1"  "Customization System" \
             "2"  "Download & Network" \

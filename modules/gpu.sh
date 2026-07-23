@@ -87,6 +87,21 @@ _install_amd_intel_stack() {
         install_amd_firmware
     fi
 
+    if $HAS_AMD_LEGACY_GCN; then
+        local msg="An AMD GCN 1.0/GCN 1.1 GPU has been detected.\n\n"
+        msg+="These old GPUs use the legacy 'radeon' driver by default,\n"
+        msg+="but the modern 'amdgpu' driver offers better performance\n"
+        msg+="and Mesa support.\n\n"
+        msg+="Would you like to FORCE the amdgpu driver?\n"
+        msg+="(adds radeon.si_support=0 radeon.cik_support=0\n"
+        msg+=" amdgpu.si_support=1 amdgpu.cik_support=1 to GRUB)"
+        if _confirm "AMD Legacy GCN" "$msg" 16 72; then
+            _apply_amd_gcn_grub_fix
+        else
+            echo "Skipping amdgpu migration."
+        fi
+    fi
+
     _install_mesa_backports
 
     local mesa_ver
@@ -107,6 +122,33 @@ _install_amd_intel_stack() {
     summary+="Firmware: installed for detected GPUs\n"
     summary+="Tools: installed per vendor"
     _msg "Graphics Stack — Complete" "$summary" 12 65
+}
+
+_apply_amd_gcn_grub_fix() {
+    local file="/etc/default/grub"
+    local backup="${file}.backup.gcn.$(date +%Y%m%d_%H%M%S)"
+    local params="radeon.si_support=0 radeon.cik_support=0 amdgpu.si_support=1 amdgpu.cik_support=1"
+
+    if grep -q "amdgpu.si_support=1" "$file" 2>/dev/null; then
+        _msg "AMD GCN" "amdgpu parameters already present in GRUB.\nNo changes made." 8 50
+        return
+    fi
+
+    sudo cp "$file" "$backup"
+
+    sudo sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"$*/${params}&/" "$file"
+
+    if _confirm "AMD GCN — GRUB" "Parameters added:\n\n  ${params}\n\nRun update-grub now?" 12 65; then
+        if sudo update-grub >/dev/null 2>&1; then
+            _msg "AMD GCN — Complete" "amdgpu parameters added to GRUB.\n\nBackup: ${backup}\n\nReboot to apply."
+        else
+            echo -e "${RED}update-grub failed. Restoring backup...${NC}"
+            sudo cp "$backup" "$file"
+            _msg "Error" "update-grub failed.\nBackup restored."
+        fi
+    else
+        _msg "AMD GCN" "Parameters written to ${file}.\nRun 'sudo update-grub' manually."
+    fi
 }
 
 _install_nvidia_stack() {

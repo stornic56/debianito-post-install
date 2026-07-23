@@ -4,7 +4,6 @@
 # ------------------
 # Global variables
 # ------------------
-readonly SCROLL_HINT="  [↑↓]"
 CPU_SUMMARY=""
 RAM_SUMMARY=""
 GPU_TYPE=""
@@ -15,6 +14,7 @@ NVIDIA_GPU_DEVICE_ID=""
 HAS_NVIDIA=false
 HAS_AMD=false
 HAS_INTEL=false
+HAS_AMD_LEGACY_GCN=false
 KERNEL_VERSION=""
 DISPLAY_SERVER="unknown"
 STORAGE_SUMMARY=""
@@ -212,6 +212,7 @@ detect_gpu() {
             [ -z "$nvidia_dev_id" ] && nvidia_dev_id=$(echo "$line" | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
         elif echo "$line" | grep -qi "amd"; then
             has_amd=true
+            HAS_AMD_LEGACY_GCN=$(is_amd_legacy_gcn)
         elif echo "$line" | grep -qi "intel"; then
             has_intel=true
             [ -z "$intel_dev_id" ] && intel_dev_id=$(echo "$line" | grep -oP '8086:\K[0-9a-fA-F]+' | head -n1)
@@ -557,11 +558,11 @@ _menu() {
 
 _checklist() {
     local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
-    whiptail --title "$title" --checklist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
+    whiptail --title "$title" --ok-button "Apply" --checklist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
 }
 
 _inputbox() {
-    whiptail --title "$1" --inputbox "$2" "${3:-10}" "${4:-60}" "${5:-}" 3>&1 1>&2 2>&3 || true
+    whiptail --title "$1" --ok-button "Apply" --inputbox "$2" "${3:-10}" "${4:-60}" "${5:-}" 3>&1 1>&2 2>&3 || true
 }
 
 _validate_sudoers() {

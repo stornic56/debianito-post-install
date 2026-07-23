@@ -39,7 +39,7 @@ _cat_design() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Multimedia & Design" "Select multimedia and design tools${SCROLL_HINT}:" \
+    choices=$(_checklist "Multimedia & Design" "Check [*] the packages you want installed/updated on your system.\n" \
         $TUI_ALTO $TUI_ANCHO $lista_alto "${items[@]}")
     clear
 
