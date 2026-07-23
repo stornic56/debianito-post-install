@@ -115,7 +115,7 @@ configure_greetd() {
         fi
         local choice
         choice=$(_menu "greetd Configuration" \
-            "Select an option${SCROLL_HINT}:" \
+            "Select an option:" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "${gd_items[@]}")
         [ -z "$choice" ] && return
@@ -179,7 +179,7 @@ configure_gdm3() {
         fi
         local choice
         choice=$(_checklist "GDM3 Configuration" \
-            "Select options to apply${SCROLL_HINT}:" \
+            "Select options to apply:" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "${items_enabled[@]}")
         [ -z "$choice" ] && return
@@ -243,7 +243,7 @@ configure_sddm() {
     while true; do
         local choice
         choice=$(_menu "SDDM Configuration" \
-            "Select an option${SCROLL_HINT}:" \
+            "Select an option:" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "1" "Install SDDM (Set as default)" \
             "2" "Enable Autologin" \

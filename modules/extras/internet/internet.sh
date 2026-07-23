@@ -174,7 +174,7 @@ _cat_internet() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Internet" "Select browsers, email, and VPN tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Internet" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

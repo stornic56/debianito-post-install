@@ -27,7 +27,7 @@ _cat_security() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Security & Networking" "Select security and networking tools${SCROLL_HINT}:" $TUI_ALTO $TUI_ANCHO $lista_alto \
+    choices=$(_checklist "Security & Networking" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
         "${items[@]}" \
         )
     clear

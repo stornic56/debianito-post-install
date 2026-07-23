@@ -62,7 +62,7 @@ _cat_communication() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Communication" "Select communication apps${SCROLL_HINT}:" \
+    choices=$(_checklist "Communication" "Check [*] the packages you want installed/updated on your system.\n" \
         $TUI_ALTO $TUI_ANCHO $lista_alto "${items[@]}")
     clear
     [ -z "$choices" ] && return

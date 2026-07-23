@@ -7,7 +7,6 @@ _install_mesa_32bit() {
         "libgl1-mesa-dri"
         "libglx-mesa0"
         "libegl-mesa0"
-        "mesa-va-drivers"
         "mesa-libgallium"
     )
 

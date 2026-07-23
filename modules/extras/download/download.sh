@@ -45,14 +45,14 @@ _cat_download() {
     local lista_alto1=$((item_count1 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count1))
     local choices1 choices2=""
 
-    choices1=$(_checklist "Downloaders" "Select download tools:" $TUI_ALTO $TUI_ANCHO $lista_alto1 \
+    choices1=$(_checklist "Downloaders" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto1 \
         "${items1[@]}" \
         )
     clear
 
     local item_count2=${#items2[@]}
     local lista_alto2=$((item_count2 > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count2))
-    choices2=$(_checklist "Torrent Clients" "Select torrent clients:" $TUI_ALTO $TUI_ANCHO $lista_alto2 \
+    choices2=$(_checklist "Torrent Clients" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto2 \
         "${items2[@]}" \
         )
     clear

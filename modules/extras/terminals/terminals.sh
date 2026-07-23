@@ -18,6 +18,7 @@ _cat_terminals() {
 
     if [ "$DEBIAN_VERSION" = "12" ] || [ "$DEBIAN_VERSION" = "13" ]; then
         items+=("alacritty" "" "$(_state alacritty)")
+        items+=("zutty"     "" "$(_state zutty)")
     fi
     if [ "$DEBIAN_VERSION" = "13" ]; then
         items+=("blackbox-terminal" "" "$(_state blackbox-terminal)")
@@ -27,7 +28,7 @@ _cat_terminals() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Terminals" "Select terminal emulators${SCROLL_HINT}:" \
+    choices=$(_checklist "Terminals" "Check [*] the packages you want installed/updated on your system.\n" \
         $TUI_ALTO $TUI_ANCHO $lista_alto "${items[@]}")
     clear
     [ -z "$choices" ] && return

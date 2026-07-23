@@ -122,7 +122,7 @@ _grub_menu_settings() {
     while true; do
         local choice
         choice=$(_menu "GRUB Boot Menu Settings" \
-            "Configure when and how the GRUB menu appears${SCROLL_HINT}:" \
+            "Configure when and how the GRUB menu appears:" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "1" "Disable GRUB menu on start (Fastest boot)" \
             "2" "Faster boot (Show 3-sec countdown)" \
@@ -168,7 +168,7 @@ rescue_boot() {
     while true; do
         local choice
         choice=$(_menu "Boot Rescue + GRUB Configuration" \
-            "Select an operation${SCROLL_HINT}:" \
+            "Select an operation:" \
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "1" "GRUB Boot Menu Settings" \
             "2" "Refirm Secure Boot (shim + GRUB)" \

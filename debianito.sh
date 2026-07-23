@@ -62,7 +62,7 @@ main_menu() {
             "3" "Configure Repositories" \
             "4" "Firmware, Wireless & Bluetooth" \
             "5" "Graphics Drivers & Mesa Stack" \
-            "6" "Backports Kernel" \
+            "6" "Kernel" \
             "7" "Gaming Setup" \
             "8" "ZRAM" \
             "9" "Swap Management" \
@@ -104,15 +104,7 @@ main_menu() {
                 esac
                 STATE_REFRESHED=true
                 ;;
-            6)
-                if [ "$DEBIAN_VERSION" = "11" ]; then
-                    _msg "Not Available" \
-                        "Backports Kernel is not available on Debian 11 Bullseye.\n\nThe stable kernel provided by Bullseye is the only option." 10 60
-                else
-                    install_kernel_backports || true
-                fi
-                STATE_REFRESHED=true
-                ;;
+            6)  show_kernel_menu || true ;;
             7)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
                     install_gaming_bullseye || true

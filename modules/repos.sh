@@ -467,8 +467,7 @@ _repos_setup_backports() {
 
     local enable_backports=false
     if _confirm "Backports" "Do you want to enable the official Debian Backports repository?\n\n\
-Backports provides newer, selectively updated packages from the next\n\
-Debian testing branch, recompiled to run stably on your current system.\n\n\
+Backports provides newer, selectively updated packages from the next Debian testing branch, recompiled to run stably on your current system.\n
 Answer NO to disable or remove backports if they are currently enabled." 16 70; then
         enable_backports=true
     fi

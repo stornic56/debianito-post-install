@@ -112,6 +112,21 @@ is_nvidia_blackwell() {
     echo false
 }
 
+is_amd_legacy_gcn() {
+    local dev_id
+    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i amd | grep -oP '1002:\K[0-9a-fA-F]{4}' | head -n1)
+    [ -z "$dev_id" ] && { echo false; return; }
+
+    local legacy_ids
+    legacy_ids="6660|6664|6665|6667|6780|6784|6788|678a|6798|679a|679e|679f|3000|3001|6808|6809|6810|6811|6816|6817|6818|6819|6828|6829|682b|682c|6835|6837|683d|683f|6608|6609|6610|6611|6613|6617|1dcf|983d|6646|6649|664d|6650|6651|6658|665c|665d|67a0|67a1|67a2|67a8|67a9|67aa|67b0|67b1|67b8|67be|9830|9831|9832|9833|9834|9835|9836|9837|9838|9839|1304|1305|1306|1307|1309|130a|130b|130c|130d|130e|130f|1310|1311|1312|1313|1315|1316|1317|1318|131b|131c|131d|9850|9851|9852|9853|9854|9855|9856|9857|9858|9859|985a|985b|985c|985d|985e|985f"
+
+    if echo "$dev_id" | grep -qiE "^(${legacy_ids})$"; then
+        echo true
+    else
+        echo false
+    fi
+}
+
 _install_mesa_backports() {
     if [ "$(is_backports_enabled)" != "true" ]; then
         install_mesa_stable
