@@ -61,7 +61,7 @@ _install_amd_intel_stack() {
         local desc
         desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
         plan+="  GPU ${gpu_count}:  ${desc}\n"
-    done < <(lspci -nn | grep -E "VGA|3D" || true)
+    done < <(timeout 2 lspci -nn | grep -E "VGA|3D" || true)
     plan+="\nPlanned components:\n"
     if $HAS_INTEL; then
         local _gen; _gen=$(get_intel_generation)
@@ -165,7 +165,7 @@ _install_nvidia_stack() {
         local desc
         desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
         plan+="  GPU ${gpu_count}:  ${desc}\n"
-    done < <(lspci -nn | grep -E "VGA|3D" || true)
+    done < <(timeout 2 lspci -nn | grep -E "VGA|3D" || true)
     plan+="\nPlanned:\n  [+] NVIDIA proprietary driver"
 
     _msg "NVIDIA Stack — Plan" "$plan" 14 65

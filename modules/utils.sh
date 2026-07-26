@@ -191,7 +191,7 @@ detect_kernel() {
 # ----------------------------------
 detect_gpu() {
     local gpu_lines
-    gpu_lines=$(lspci -nn | grep -E "VGA|3D") || true
+    gpu_lines=$(timeout 2 lspci -nn | grep -E "VGA|3D") || true
     if [ -z "$gpu_lines" ]; then
         GPU_TYPE="unknown"
         GPU_DESC="No GPU detected"
@@ -201,7 +201,8 @@ detect_gpu() {
     local has_nvidia=false has_amd=false has_intel=false
     local desc_lines="" nvidia_dev_id="" intel_dev_id=""
 
-    while IFS= read -r line || true; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ -z "$line" ]] && continue
         local desc
         desc=$(echo "$line" | sed -E 's/.*: //; s/ *\(rev.*//')
         [ -n "$desc_lines" ] && desc_lines+=" + "
@@ -282,21 +283,21 @@ declare -a WIFI_SSIDS=()
 
 detect_network() {
     local eth_line
-    eth_line=$(lspci -nn | grep -i 'Ethernet controller' | head -n1) || true
+    eth_line=$(timeout 2 lspci -nn | grep -i 'Ethernet controller' | head -n1) || true
     if [ -n "$eth_line" ]; then
         ETH_DESC=$(echo "$eth_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
     fi
 
     local wifi_line
     # Layer 1: grep by PCI class description text
-    wifi_line=$(lspci -nn 2>/dev/null | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
+    wifi_line=$(timeout 2 lspci -nn 2>/dev/null | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
     # Layer 2: grep by exact PCI class code 0x0280 (Network controller)
     if [ -z "$wifi_line" ]; then
-        wifi_line=$(lspci -d ::0280 2>/dev/null | head -n1) || true
+        wifi_line=$(timeout 2 lspci -d ::0280 2>/dev/null | head -n1) || true
     fi
     # Layer 3: Broadcom vendor ID fallback (14e4)
     if [ -z "$wifi_line" ]; then
-        wifi_line=$(lspci -nn 2>/dev/null | grep -i '14e4:' | head -n1) || true
+        wifi_line=$(timeout 2 lspci -nn 2>/dev/null | grep -i '14e4:' | head -n1) || true
     fi
     if [ -n "$wifi_line" ]; then
         WIFI_CHIPSET="$wifi_line"
@@ -382,7 +383,7 @@ detect_storage() {
         elif [ "$rota" = "1" ]; then
             type="HDD"
         else
-            rm=$(cat /sys/block/"$name"/removable 2>/dev/null || echo 0)
+            rm=$(timeout 2 cat /sys/block/"$name"/removable 2>/dev/null || echo 0)
             if [ "$rm" = "1" ]; then
                 type="USB/SD"
             else
