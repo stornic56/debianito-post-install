@@ -201,7 +201,7 @@ detect_gpu() {
     local has_nvidia=false has_amd=false has_intel=false
     local desc_lines="" nvidia_dev_id="" intel_dev_id=""
 
-    while IFS= read -r line; do
+    while IFS= read -r line || true; do
         local desc
         desc=$(echo "$line" | sed -E 's/.*: //; s/ *\(rev.*//')
         [ -n "$desc_lines" ] && desc_lines+=" + "
@@ -240,7 +240,7 @@ detect_gpu() {
 
     if [ "$GPU_TYPE" = "nvidia" ]; then
         local nv_ver
-        nv_ver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
+        nv_ver=$(timeout 3 nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1) || true
         if [ -z "$nv_ver" ]; then
             nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//')
         fi
