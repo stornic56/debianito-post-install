@@ -46,8 +46,8 @@ DEBIAN_CODENAME=""
 main_menu() {
     # Auto-adjust TUI dimensions for small terminals
     if [ "${LINES:-24}" -lt $((TUI_ALTO + 6)) ] || [ "${COLUMNS:-80}" -lt $((TUI_ANCHO + 6)) ]; then
-        TUI_ALTO=$((LINES - 4 > 8 ? LINES - 4 : 8))
-        TUI_ANCHO=$((COLUMNS - 4 > 50 ? COLUMNS - 4 : 50))
+        TUI_ALTO=$(( ${LINES:-24} - 4 > 8 ? ${LINES:-24} - 4 : 8))
+        TUI_ANCHO=$(( ${COLUMNS:-80} - 4 > 50 ? ${COLUMNS:-80} - 4 : 50))
         TUI_ALTO_LISTA=$((TUI_ALTO - 10 > 4 ? TUI_ALTO - 10 : 4))
     fi
 

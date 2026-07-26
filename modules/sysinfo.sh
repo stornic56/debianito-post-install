@@ -112,7 +112,7 @@ _show_sysinfo() {
                 lo|docker*|veth*|br-*|virbr*|tun*|tap*|bond*) continue ;;
             esac
 
-            ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+            ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
 
             # Determine type by PCI class (most reliable)
             local pci_class=""
@@ -129,7 +129,7 @@ _show_sysinfo() {
                     desc="${wifi_descs[0]:-Unknown WiFi chipset}"
                     shown_wifi_descs+=("${wifi_descs[0]}")
                     ssid=""
-                    [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)
+                    [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
                     ;;
                 *)
                     # Fallback: classify by interface name pattern
@@ -139,7 +139,7 @@ _show_sysinfo() {
                             desc="${wifi_descs[0]:-Unknown WiFi chipset}"
                             shown_wifi_descs+=("${wifi_descs[0]}")
                             ssid=""
-                            [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)
+                            [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
                             ;;
                         eth*|enp*|ens*|enx*|eno*)
                             has_eth=true
@@ -163,7 +163,7 @@ _show_sysinfo() {
             else
                 msg+="${iface}:   ${desc}\n       ↓\n"
             fi
-        done < <(ip -o link show 2>/dev/null)
+        done < <(timeout 2 ip -o link show 2>/dev/null)
     fi
 
     # ── 5. Show chipsets without an active interface ──

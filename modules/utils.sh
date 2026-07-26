@@ -243,7 +243,7 @@ detect_gpu() {
         local nv_ver
         nv_ver=$(timeout 3 nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1) || true
         if [ -z "$nv_ver" ]; then
-            nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//')
+            nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//') || true
         fi
         [ -n "$nv_ver" ] && GPU_VERSION="NVIDIA $nv_ver"
     fi
@@ -325,16 +325,16 @@ detect_network() {
         state=$(echo "$line" | awk '{print $9}')
         case "$iface" in
             eth*|enp*|ens*|enx*|eno*)
-                ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+                ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
                 ETH_NAMES+=("$iface")
                 ETH_STATES+=("$state")
                 ETH_IPS+=("${ip4:-}")
                 ETH_DESCS+=("${ETH_DESC:-}")
                 ;;
             wl*|wlp*|wlo*|wlan*)
-                ip4=$(ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+                ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
                 ssid=""
-                [ "$state" = "UP" ] && ssid=$(iwgetid -r "$iface" 2>/dev/null || true)
+                [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
                 WIFI_NAMES+=("$iface")
                 WIFI_STATES+=("$state")
                 WIFI_IPS+=("${ip4:-}")
@@ -342,7 +342,7 @@ detect_network() {
                 WIFI_DESCS+=("${WIFI_DESC:-}")
                 ;;
         esac
-    done < <(ip -o link show 2>/dev/null)
+    done < <(timeout 2 ip -o link show 2>/dev/null)
 }
 
 # ---------------------------------------
@@ -391,7 +391,7 @@ detect_storage() {
             fi
         fi
         parts+=("${size} ${type}")
-    done < <(lsblk -d -o NAME,SIZE,ROTA,TYPE -e 7,11 2>/dev/null || true)
+    done < <(timeout 2 lsblk -d -o NAME,SIZE,ROTA,TYPE -e 7,11 2>/dev/null || true)
 
     if [ ${#parts[@]} -eq 0 ]; then
         STORAGE_SUMMARY="No disks detected"
@@ -423,7 +423,7 @@ detect_desktop_environment() {
 # Audio server detection (PipeWire / PulseAudio)
 # ---------------------------------------
 detect_audio_server() {
-    if command -v pw-cli &>/dev/null && pw-cli info &>/dev/null 2>&1; then
+    if command -v pw-cli &>/dev/null && timeout 2 pw-cli info &>/dev/null 2>&1; then
         AUDIO_SERVER="pipewire"
     elif command -v pactl &>/dev/null; then
         AUDIO_SERVER="pulseaudio"
