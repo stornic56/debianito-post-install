@@ -27,7 +27,7 @@ _show_sysinfo() {
 
             if echo "$gpu_line" | grep -qi "nvidia"; then
                 local nv_ver=""
-                nv_ver=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
+                nv_ver=$(timeout 3 nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
                 [ -z "$nv_ver" ] && nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//')
                 msg+="GPU ${gpu_count}:    ${desc}\n"
                 msg+="          Driver: ${nv_ver:+NVIDIA }${nv_ver:-not installed}\n"
@@ -37,7 +37,7 @@ _show_sysinfo() {
                 msg+="GPU ${gpu_count}:    ${desc}\n"
                 msg+="          Driver: ${mesa_ver:+Mesa }${mesa_ver:-unknown}\n"
             fi
-        done < <(lspci -nn | grep -E "VGA|3D" || true)
+        done < <(timeout 2 lspci -nn | grep -E "VGA|3D" || true)
     fi
 
     if ! $found_gpu; then
@@ -52,13 +52,13 @@ _show_sysinfo() {
     declare -a pci_eth_lines=()
     while IFS= read -r line; do
         pci_eth_lines+=("$line")
-    done < <(lspci -d ::0200 2>/dev/null || true)
+    done < <(timeout 2 lspci -d ::0200 2>/dev/null || true)
 
     # ── 2. Detect ALL WiFi chipsets (class 0x0280 + vendor fallbacks) ──
     declare -a pci_wifi_lines=()
     while IFS= read -r line; do
         pci_wifi_lines+=("$line")
-    done < <(lspci -d ::0280 2>/dev/null || true)
+    done < <(timeout 2 lspci -d ::0280 2>/dev/null || true)
 
     # Broadcom vendor-ID fallback (14e4) — include only if not already captured
     while IFS= read -r line; do
@@ -69,7 +69,7 @@ _show_sysinfo() {
             done
             ! $already && pci_wifi_lines+=("$line")
         fi
-    done < <(lspci -nn 2>/dev/null || true)
+    done < <(timeout 2 lspci -nn 2>/dev/null || true)
 
     # USB WiFi fallback
     local usb_wifi_lines=()

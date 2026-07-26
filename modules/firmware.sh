@@ -17,7 +17,7 @@ _detect_all_network_devices() {
     PCI_NET_DEVS=()
     while IFS= read -r line; do
         PCI_NET_DEVS+=("$line")
-    done < <(lspci -nn 2>/dev/null | grep -iE 'network controller|ethernet controller' || true)
+    done < <(timeout 2 lspci -nn 2>/dev/null | grep -iE 'network controller|ethernet controller' || true)
 
     USB_WIFI_DEVS=()
     while IFS= read -r line; do
@@ -29,7 +29,7 @@ _detect_all_network_devices() {
     PCI_BT_DEVS=()
     while IFS= read -r line; do
         PCI_BT_DEVS+=("$line")
-    done < <(lspci -nn 2>/dev/null | grep -i 'Bluetooth controller' || true)
+    done < <(timeout 2 lspci -nn 2>/dev/null | grep -i 'Bluetooth controller' || true)
 
     USB_BT_DEVS=()
     while IFS= read -r line; do

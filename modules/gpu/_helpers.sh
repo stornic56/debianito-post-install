@@ -3,7 +3,7 @@
 
 is_nvidia_kepler() {
     local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
     [ -z "$dev_id" ] && { echo false; return; }
 
     local dev_int
@@ -23,7 +23,7 @@ is_nvidia_kepler() {
 
 is_nvidia_fermi() {
     local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
     [ -z "$dev_id" ] && { echo false; return; }
 
     local dev_int
@@ -56,7 +56,7 @@ is_nvidia_fermi() {
 
 is_nvidia_maxwell() {
     local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
     [ -z "$dev_id" ] && { echo false; return; }
 
     local dev_int
@@ -76,7 +76,7 @@ is_nvidia_maxwell() {
 
 is_nvidia_pascal() {
     local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
     [ -z "$dev_id" ] && { echo false; return; }
 
     local dev_int
@@ -98,7 +98,7 @@ is_nvidia_pascal() {
 
 is_nvidia_blackwell() {
     local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
+    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
     [ -z "$dev_id" ] && { echo false; return; }
 
     local dev_int
@@ -114,7 +114,7 @@ is_nvidia_blackwell() {
 
 is_amd_legacy_gcn() {
     local dev_id
-    dev_id=$(lspci -nn | grep -iE "VGA|3D" | grep -i amd | grep -oP '1002:\K[0-9a-fA-F]{4}' | head -n1)
+    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i amd | grep -oP '1002:\K[0-9a-fA-F]{4}' | head -n1)
     [ -z "$dev_id" ] && { echo false; return; }
 
     local legacy_ids
