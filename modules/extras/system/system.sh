@@ -225,7 +225,7 @@ _cat_general() {
                 fi
                 ;;
             nvme-cli)
-                if ! lsblk -d -o TRAN 2>/dev/null | grep -q "^nvme$"; then
+                if ! timeout 2 lsblk -d -o TRAN 2>/dev/null | grep -q "^nvme$"; then
                     echo "No NVMe controller detected. Skipping."
                     continue
                 fi
@@ -235,7 +235,7 @@ _cat_general() {
                 local nvme_devs=()
                 while read -r dev; do
                     nvme_devs+=("$dev")
-                done < <(lsblk -d -o NAME,TRAN 2>/dev/null | awk '$2 == "nvme" {print $1}')
+                done < <(timeout 2 lsblk -d -o NAME,TRAN 2>/dev/null | awk '$2 == "nvme" {print $1}')
                 if [ ${#nvme_devs[@]} -eq 0 ]; then
                     echo "No NVMe block devices found for health check."
                     continue
