@@ -93,6 +93,45 @@ sync_system_time() {
     fi
 }
 
+# -------------------------------------------------------------------
+# Robust time sync: NTP + timezone validation + service restart
+# -------------------------------------------------------------------
+_ensure_time_synced() {
+    command -v timedatectl &>/dev/null || return
+
+    # ── Paso 1: Forzar NTP activo ──
+    sudo timedatectl set-ntp true --no-ask-password 2>/dev/null || true
+
+    # ── Paso 2: Validar zona horaria ──
+    local tz
+    tz=$(timedatectl show -p Timezone --value 2>/dev/null || echo "")
+    if [ -z "$tz" ] || [ "$tz" = "n/a" ] || [ "$tz" = "Etc/UTC" ]; then
+        if [ -n "${DISPLAY:-}" ] || [ -n "${SSH_TTY:-}" ]; then
+            _msg "Timezone" \
+                "Your system timezone is not set or is set to UTC.\n\nThe script will now open the timezone\nconfiguration tool to set your local timezone." 12 60
+            sudo dpkg-reconfigure tzdata
+            echo -e "${GREEN}Timezone configured: $(timedatectl show -p Timezone --value 2>/dev/null)${NC}"
+        else
+            echo -e "${YELLOW}Timezone not set. Run 'sudo dpkg-reconfigure tzdata' later.${NC}"
+        fi
+    fi
+
+    # ── Paso 3: Instalar/asegurar systemd-timesyncd ──
+    if ! is_installed systemd-timesyncd; then
+        sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-timesyncd || true
+    fi
+    sudo systemctl enable systemd-timesyncd 2>/dev/null || true
+    sudo systemctl restart systemd-timesyncd 2>/dev/null || true
+
+    # ── Paso 4: Verificar resultado ──
+    sleep 2
+    if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q yes; then
+        echo -e "${GREEN}Time synchronized: $(date '+%Y-%m-%d %H:%M')${NC}"
+    else
+        echo -e "${YELLOW}NTP sync did not complete yet (may need a moment).${NC}"
+    fi
+}
+
 # --------------------------------
 # Debian version detection
 # --------------------------------
