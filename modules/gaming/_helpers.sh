@@ -29,7 +29,11 @@ _install_mesa_32bit() {
         return
     fi
 
-    _run_cmd "Mesa 32-bit" "sudo apt install -y ${install_list[*]}" \
+    local apt_target=""
+    if [ "$DEBIAN_VERSION" = "13" ] && [ "$(is_backports_enabled)" = "true" ]; then
+        apt_target="-t ${DEBIAN_CODENAME}-backports"
+    fi
+    _run_cmd "Mesa 32-bit" "sudo apt install -y $apt_target ${install_list[*]}" \
         "Installing Mesa drivers (${#install_list[@]} packages)..."
     echo -e "${GREEN}Mesa 32-bit libraries installed.${NC}"
 }
