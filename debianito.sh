@@ -142,7 +142,7 @@ if ! _check_network; then
     echo -e "${YELLOW} other offline features.${NC}"
     echo -e "${YELLOW}──────────────────────────────────────────${NC}"
 fi
-check_system_time
+_ensure_time_synced
 
 detect_debian_version
 detect_cpu_ram

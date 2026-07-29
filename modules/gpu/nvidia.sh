@@ -139,7 +139,7 @@ _install_nvidia_bookworm_bpo() {
         nv_pkg="nvidia-tesla-470-driver"
     else
         local nd_ver
-        nd_ver=$(apt-cache policy nvidia-detect 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        nd_ver=$(apt-cache policy nvidia-detect 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
         if _confirm "NVIDIA Detect" "Install nvidia-detect to determine the correct driver?\n\n  nvidia-detect  ${nd_ver:-unknown}" 12 70; then
             _run_cmd "NVIDIA" "sudo apt install -y nvidia-detect" "Installing nvidia-detect..."
         else
@@ -148,7 +148,7 @@ _install_nvidia_bookworm_bpo() {
             return 0
         fi
         local recommended
-        recommended=$(nvidia-detect 2>/dev/null | grep -oP 'nvidia[\w-]+(?= package)')
+        recommended=$(nvidia-detect 2>/dev/null | grep -oP 'nvidia[\w-]+(?= package)') || true
         if [ -z "$recommended" ]; then
             echo -e "${RED}nvidia-detect could not determine a suitable driver.${NC}"
             return 1
@@ -161,7 +161,7 @@ _install_nvidia_bookworm_bpo() {
     fi
 
     local nv_ver
-    nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
     local msg="Source: Debian Bookworm-Backports\n"
     msg+="NVIDIA Driver: ${nv_pkg} ${nv_ver:-unknown}\n"
     msg+="           (Compatible with Kernel v6.12+)\n"
@@ -200,7 +200,7 @@ _install_nvidia_bookworm_bpo() {
 _install_nvidia_bookworm_kepler() {
     local nv_pkg="nvidia-legacy-470xx-driver"
     local nv_ver
-    nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
 
     echo -e "${YELLOW}Kepler GPU detected — forcing ${nv_pkg}.${NC}"
 
@@ -229,7 +229,7 @@ _install_nvidia_bookworm_kepler() {
     if [ "$(is_backports_enabled)" == "true" ]; then
         local bpo_ver
         bpo_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | \
-            grep "bookworm-backports" | awk '{print $3}' | head -1)
+            grep "bookworm-backports" | awk '{print $3}' | head -1) || true
         if [ -n "$bpo_ver" ]; then
             local msg="Hay una versión en backports: ${bpo_ver}\n"
             msg+="Instalar desde bookworm-backports?"
@@ -279,7 +279,7 @@ _install_nvidia_standard() {
         echo -e "${YELLOW}Kepler GPU detected. Will use ${nv_pkg}.${NC}"
     else
         local nd_ver
-        nd_ver=$(apt-cache policy nvidia-detect 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        nd_ver=$(apt-cache policy nvidia-detect 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
         if _confirm "NVIDIA Detect" "Install nvidia-detect to determine the correct driver?\n\n  nvidia-detect  ${nd_ver:-unknown}" 12 70; then
             _run_cmd "NVIDIA" "sudo apt install -y nvidia-detect" "Installing nvidia-detect..."
         else
@@ -287,7 +287,7 @@ _install_nvidia_standard() {
             return 0
         fi
         local recommended
-        recommended=$(nvidia-detect 2>/dev/null | grep -oP 'nvidia[\w-]+(?= package)')
+        recommended=$(nvidia-detect 2>/dev/null | grep -oP 'nvidia[\w-]+(?= package)') || true
         if [ -z "$recommended" ]; then
             echo -e "${RED}nvidia-detect could not determine a suitable driver.${NC}"
             return 1
@@ -301,11 +301,11 @@ _install_nvidia_standard() {
 
     # Check for backports (optional, if repo enabled)
     local stable_nv_ver
-    stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
     if [ "$(is_backports_enabled)" == "true" ]; then
         local bpo_nv_ver
         bpo_nv_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | \
-            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1) || true
         if [ -n "$bpo_nv_ver" ]; then
             local msg="Source: Debian ${DEBIAN_CODENAME^} (Backports available)\n"
             msg+="NVIDIA Driver: ${nv_pkg}\n\n"

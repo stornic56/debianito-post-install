@@ -27,13 +27,13 @@ _show_sysinfo() {
 
             if echo "$gpu_line" | grep -qi "nvidia"; then
                 local nv_ver=""
-                nv_ver=$(timeout 3 nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)
-                [ -z "$nv_ver" ] && nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//')
+                nv_ver=$(timeout 3 nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1) || true
+                [ -z "$nv_ver" ] && nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//') || true
                 msg+="GPU ${gpu_count}:    ${desc}\n"
                 msg+="          Driver: ${nv_ver:+NVIDIA }${nv_ver:-not installed}\n"
             else
                 local mesa_ver=""
-                mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//')
+                mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//') || true
                 msg+="GPU ${gpu_count}:    ${desc}\n"
                 msg+="          Driver: ${mesa_ver:+Mesa }${mesa_ver:-unknown}\n"
             fi
@@ -99,6 +99,8 @@ _show_sysinfo() {
     local -a shown_eth_descs=()
     local -a shown_wifi_descs=()
     local has_eth=false has_wifi=false has_other=false
+    local eth_idx=0
+    local wifi_idx=0
 
     if ! command -v ip &>/dev/null; then
         msg+="(install iproute2 for interface details)\n"
@@ -121,13 +123,15 @@ _show_sysinfo() {
             case "$pci_class" in
                 0x0200*)
                     has_eth=true
-                    desc="${eth_descs[0]:-Unknown Ethernet chipset}"
-                    shown_eth_descs+=("${eth_descs[0]}")
+                    desc="${eth_descs[$eth_idx]:-Unknown Ethernet chipset}"
+                    shown_eth_descs+=("${eth_descs[$eth_idx]:-$desc}")
+                    eth_idx=$((eth_idx + 1))
                     ;;
                 0x0280*)
                     has_wifi=true
-                    desc="${wifi_descs[0]:-Unknown WiFi chipset}"
-                    shown_wifi_descs+=("${wifi_descs[0]}")
+                    desc="${wifi_descs[$wifi_idx]:-Unknown WiFi chipset}"
+                    shown_wifi_descs+=("${wifi_descs[$wifi_idx]:-$desc}")
+                    wifi_idx=$((wifi_idx + 1))
                     ssid=""
                     [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
                     ;;
@@ -136,15 +140,17 @@ _show_sysinfo() {
                     case "$iface" in
                         wl*|wlp*|wlo*|wlan*)
                             has_wifi=true
-                            desc="${wifi_descs[0]:-Unknown WiFi chipset}"
-                            shown_wifi_descs+=("${wifi_descs[0]}")
+                            desc="${wifi_descs[$wifi_idx]:-Unknown WiFi chipset}"
+                            shown_wifi_descs+=("${wifi_descs[$wifi_idx]:-$desc}")
+                            wifi_idx=$((wifi_idx + 1))
                             ssid=""
                             [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
                             ;;
                         eth*|enp*|ens*|enx*|eno*)
                             has_eth=true
-                            desc="${eth_descs[0]:-Unknown Ethernet chipset}"
-                            shown_eth_descs+=("${eth_descs[0]}")
+                            desc="${eth_descs[$eth_idx]:-Unknown Ethernet chipset}"
+                            shown_eth_descs+=("${eth_descs[$eth_idx]:-$desc}")
+                            eth_idx=$((eth_idx + 1))
                             ;;
                         *)
                             has_other=true
@@ -233,7 +239,8 @@ _show_sysinfo() {
     local lines
     lines=$(echo -e "$truncated" | wc -l)
     local height=$(( lines + 6 ))
-    [ "$height" -gt 22 ] && height=22
+    local max_height=$(( ${LINES:-24} - 4 > 10 ? ${LINES:-24} - 4 : 10 ))
+    [ "$height" -gt "$max_height" ] && height=$max_height
     [ "$height" -lt 10 ] && height=10
 
     _msg "System Information" "$truncated" "$height" "$width"
