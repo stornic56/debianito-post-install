@@ -29,10 +29,50 @@ _install_mesa_32bit() {
         return
     fi
 
-    local apt_target=""
+    # ── Resolve versions for display ──
+    local rep_pkg="${base_pkgs[0]}"
+    local stable_ver=""
+    stable_ver=$(apt-cache policy "$rep_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
+    local bpo_ver=""
     if [ "$DEBIAN_VERSION" = "13" ] && [ "$(is_backports_enabled)" = "true" ]; then
-        apt_target="-t ${DEBIAN_CODENAME}-backports"
+        bpo_ver=$(apt-cache madison "$rep_pkg" 2>/dev/null | \
+            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1) || true
     fi
+
+    local check_pkg="libgl1-mesa-dri:i386"
+
+    # ── Already installed branch ──
+    if is_installed "$check_pkg"; then
+        if [ -n "$bpo_ver" ]; then
+            local current_ver
+            current_ver=$(dpkg -l "$check_pkg" 2>/dev/null | awk '/^ii/{print $3}') || true
+            if _confirm "Mesa 32-bit" \
+                "Mesa 32-bit libraries ${current_ver:+v${current_ver} }already installed.\n\nReinstall from backports v${bpo_ver}?"; then
+                echo "Reinstalling Mesa 32-bit from backports..."
+                _run_cmd "Mesa 32-bit" \
+                    "sudo apt install -y --reinstall -t ${DEBIAN_CODENAME}-backports ${install_list[*]}" \
+                    "Reinstalling Mesa 32-bit from backports..."
+                echo -e "${GREEN}Mesa 32-bit libraries reinstalled.${NC}"
+                return
+            fi
+        fi
+        echo "Mesa 32-bit libraries already installed."
+        return
+    fi
+
+    # ── Not installed branch ──
+    local apt_target=""
+    if [ -n "$bpo_ver" ]; then
+        local msg="Backports repository is enabled.\n\n"
+        msg+="Available versions for Mesa 32-bit:\n"
+        msg+="  - Stable:   v${stable_ver:-unknown}\n"
+        msg+="  - Backports: v${bpo_ver}\n\n"
+        msg+="Install from Backports or Stable?"
+        if _confirm_custom "Mesa 32-bit" "$msg" "Backports" "Stable" 14 70; then
+            apt_target="-t ${DEBIAN_CODENAME}-backports"
+        fi
+    fi
+
     _run_cmd "Mesa 32-bit" "sudo apt install -y $apt_target ${install_list[*]}" \
         "Installing Mesa drivers (${#install_list[@]} packages)..."
     echo -e "${GREEN}Mesa 32-bit libraries installed.${NC}"
