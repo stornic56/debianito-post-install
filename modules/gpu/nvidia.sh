@@ -199,7 +199,7 @@ _install_nvidia_bookworm_bpo() {
 # sin pasar por nvidia-detect (evita falsa recomendación rama 535)
 # -------------------------------------------------------------------
 _install_nvidia_bookworm_kepler() {
-    local nv_pkg="nvidia-legacy-470xx-driver"
+    local nv_pkg="nvidia-tesla-470-driver"
     local nv_ver
     nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
 

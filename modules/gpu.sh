@@ -181,11 +181,7 @@ _install_nvidia_stack() {
 
     elif [ "$DEBIAN_VERSION" = "12" ]; then
         if [ "$(is_nvidia_kepler)" = "true" ]; then
-            if type _install_nvidia_bookworm_kepler &>/dev/null; then
-                _install_nvidia_bookworm_kepler
-            else
-                _install_nvidia_standard
-            fi
+            _install_nvidia_bookworm_kepler
         elif [ "$(is_nvidia_fermi)" = "true" ]; then
             _msg "NVIDIA Fermi — Bookworm" \
                 "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."

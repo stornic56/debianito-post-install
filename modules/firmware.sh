@@ -277,17 +277,17 @@ After the firmware is downloaded, reboot the system." 14 75
         else
             local bcm_ver header_ver
             bcm_ver=$(apt-cache policy broadcom-sta-dkms 2>/dev/null | awk 'NR==3 {print $2; exit}')
-            header_ver=$(apt-cache policy linux-headers-$(uname -r) 2>/dev/null | awk 'NR==3 {print $2; exit}')
+            header_ver=$(apt-cache policy linux-headers-amd64 2>/dev/null | awk 'NR==3 {print $2; exit}')
 
-            if ! apt-cache policy "linux-headers-$(uname -r)" 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
+            if ! apt-cache policy linux-headers-amd64 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
                 _msg "Broadcom Error" \
-                    "linux-headers-$(uname -r) not available.\n\nCannot compile broadcom-sta-dkms without kernel headers." 10 60
+                    "linux-headers-amd64 not available.\n\nCannot compile broadcom-sta-dkms without kernel headers." 10 60
                 _pause
                 continue
             fi
 
-            if _confirm "Broadcom WiFi" "Install Broadcom driver?\n\nRequired for this chipset. Compiles a kernel module.\n\n  broadcom-sta-dkms          ${bcm_ver:-unknown}\n  linux-headers-$(uname -r)  ${header_ver:-unknown}\n\nProceed?"; then
-                _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y linux-headers-$(uname -r) broadcom-sta-dkms" \
+            if _confirm "Broadcom WiFi" "Install Broadcom driver?\n\nRequired for this chipset. Compiles a kernel module.\n\n  broadcom-sta-dkms          ${bcm_ver:-unknown}\n  linux-headers-amd64        ${header_ver:-unknown}\n\nProceed?"; then
+                _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y linux-headers-amd64 broadcom-sta-dkms" \
                     "Installing Broadcom driver..."
 
                 local has_broadcom_bt=false
