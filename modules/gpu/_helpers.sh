@@ -1,116 +1,54 @@
 #!/usr/bin/env bash
 # Shared helpers for GPU submodules
 
-is_nvidia_kepler() {
-    local dev_id
-    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
+declare -A NVIDIA_FAMILY_MAP=(
+    # Fermi / Kepler (Legacy: el shim se encarga de separarlos)
+    ["06"]="legacy" ["0D"]="legacy" ["0E"]="legacy" 
+    ["0F"]="legacy" ["10"]="legacy" ["11"]="legacy" ["12"]="legacy"
+    # Maxwell
+    ["13"]="maxwell" ["14"]="maxwell" ["16"]="maxwell" ["17"]="maxwell"
+    # Pascal + Volta (Misma política de driver clásico)
+    ["15"]="pascal" ["1B"]="pascal" ["1C"]="pascal" ["1D"]="pascal"
+    # Turing
+    ["1E"]="turing" ["1F"]="turing" ["21"]="turing"
+    # Ampere
+    ["20"]="ampere" ["22"]="ampere" ["24"]="ampere" ["25"]="ampere"
+    # Hopper
+    ["23"]="hopper"
+    # Ada Lovelace
+    ["26"]="ada" ["27"]="ada" ["28"]="ada"
+    # Blackwell
+    ["29"]="blackwell" ["2B"]="blackwell" ["2C"]="blackwell" 
+    ["2D"]="blackwell" ["2E"]="blackwell" ["31"]="blackwell"
+)
 
-    local dev_int
-    dev_int=$((16#${dev_id,,}))
-
-    # Bloque 1: GK107 (escritorio + móvil) — 0x0FC0..0x0FFF
-    if [ "$dev_int" -ge $((16#0FC0)) ] && [ "$dev_int" -le $((16#0FFF)) ]; then echo true; return; fi
-    # Bloque 2: GK110/GK110B/GK210 acotado puro — 0x1000..0x103F
-    if [ "$dev_int" -ge $((16#1000)) ] && [ "$dev_int" -le $((16#103F)) ]; then echo true; return; fi
-    # Bloque 3: GK104/GK106 (completo) — 0x1180..0x11FF
-    if [ "$dev_int" -ge $((16#1180)) ] && [ "$dev_int" -le $((16#11FF)) ]; then echo true; return; fi
-    # Bloque 4: GK208/GK208B (completo) — 0x1280..0x12BF
-    if [ "$dev_int" -ge $((16#1280)) ] && [ "$dev_int" -le $((16#12BF)) ]; then echo true; return; fi
-
-    echo false
+detect_nvidia_arch() {
+    local pci_id="$1"
+    local prefix="${pci_id:0:2}"
+    echo "${NVIDIA_FAMILY_MAP[$prefix]:-unknown}"
 }
 
-is_nvidia_fermi() {
-    local dev_id
-    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
-
-    local dev_int
-    dev_int=$((16#${dev_id,,}))
-
-    # GF100 / GF110 — GTX 480, GTX 580, Quadro 6000, Tesla C2050
-    if [ "$dev_int" -ge $((16#06C0)) ] && [ "$dev_int" -le $((16#06DF)) ]; then echo true; return; fi
-    # GF104 / GF114 — GTS 450, GTX 460M, GT 555M
-    if [ "$dev_int" -ge $((16#0DC0)) ] && [ "$dev_int" -le $((16#0DCF)) ]; then echo true; return; fi
-    # GF104 / GF108 — GT 445M, GT 435M, GT 550M
-    if [ "$dev_int" -ge $((16#0DD0)) ] && [ "$dev_int" -le $((16#0DDF)) ]; then echo true; return; fi
-    # GF108 — GT 440, GT 430, GT 520, GT 610, GT 620M, NVS 5400M
-    if [ "$dev_int" -ge $((16#0DE0)) ] && [ "$dev_int" -le $((16#0DEF)) ]; then echo true; return; fi
-    # GF108 — GT 525M, GT 540M, GT 550M, Quadro 600, Quadro 500M
-    if [ "$dev_int" -ge $((16#0DF0)) ] && [ "$dev_int" -le $((16#0DFF)) ]; then echo true; return; fi
-    # GF104 / GF114 — GTX 460, GTX 470M, GTX 485M
-    if [ "$dev_int" -ge $((16#0E22)) ] && [ "$dev_int" -le $((16#0E31)) ]; then echo true; return; fi
-    # GF119 — GT 520M, GT 610M, NVS 4200M
-    if [ "$dev_int" -ge $((16#1050)) ] && [ "$dev_int" -le $((16#105F)) ]; then echo true; return; fi
-    # GF110 — GTX 580, GTX 570, GTX 560 Ti, GTX 590
-    if [ "$dev_int" -ge $((16#1080)) ] && [ "$dev_int" -le $((16#108F)) ]; then echo true; return; fi
-    # GF110 — Tesla M2090, Quadro 5010M, Quadro 7000
-    if [ "$dev_int" -ge $((16#1090)) ] && [ "$dev_int" -le $((16#109F)) ]; then echo true; return; fi
-    # GF116 / GF119 — GTX 560, GTX 460 v2, GTX 555, GT 645
-    if [ "$dev_int" -ge $((16#1200)) ] && [ "$dev_int" -le $((16#120F)) ]; then echo true; return; fi
-    # GF116 / GF108 — GTX 550 Ti, GTS 450 rev, GT 545, GT 640 (Fermi)
-    if [ "$dev_int" -ge $((16#1240)) ] && [ "$dev_int" -le $((16#124F)) ]; then echo true; return; fi
-    echo false
+_is_nvidia_kepler_id() {
+    local dev_id="$1"
+    [ -z "$dev_id" ] && return 1
+    local dev_int=$((16#${dev_id,,}))
+    [ "$dev_int" -ge $((16#0FC0)) ] && [ "$dev_int" -le $((16#0FFF)) ] && return 0
+    [ "$dev_int" -ge $((16#1000)) ] && [ "$dev_int" -le $((16#103F)) ] && return 0
+    [ "$dev_int" -ge $((16#1180)) ] && [ "$dev_int" -le $((16#11FF)) ] && return 0
+    [ "$dev_int" -ge $((16#1280)) ] && [ "$dev_int" -le $((16#12BF)) ] && return 0
+    return 1
 }
 
-is_nvidia_maxwell() {
-    local dev_id
-    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
-
-    local dev_int
-    dev_int=$((16#${dev_id,,}))
-
-    # GM108/GM107/GM204 — gama media/baja + Quadros M (incluye 980M/970M)
-    if [ "$dev_int" -ge $((16#1340)) ] && [ "$dev_int" -le $((16#13FF)) ]; then echo true; return; fi
-    # GM206 — GTX 960, GTX 950, Quadro M2000
-    if [ "$dev_int" -ge $((16#1400)) ] && [ "$dev_int" -le $((16#14FF)) ]; then echo true; return; fi
-    # GM200 — TITAN X, GTX 980 Ti
-    if [ "$dev_int" -ge $((16#17C0)) ] && [ "$dev_int" -le $((16#17CF)) ]; then echo true; return; fi
-    # GM200 profesional — Quadro M6000, Tesla M40
-    if [ "$dev_int" -ge $((16#17F0)) ] && [ "$dev_int" -le $((16#17FF)) ]; then echo true; return; fi
-
-    echo false
-}
-
-is_nvidia_pascal() {
-    local dev_id
-    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
-
-    local dev_int
-    dev_int=$((16#${dev_id,,}))
-
-    # GP100 — Tesla P100, Quadro GP100
-    if [ "$dev_int" -ge $((16#15F0)) ] && [ "$dev_int" -le $((16#15FF)) ]; then echo true; return; fi
-    # GP102 — TITAN Xp, GTX 1080 Ti, Tesla P40, Quadro P6000
-    if [ "$dev_int" -ge $((16#1B00)) ] && [ "$dev_int" -le $((16#1B3F)) ]; then echo true; return; fi
-    # GP104 — GTX 1080, GTX 1070, Quadro P5000/P4000/P5200/P4200
-    if [ "$dev_int" -ge $((16#1B80)) ] && [ "$dev_int" -le $((16#1BBF)) ]; then echo true; return; fi
-    # GP106 + GP107 — GTX 1060, GTX 1050 Ti, GTX 1050, Quadro P2000/P1000/P620/P600
-    if [ "$dev_int" -ge $((16#1C00)) ] && [ "$dev_int" -le $((16#1CFF)) ]; then echo true; return; fi
-    # GP108 — GT 1030, GT 1010, MX150/250/350/330, Quadro P520
-    if [ "$dev_int" -ge $((16#1D00)) ] && [ "$dev_int" -le $((16#1D7F)) ]; then echo true; return; fi
-
-    echo false
-}
-
-is_nvidia_blackwell() {
-    local dev_id
-    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i nvidia | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
-
-    local dev_int
-    dev_int=$((16#${dev_id,,}))
-
-    # Blackwell (GB20x) rango bajo: 0x2900 – 0x29BF
-    if [ "$dev_int" -ge $((16#2900)) ] && [ "$dev_int" -le $((16#29BF)) ]; then echo true; return; fi
-    # Blackwell (GB20x) rango alto: 0x2B80 – 0x31DF
-    if [ "$dev_int" -ge $((16#2B80)) ] && [ "$dev_int" -le $((16#31DF)) ]; then echo true; return; fi
-
-    echo false
-}
+is_nvidia_kepler()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && echo true || echo false; }
+is_nvidia_fermi()    { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && ! _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && echo true || echo false; }
+is_nvidia_legacy()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && echo true || echo false; }
+is_nvidia_maxwell()  { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "maxwell" ]] && echo true || echo false; }
+is_nvidia_pascal()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "pascal" ]] && echo true || echo false; }
+is_nvidia_volta()    { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "volta" ]] && echo true || echo false; }
+is_nvidia_turing()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "turing" ]] && echo true || echo false; }
+is_nvidia_ampere()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "ampere" ]] && echo true || echo false; }
+is_nvidia_ada()      { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "ada" ]] && echo true || echo false; }
+is_nvidia_blackwell(){ [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "blackwell" ]] && echo true || echo false; }
 
 is_amd_legacy_gcn() {
     local dev_id

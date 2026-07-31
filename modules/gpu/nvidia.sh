@@ -11,7 +11,8 @@ install_nvidia_driver() {
     NVIDIA_DRIVER_MODE=""
 
     local is_bpo_kernel;    is_bpo_kernel=$(is_backports_kernel)
-    local is_kepler;        is_kepler=$(is_nvidia_kepler)
+    local nv_arch;          nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
+    local is_kepler="false";   [[ "$nv_arch" == "legacy" ]] && _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && is_kepler="true"
     local is_maxwell;       is_maxwell=$(is_nvidia_maxwell)
     local is_pascal;        is_pascal=$(is_nvidia_pascal)
     local is_blackwell;     is_blackwell=$(is_nvidia_blackwell)
@@ -264,50 +265,32 @@ _install_nvidia_bookworm_kepler() {
 # CASE C: Kernel stable (any distro) → Debian stable, optional backports
 # -------------------------------------------------------------------
 _install_nvidia_standard() {
-    local nv_pkg=""
+    # --- 1. DETERMINAR PAQUETES BASADO EN LA SEÑAL ---
+    local nv_pkg="nvidia-driver"
+    local kernel_pkg=""
     local use_bpo=false
-    local is_kepler
-    is_kepler=$(is_nvidia_kepler)
 
-    if [ "$is_kepler" = "true" ]; then
-        if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-            _msg "NVIDIA Kepler" \
-                "Your GPU is NVIDIA Kepler architecture.\n\nThe nvidia-tesla-470 driver is not available\nin Debian 13 (Trixie).\n\nOptions:\n  1. Use Debian 12 (Bookworm) with nvidia-tesla-470\n  2. Use open-source Nouveau driver (limited)\n\nNo NVIDIA driver will be installed." 14 65
-            return 1
-        fi
-        nv_pkg="nvidia-tesla-470-driver"
-        echo -e "${YELLOW}Kepler GPU detected. Will use ${nv_pkg}.${NC}"
-    else
-        local nd_ver
-        nd_ver=$(apt-cache policy nvidia-detect 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
-        if _confirm "NVIDIA Detect" "Install nvidia-detect to determine the correct driver?\n\n  nvidia-detect  ${nd_ver:-unknown}" 12 70; then
-            _run_cmd "NVIDIA" "sudo apt install -y nvidia-detect" "Installing nvidia-detect..."
-        else
-            echo "Skipping NVIDIA driver detection."
-            return 0
-        fi
-        local recommended
-        recommended=$(nvidia-detect 2>/dev/null | grep -oP 'nvidia[\w-]+(?= package)') || true
-        if [ -z "$recommended" ]; then
-            echo -e "${RED}nvidia-detect could not determine a suitable driver.${NC}"
-            return 1
-        fi
-        if [[ "$recommended" =~ legacy-390|legacy-340 ]]; then
-            echo -e "${RED}Your GPU requires $recommended, which is not available.${NC}"
-            return 1
-        fi
-        nv_pkg="$recommended"
-    fi
+    case "${NVIDIA_DRIVER_MODE:-auto}" in
+        open)
+            kernel_pkg="nvidia-open-kernel-dkms"
+            ;;
+        classic|stable|backports)
+            kernel_pkg="nvidia-kernel-dkms"
+            ;;
+        auto)
+            kernel_pkg="$(nvidia-detect 2>/dev/null | grep -oP 'nvidia-kernel-dkms' || echo "")"
+            [ -z "$kernel_pkg" ] && kernel_pkg="nvidia-kernel-dkms"
+            ;;
+    esac
 
-    # Check for backports (optional, if repo enabled)
-    local stable_nv_ver
-    stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
-    if [ "$(is_backports_enabled)" == "true" ]; then
-        local bpo_nv_ver
-        bpo_nv_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | \
-            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1) || true
+    # --- 2. DIÁLOGO DE BACKPORTS ---
+    if [ "$(is_backports_enabled)" == "true" ] && [ "${NVIDIA_DRIVER_MODE:-auto}" != "stable" ]; then
+        local stable_nv_ver bpo_nv_ver msg
+        stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
+        bpo_nv_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1) || true
+
         if [ -n "$bpo_nv_ver" ]; then
-            local msg="Source: Debian ${DEBIAN_CODENAME^} (Backports available)\n"
+            msg="Source: Debian ${DEBIAN_CODENAME^} (Backports available)\n"
             msg+="NVIDIA Driver: ${nv_pkg}\n\n"
             msg+="  Backports: ${bpo_nv_ver}\n"
             msg+="  Stable:    ${stable_nv_ver:-unknown}\n\n"
@@ -318,12 +301,18 @@ _install_nvidia_standard() {
         fi
     fi
 
+    # --- 3. MENSAJE DE CONFIRMACIÓN ---
     local src_label="Debian ${DEBIAN_CODENAME^} Stable"
     $use_bpo && src_label="Debian ${DEBIAN_CODENAME^}-Backports"
 
-    local msg="Source: ${src_label}\n"
+    local stable_nv_ver kernel_ver msg
+    stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
+    kernel_ver=$(apt-cache policy "$kernel_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
+
+    msg="Source: ${src_label}\n"
     msg+="NVIDIA Driver: ${nv_pkg} ${stable_nv_ver:-unknown}\n"
-    msg+="[+] firmware-misc-nonfree\n"
+    msg+="Kernel Module: ${kernel_pkg} ${kernel_ver:-unknown}\n"
+    msg+="[+] firmware-misc-nonfree (o firmware-nvidia-gsp en Trixie)\n"
     msg+="[+] nvidia-vaapi-driver\n"
     msg+="[+] mesa-vdpau-drivers"
 
@@ -332,29 +321,25 @@ _install_nvidia_standard() {
         return 0
     fi
 
+    # --- 4. EJECUCIÓN ---
     local extra_pkgs="firmware-misc-nonfree nvidia-vaapi-driver mesa-vdpau-drivers"
+    local install_pkgs="$kernel_pkg $nv_pkg $extra_pkgs"
+
     if $use_bpo; then
-        _run_cmd "NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $nv_pkg $extra_pkgs" \
+        _run_cmd "NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $install_pkgs" \
             "Installing NVIDIA driver from backports..."
         NVIDIA_DRIVER_MODE="backports"
     else
-        _run_cmd "NVIDIA" "sudo apt install -y $nv_pkg $extra_pkgs" \
+        _run_cmd "NVIDIA" "sudo apt install -y $install_pkgs" \
             "Installing NVIDIA driver from stable..."
         NVIDIA_DRIVER_MODE="stable"
     fi
 
+    # --- 5. VERIFICACIÓN DKMS ---
     echo -e "${GREEN}NVIDIA driver installed. Reboot required.${NC}"
-
-    echo ""
     echo "──────────────────────────────────────────────"
     echo "Verifying DKMS module compilation:"
-    if command -v dkms &>/dev/null; then
-        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
-    else
-        echo "(dkms not installed)"
-    fi
-    echo ""
+    command -v dkms &>/dev/null && dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
     echo "If the line ends with 'installed' → module is OK."
-    echo "Otherwise check: dmesg | grep nvidia"
     echo "──────────────────────────────────────────────"
 }

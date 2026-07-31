@@ -197,31 +197,47 @@ _install_nvidia_stack() {
         fi
 
     elif [ "$DEBIAN_VERSION" = "13" ]; then
-        if [ "$(is_nvidia_blackwell)" = "true" ]; then
-            _install_nvidia_cuda_repo
-        elif [ "$(is_nvidia_kepler)" = "true" ] || [ "$(is_nvidia_fermi)" = "true" ]; then
-            _msg "NVIDIA — Trixie" \
-                "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
-            NVIDIA_DRIVER_MODE=""
-        elif [ "$(is_backports_kernel)" = "true" ]; then
-            if [ "$(is_nvidia_maxwell)" = "true" ] || [ "$(is_nvidia_pascal)" = "true" ]; then
-                local gpu_gen="Maxwell"
-                [ "$(is_nvidia_pascal)" = "true" ] && gpu_gen="Pascal"
-                _msg "NVIDIA — Trixie + Backports" \
-                    "INCOMPATIBILITY DETECTED: Your NVIDIA ${gpu_gen} GPU\n\
+        local nv_arch
+        nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
+        case "$nv_arch" in
+            legacy)
+                _msg "NVIDIA — Trixie" \
+                    "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
+                NVIDIA_DRIVER_MODE=""
+                ;;
+            blackwell)
+                _install_nvidia_cuda_repo
+                ;;
+            maxwell|pascal|volta)
+                if [ "$(is_backports_kernel)" = "true" ]; then
+                    local gpu_gen="Maxwell"
+                    [ "$nv_arch" = "pascal" ] && gpu_gen="Pascal"
+                    [ "$nv_arch" = "volta" ] && gpu_gen="Volta"
+                    _msg "NVIDIA — Trixie + Backports" \
+                        "INCOMPATIBILITY DETECTED: Your NVIDIA ${gpu_gen} GPU\n\
 is NOT supported by the modern v590 driver.\n\n\
 To run NVIDIA safely on Debian 13 (Trixie), you MUST use\n\
 the official Debian v550 driver, which requires the\n\
 standard STABLE Kernel.\n\n\
 Forcing the stable driver path." 14 70
+                    _install_nvidia_standard
+                    NVIDIA_DRIVER_MODE="stable"
+                else
+                    _install_nvidia_standard
+                fi
+                ;;
+            turing|ampere|ada)
+                NVIDIA_DRIVER_MODE="open"
                 _install_nvidia_standard
-                NVIDIA_DRIVER_MODE="stable"
-            else
-                _install_nvidia_cuda_repo
-            fi
-        else
-            _install_nvidia_standard
-        fi
+                ;;
+            *)
+                if [ "$(is_backports_kernel)" = "true" ]; then
+                    _install_nvidia_cuda_repo
+                else
+                    _install_nvidia_standard
+                fi
+                ;;
+        esac
 
     else
         _install_nvidia_standard

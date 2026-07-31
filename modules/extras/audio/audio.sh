@@ -7,17 +7,12 @@ _cat_audio() {
 
     local -a items=()
 
-    local pw_state; pw_state=$(_state "pipewire")
-    items+=(
-        "pipewire-standard" "PipeWire Audio Stack (Recommended)" "$pw_state"
-    )
+    local pw_label="PipeWire Audio Stack (Bluetooth Hi-Res)"
 
-    if [ "$DEBIAN_VERSION" = "13" ]; then
-        local bpo_state; bpo_state=$(_state "pipewire")
-        items+=(
-            "pipewire-backports" "PipeWire from Backports (v1.4.9)" "off"
-        )
-    fi
+    local pw_state; pw_state=$(_state "pipewire-audio")
+    items+=(
+        "pipewire-audio" "$pw_label" "$pw_state"
+    )
 
     local alsa_state; alsa_state=$(_state "alsa-utils")
     items+=(
@@ -48,27 +43,9 @@ _cat_audio() {
 
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
-    local do_pipewire_standard=false
-    local do_pipewire_backports=false
-
     for pkg in $cleaned; do
         case $pkg in
-            pipewire-standard) do_pipewire_standard=true ;;
-            pipewire-backports) do_pipewire_backports=true ;;
-        esac
-    done
-
-    for pkg in $cleaned; do
-        case $pkg in
-            pipewire-standard)
-                if $do_pipewire_backports; then
-                    continue
-                fi
-                _install_pipewire_standard
-                ;;
-            pipewire-backports)
-                _install_pipewire_backports
-                ;;
+            pipewire-audio) _install_pipewire_standard ;;
             alsa-utils)
                 if ! is_installed "alsa-utils"; then
                     _run_install "alsa-utils alsa-ucm-conf"
@@ -100,70 +77,109 @@ _cat_audio() {
         esac
     done
 
-    if $do_pipewire_standard || $do_pipewire_backports; then
-        if [ "$DEBIAN_VERSION" != "11" ]; then
-            echo "Restarting PipeWire services..."
-            systemctl --user restart wireplumber pipewire pipewire-pulse 2>/dev/null || true
-            echo -e "${GREEN}PipeWire services restarted.${NC}"
-        fi
-    fi
-
     echo -e "${GREEN}Audio & Sound setup complete.${NC}"
 }
 
 _install_pipewire_standard() {
+    local bt_pkgs="libldacbt-abr2 libldacbt-enc2 libopenaptx0 libspa-0.2-bluetooth"
+    if apt-cache show libfdk-aac2t64 &>/dev/null; then
+        bt_pkgs+=" libfdk-aac2t64"
+    elif apt-cache show libfdk-aac2 &>/dev/null; then
+        bt_pkgs+=" libfdk-aac2"
+    fi
+
+    # ── Resolve versions (needed for both installed and not-installed branches) ──
+    local stable_ver=""
+    stable_ver=$(apt-cache policy pipewire-audio 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
+    local bpo_ver=""
+    if [ "$DEBIAN_VERSION" = "13" ] && [ "$(is_backports_enabled)" = "true" ]; then
+        bpo_ver=$(apt-cache madison pipewire-audio 2>/dev/null | \
+            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1) || true
+    fi
+
+    local pkg_check="pipewire-audio"
+    [ "$DEBIAN_VERSION" = "11" ] && pkg_check="pipewire"
+
+    # ── Already installed branch ──
+    if is_installed "$pkg_check"; then
+        if [ -n "$bpo_ver" ]; then
+            local current_ver
+            current_ver=$(dpkg -l "$pkg_check" 2>/dev/null | awk '/^ii/{print $3}') || true
+            if _confirm "PipeWire" \
+                "PipeWire ${current_ver:+v${current_ver} }already installed.\n\nUpgrade to backports version v${bpo_ver}?"; then
+                echo "Upgrading PipeWire Audio Stack..."
+                echo "-> Target version: v${bpo_ver} (from ${DEBIAN_CODENAME}-backports)"
+                echo "-> Including Bluetooth Hi-Res codecs (LDAC, aptX, AAC)"
+                _run_cmd "PipeWire" \
+                    "sudo apt install -y --reinstall -t ${DEBIAN_CODENAME}-backports pipewire-audio $bt_pkgs" \
+                    "Upgrading PipeWire from backports..."
+                if [ "$DEBIAN_VERSION" != "11" ]; then
+                    echo "Restarting PipeWire services..."
+                    systemctl --user restart wireplumber pipewire pipewire-pulse 2>/dev/null || true
+                    echo -e "${GREEN}PipeWire services restarted.${NC}"
+                fi
+                return
+            fi
+        fi
+        echo "$pkg_check already installed."
+        return
+    fi
+
+    # ── Confirm dialog ──
+    local apt_target="" pw_ver="" pw_src=""
+    if [ -n "$bpo_ver" ]; then
+        local msg="Backports repository is enabled.\n\n"
+        msg+="Available versions:\n"
+        msg+="  - Stable:   v${stable_ver:-unknown}\n"
+        msg+="  - Backports: v${bpo_ver}\n\n"
+        msg+="Install from Backports (Recommended for newer hardware)\nor from Stable (more conservative)?"
+        if _confirm_custom "PipeWire Install" "$msg" "Backports" "Stable" 14 70; then
+            apt_target="-t ${DEBIAN_CODENAME}-backports"
+            pw_ver="$bpo_ver"
+            pw_src="from ${DEBIAN_CODENAME}-backports"
+        else
+            pw_ver="$stable_ver"
+        fi
+    else
+        local msg="PipeWire Audio Stack (v${stable_ver:-unknown})\n"
+        msg+="will be installed along with Bluetooth Hi-Res\n"
+        msg+="codecs (LDAC, aptX, AAC).\n\n"
+        msg+="Continue with installation?"
+        if ! _confirm "PipeWire Install" "$msg" 12 65; then
+            echo "PipeWire installation cancelled."
+            return
+        fi
+        pw_ver="$stable_ver"
+    fi
+
+    echo "Installing PipeWire Audio Stack..."
+    echo "-> Detected version: ${pw_ver:-unknown} ${pw_src:+($pw_src)}"
+    echo "-> Including Bluetooth Hi-Res codecs (LDAC, aptX, AAC)"
+
     case "$DEBIAN_VERSION" in
         11)
-            if ! is_installed "pipewire"; then
-                _run_cmd "PipeWire" \
-                    "sudo apt install -y pipewire libspa-0.2-bluetooth pipewire-alsa libspa-0.2-jack" \
-                    "Installing PipeWire (Bullseye basic mode)..."
-                echo -e "${GREEN}PipeWire installed (Bullseye basic mode).${NC}"
-            else
-                echo "PipeWire already installed."
-            fi
+            _run_cmd "PipeWire" \
+                "sudo apt install -y pipewire libspa-0.2-bluetooth pipewire-alsa libspa-0.2-jack $bt_pkgs" \
+                "Installing PipeWire (Bullseye basic mode)..."
+            echo -e "${GREEN}PipeWire installed (Bullseye basic mode).${NC}"
             ;;
         12)
-            if ! is_installed "pipewire-audio"; then
-                _run_cmd "PipeWire" \
-                    "sudo apt install -y pipewire-audio" \
-                    "Installing pipewire-audio meta-package (Bookworm)..."
-                echo -e "${GREEN}PipeWire audio stack installed.${NC}"
-            else
-                echo "pipewire-audio already installed."
-            fi
+            _run_cmd "PipeWire" \
+                "sudo apt install -y pipewire-audio $bt_pkgs" \
+                "Installing pipewire-audio meta-package (Bookworm)..."
+            echo -e "${GREEN}PipeWire audio stack installed.${NC}"
             ;;
         13)
-            if ! is_installed "pipewire-audio"; then
-                _run_cmd "PipeWire" \
-                    "sudo apt install -y pipewire-audio" \
-                    "Installing pipewire-audio meta-package (Trixie)..."
-                echo -e "${GREEN}PipeWire audio stack installed.${NC}"
-            else
-                echo "pipewire-audio already installed."
-            fi
+            _run_cmd "PipeWire" \
+                "sudo apt install -y $apt_target pipewire-audio $bt_pkgs" \
+                "Installing pipewire-audio meta-package (Trixie)..."
+            echo -e "${GREEN}PipeWire audio stack installed.${NC}"
             ;;
     esac
-}
 
-_install_pipewire_backports() {
-    if [ "$DEBIAN_VERSION" != "13" ]; then
-        echo -e "${YELLOW}Backports install is only available on Debian 13 (Trixie). Skipping.${NC}"
-        return
-    fi
-
-    if ! is_backports_enabled; then
-        _msg "Backports Required" \
-            "Trixie-backports is not enabled.\n\nEnable it first via:\n  Main Menu → 3 → Configure Repositories" 12 65
-        echo -e "${YELLOW}Skipping PipeWire from backports.${NC}"
-        return
-    fi
-
-    if ! is_installed "pipewire-audio"; then
-        _run_cmd "PipeWire Backports" \
-            "sudo apt install -y -t ${DEBIAN_CODENAME}-backports pipewire-audio" \
-            "Installing PipeWire from trixie-backports (v1.4.9)..."
-    else
-        echo "pipewire-audio already installed."
+    if [ "$DEBIAN_VERSION" != "11" ]; then
+        echo "Restarting PipeWire services..."
+        systemctl --user restart wireplumber pipewire pipewire-pulse 2>/dev/null || true
+        echo -e "${GREEN}PipeWire services restarted.${NC}"
     fi
 }
