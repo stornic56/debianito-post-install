@@ -23,7 +23,7 @@ declare -A NVIDIA_FAMILY_MAP=(
 )
 
 detect_nvidia_arch() {
-    local pci_id="$1"
+    local pci_id="${1^^}"
     local prefix="${pci_id:0:2}"
     echo "${NVIDIA_FAMILY_MAP[$prefix]:-unknown}"
 }
