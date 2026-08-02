@@ -27,7 +27,18 @@ ensure_contrib_repo() {
         return 0
     fi
 
-    if _confirm "contrib Repository" "Component 'contrib' is required for Steam.\n\nAdd 'contrib' to your APT repositories?"; then
+    if ! _confirm "contrib Repository" "Component 'contrib' is required for Steam.\n\nAdd 'contrib' to your APT repositories?"; then
+        echo -e "${YELLOW}contrib repository not enabled. Steam installation may fail.${NC}"
+        return 1
+    fi
+
+    # No active sources at all → bootstrap a complete configuration
+    if ! has_active_deb_sources; then
+        backup_current_repos
+        if ! bootstrap_repositories "main contrib"; then
+            return 1
+        fi
+    else
         if [ -f /etc/apt/sources.list ]; then
             sudo sed -i '/^deb / { /contrib/! s/main/main contrib/ }' /etc/apt/sources.list
         fi
@@ -37,13 +48,21 @@ ensure_contrib_repo() {
                 sudo sed -i '/^Components:/ { /contrib/! s/$/ contrib/ }' "$f"
             done
         fi
-        sudo apt update
-        echo -e "${GREEN}contrib repository enabled.${NC}"
-        return 0
     fi
 
-    echo -e "${YELLOW}contrib repository not enabled. Steam installation may fail.${NC}"
-    return 1
+    # Verify the component was actually added before reporting success
+    local contrib_ok=false
+    [ -f /etc/apt/sources.list ] && grep -Eq '^[^#]*\bcontrib\b' /etc/apt/sources.list 2>/dev/null && contrib_ok=true
+    [ -d /etc/apt/sources.list.d ] && grep -qr 'Components:.*\bcontrib\b' /etc/apt/sources.list.d/*.sources 2>/dev/null && contrib_ok=true
+    [ -d /etc/apt/sources.list.d ] && grep -qrE '^[^#]*\bcontrib\b' /etc/apt/sources.list.d/*.list 2>/dev/null && contrib_ok=true
+    if ! $contrib_ok; then
+        echo -e "${RED}Failed to enable contrib repository. Check your APT sources.${NC}"
+        return 1
+    fi
+
+    sudo apt update
+    echo -e "${GREEN}contrib repository enabled.${NC}"
+    return 0
 }
 
 install_gaming() {

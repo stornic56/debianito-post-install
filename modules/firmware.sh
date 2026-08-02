@@ -340,7 +340,17 @@ _ensure_nonfree_repo() {
         return 0
     fi
 
-    if _confirm "non-free Repository" "Component 'non-free' (and 'non-free-firmware') is required for WiFi/Bluetooth/GPU firmware.\n\nAdd them to your APT repositories?"; then
+    if ! _confirm "non-free Repository" "Component 'non-free' (and 'non-free-firmware') is required for WiFi/Bluetooth/GPU firmware.\n\nAdd them to your APT repositories?"; then
+        return 1
+    fi
+
+    # No active sources at all → bootstrap a complete configuration
+    if ! has_active_deb_sources; then
+        backup_current_repos
+        if ! bootstrap_repositories "main contrib non-free non-free-firmware"; then
+            return 1
+        fi
+    else
         if [ -f /etc/apt/sources.list ]; then
             sudo sed -i '/^deb / { /non-free/! s/\(main[^ ]*\)/\1 non-free non-free-firmware/ }' /etc/apt/sources.list
         fi
@@ -350,11 +360,21 @@ _ensure_nonfree_repo() {
                 sudo sed -i '/^Components:/ { /non-free/! s/$/ non-free non-free-firmware/ }' "$f"
             done
         fi
-        sudo apt update
-        echo -e "${GREEN}non-free repository enabled.${NC}"
-        return 0
     fi
-    return 1
+
+    # Verify the component was actually added before reporting success
+    local nonfree_ok=false
+    [ -f /etc/apt/sources.list ] && grep -Eq '^[^#]*\bnon-free\b' /etc/apt/sources.list 2>/dev/null && nonfree_ok=true
+    [ -d /etc/apt/sources.list.d ] && grep -qr 'Components:.*\bnon-free\b' /etc/apt/sources.list.d/*.sources 2>/dev/null && nonfree_ok=true
+    [ -d /etc/apt/sources.list.d ] && grep -qrE '^[^#]*\bnon-free\b' /etc/apt/sources.list.d/*.list 2>/dev/null && nonfree_ok=true
+    if ! $nonfree_ok; then
+        echo -e "${RED}Failed to enable non-free repository. Check your APT sources.${NC}"
+        return 1
+    fi
+
+    sudo apt update
+    echo -e "${GREEN}non-free repository enabled.${NC}"
+    return 0
 }
 
 # ── Main entry point ──
