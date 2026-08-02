@@ -353,18 +353,93 @@ _repos_offer_upgrade() {
     fi
 }
 
+# Bootstrap a complete repository configuration from scratch when no active
+# sources exist. Caller must run backup_current_repos() first so that a failed
+# apt update can restore the previous state.
+# Returns: 0 on success, 1 if skipped, declined or failed
+bootstrap_repositories() {
+    local components="$1"
+    local bp_enabled="${2:-false}"
+    local bp_location="${3:-none}"
+
+    if [ -z "$DEBIAN_CODENAME" ]; then
+        _msg "Error" "Cannot bootstrap repositories: Debian codename unknown." 10 65
+        return 1
+    fi
+
+    # non-free-firmware does not exist on Bullseye
+    if [ "$DEBIAN_VERSION" = "11" ]; then
+        components=$(echo "$components" | sed 's/ non-free-firmware//g')
+    fi
+
+    if ! _confirm "Bootstrap Repositories" \
+        "No active APT sources were found (empty or missing sources.list).\n\n\
+Configure repositories from scratch?" 10 65; then
+        echo "Repository configuration skipped."
+        cleanup_repo_backup
+        return 1
+    fi
+
+    if has_active_deb_sources; then
+        if ! _confirm "Custom Sources Found" \
+            "Active sources exist in other files (e.g. sources.list.d/*.sources).\n\n\
+Adding deb.debian.org may duplicate your current mirror configuration. Continue?" 10 65; then
+            cleanup_repo_backup
+            return 1
+        fi
+    fi
+
+    # DEB822 is Trixie-only; Debian 11/12 always use classic
+    local use_deb822=false
+    if [ "$DEBIAN_VERSION" = "13" ]; then
+        local choice
+        choice=$(_menu "Repo Format" "Choose the repository format:" 12 60 3 \
+            "deb822" "Native DEB822 format (sources.list.d/debian.sources)" \
+            "classic" "Classic format (/etc/apt/sources.list)")
+        if [ "$choice" = "deb822" ]; then
+            use_deb822=true
+        fi
+    fi
+
+    if $use_deb822; then
+        _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components" || { cleanup_repo_backup; return 1; }
+    else
+        _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components" || { cleanup_repo_backup; return 1; }
+    fi
+
+    # Tidy: with deb822 chosen, an empty classic file is no longer needed
+    if $use_deb822 && [ -f /etc/apt/sources.list ] && ! grep -qE '^[^#]*\bdeb\b' /etc/apt/sources.list 2>/dev/null; then
+        if _confirm "Disable Classic" "An empty /etc/apt/sources.list is no longer needed. Move it aside (sources.list.disabled)?"; then
+            sudo mv /etc/apt/sources.list /etc/apt/sources.list.disabled
+            echo "Empty sources.list renamed to sources.list.disabled"
+        fi
+    fi
+
+    echo "Updating package lists..."
+    if sudo apt update; then
+        REPOS_CONFIGURED=true
+        cleanup_repo_backup
+        echo -e "${GREEN}Repository components configured.${NC}"
+        return 0
+    else
+        restore_previous_repos
+        echo -e "${RED}apt update failed. Previous configuration restored.${NC}"
+        return 1
+    fi
+}
+
 _repos_enable_components() {
     local current_format bp_enabled bp_location components
     current_format=$(detect_repo_format)
 
     if _components_enabled; then
-        if ! _confirm "Disable Components" \
+        if _confirm "Disable Components" \
             "Contrib and non-free are already enabled. Disable them?"; then
-            echo "No changes made."
-            _pause
-            return
+            components="main"
+        else
+            components=$(detect_active_components)
+            echo "Keeping current components: $components"
         fi
-        components="main"
     else
         if ! _confirm "Enable Components" \
             "Enable contrib and non-free components?\n\n\
@@ -390,7 +465,32 @@ popular software (like gaming platforms and proprietary tools)." 12 60; then
 
     backup_current_repos
 
-    if [ "$current_format" = "deb822" ] || [ "$current_format" = "none" ]; then
+    if [ "$current_format" = "none" ]; then
+        if ! bootstrap_repositories "$components" "$bp_enabled" "$bp_location"; then
+            _pause
+            return
+        fi
+        _repos_offer_upgrade
+        echo -e "${GREEN}Cleaning old packages...${NC}"
+        sudo apt autoremove -y
+        sudo apt autoclean
+        echo -e "${GREEN}System packages cleaned.${NC}"
+        _pause
+        return
+    fi
+
+    echo "Verifying repository configuration (main, updates, security)..."
+    if [ "$current_format" = "deb822" ]; then
+        # Mixed-state guard: active classic lines alongside deb822 would duplicate sources
+        if [ -f /etc/apt/sources.list ] && grep -qE '^[^#]*\bdeb\b' /etc/apt/sources.list 2>/dev/null; then
+            if ! _confirm "Duplicate Config" \
+                "Active classic sources were also found in /etc/apt/sources.list.\n\n\
+Writing debian.sources may duplicate your configuration. Continue?" 10 65; then
+                echo "No changes made."
+                _pause
+                return
+            fi
+        fi
         _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"
     else
         _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"

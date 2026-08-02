@@ -505,14 +505,13 @@ is_backports_enabled() {
         echo true; return
     fi
 
-    # Classic standalone (new — debian-backports.list)
-    if [ -f /etc/apt/sources.list.d/debian-backports.list ] && \
-       grep -Eq "$c_pattern" /etc/apt/sources.list.d/debian-backports.list 2>/dev/null; then
+    # Classic standalone (any .list file in sources.list.d)
+    if [ -d /etc/apt/sources.list.d ] && grep -qrE "$c_pattern" /etc/apt/sources.list.d/*.list 2>/dev/null; then
         echo true; return
     fi
 
     # Deb822 any .sources file
-    if grep -qr "$d_pattern" /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+    if [ -d /etc/apt/sources.list.d ] && grep -qr "$d_pattern" /etc/apt/sources.list.d/*.sources 2>/dev/null; then
         echo true; return
     fi
 
