@@ -16,10 +16,11 @@ _enable_temurin_repo() {
 install_minecraft_java() {
     local choices
     choices=$(_checklist "Java Runtimes for Minecraft" \
-        "Select Java version(s) to install:" 14 65 3 \
+        "Select Java version(s) to install:" 15 65 4 \
         "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" OFF \
         "17" "Java 17 — Minecraft 1.17 to 1.20.4" ON \
-        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" OFF)
+        "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" OFF \
+        "25" "Java 25 — Minecraft 26+" OFF)
     [ -z "$choices" ] && { echo "No Java version selected."; return; }
     _enable_temurin_repo
     local cleaned
