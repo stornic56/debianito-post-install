@@ -106,15 +106,16 @@ This approach eliminates the security risk of running OpenRGB as root while main
 
 ---
 
-### 5. Java Runtimes (Eclipse Temurin 8 / 17 / 21)
+### 5. Java Runtimes (Eclipse Temurin 8 / 17 / 21 / 25)
 
-**Multi-Version Support:** The gaming module provides three specific Eclipse Temurin versions to accommodate different game requirements:
+**Multi-Version Support:** The gaming module provides four specific Eclipse Temurin versions to accommodate different game requirements:
 
 | Version | Use Case | Justification |
 |---------|----------|---------------|
 | **Temurin 8** | Legacy Minecraft mods, older Java games | Maintains compatibility with mods written for Java 8 (2014-2019 era) |
 | **Temurin 17** | Modern Minecraft servers, newer game clients | Balances performance and compatibility for post-1.16+ game versions |
 | **Temurin 21** | Latest game engines, cutting-edge mods | Provides best performance for modern Java applications |
+| **Temurin 25** | Minecraft 26+ and latest game engines | Best performance for the newest Java applications |
 
 **Repository Management via extrepo:** The script leverages the `extrepo` utility to manage external repositories cleanly rather than manually injecting repository URLs into system files. This approach offers several advantages:
 
@@ -122,13 +123,13 @@ This approach eliminates the security risk of running OpenRGB as root while main
 2.  **Dependency Resolution:** The utility checks for its own installation and handles the enabling of the Adoptium Temurin repository before proceeding with package installation.
 3.  **Maintenance Safety:** Updates to the upstream repository are reflected through `extrepo` without requiring direct edits to system configuration files, reducing the risk of breakage during OS updates.
 
-**Version Selection Logic:** Users can choose which Temurin version to install based on their specific game requirements via a TUI menu (`install_minecraft_java()`). The module justifies offering all three versions because:
+**Version Selection Logic:** Users can choose which Temurin version to install based on their specific game requirements via a TUI menu (`install_minecraft_java()`). The module justifies offering all four versions because:
 
 1.  **Backward Compatibility:** Java 8 remains in use by many Minecraft mods and older game clients that haven't been updated for newer JVMs
 2.  **Performance Optimization:** Java 21 provides the best performance characteristics for modern games with heavy multithreading requirements
 3.  **Security Updates:** All Temurin versions receive regular security patches from the Eclipse Foundation community
 
-The installation process ensures clean repository management without polluting the system with multiple conflicting JRE installations, maintaining Debian's package integrity while providing flexibility for different gaming scenarios. It automatically installs `extrepo` if not present and enables the Adoptium source before proceeding with version-specific packages (e.g., `temurin-8-jre`, `temurin-17-jre`).
+The installation process ensures clean repository management without polluting the system with multiple conflicting JRE installations, maintaining Debian's package integrity while providing flexibility for different gaming scenarios. It automatically installs `extrepo` if not present and enables the Adoptium source before proceeding with version-specific packages (e.g., `temurin-8-jre`, `temurin-17-jre`, `temurin-25-jre`).
 
 
 ### References:

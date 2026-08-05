@@ -628,12 +628,14 @@ _pause() {
 }
 
 # Blocks 2-4: run → pause
+# Returns the exit code of the executed command so callers can abort
+# or adjust state (e.g. NVIDIA_DRIVER_MODE) when a step fails.
 _run_cmd() {
     local title="$1" command="$2" success_msg="${3:-Running...}"
     echo -e "${GREEN}[+]${NC} $success_msg"
     echo "──────────────────────────────────────────────"
-    bash -c "$command"
-    local rc=$?
+    local rc=0
+    bash -c "$command" || rc=$?
     echo "──────────────────────────────────────────────"
     if [ $rc -eq 0 ]; then
         echo -e "${GREEN}[+]${NC} Done."
@@ -641,6 +643,7 @@ _run_cmd() {
         echo -e "${RED}[-]${NC} Failed (exit code: $rc)."
     fi
     _pause
+    return "$rc"
 }
 
 # Blocks 1-4: confirm → run → pause
@@ -757,7 +760,10 @@ _check_network() {
     if _confirm "LightDM" "Configure LightDM to show the user list on the login screen?\n\nThis disables greeter-hide-users."; then
         if ! is_installed lightdm-gtk-greeter-settings; then
             echo -e "${YELLOW}Installing lightdm-gtk-greeter-settings...${NC}"
-            sudo DEBIAN_FRONTEND=noninteractive apt install -y lightdm-gtk-greeter-settings
+            if ! sudo DEBIAN_FRONTEND=noninteractive apt install -y lightdm-gtk-greeter-settings; then
+                echo -e "${YELLOW}lightdm-gtk-greeter-settings could not be installed — LightDM configuration skipped.${NC}"
+                return 0
+            fi
         fi
 
         local conf_dir="/etc/lightdm/lightdm.conf.d"

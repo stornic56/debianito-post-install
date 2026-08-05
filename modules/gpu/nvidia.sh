@@ -64,68 +64,245 @@ The script will enable the official NVIDIA CUDA\nrepository and install the v590
 # Shared helper: enable NVIDIA CUDA repo via extrepo
 # -------------------------------------------------------------------
 _enable_cuda_repo() {
-    if [ ! -f /etc/apt/sources.list.d/extrepo_nvidia-cuda.sources ] && \
-       ! grep -qr 'developer.download.nvidia.com' /etc/apt/sources.list.d/ 2>/dev/null; then
+    if ! _is_cuda_repo_ready; then
         if ! command -v extrepo &>/dev/null; then
-            _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..."
+            _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..." || return 1
         fi
         _run_cmd "CUDA Repo" \
             "sudo extrepo enable nvidia-cuda" \
-            "Enabling official NVIDIA CUDA repository..."
+            "Enabling official NVIDIA CUDA repository..." || return 1
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+}
+
+# -------------------------------------------------------------------
+# Shared DKMS helpers: verify the NVIDIA module compiled for the
+# currently running kernel; repair via dpkg-reconfigure if not
+# -------------------------------------------------------------------
+# Returns: 0 if the NVIDIA DKMS module shows "installed" for $(uname -r)
+_nvidia_dkms_installed() {
+    local kernel line
+    kernel=$(uname -r)
+    line=$(dkms status 2>/dev/null | grep "^nvidia" | grep -F "$kernel" | grep ": installed" | head -1)
+    [ -n "$line" ]
+}
+
+# Returns 0 if Secure Boot is active (mokutil present and enabled)
+_nvidia_secure_boot_enabled() {
+    command -v mokutil &>/dev/null || return 1
+    mokutil --sb-state 2>/dev/null | grep -q "SecureBoot enabled"
+}
+
+# Aviso no fatal: el módulo DKMS está compilado pero NO firmado.
+# El usuario avanzado puede firmarlo con MOK; el novato necesita saber
+# por qué verá pantalla negra tras reiniciar. Si mokutil falta, no se
+# muestra nada (mokutil no viene preinstalado en Debian).
+_warn_secure_boot() {
+    if _nvidia_secure_boot_enabled; then
+        echo -e "${RED}WARNING: Secure Boot is enabled. The NVIDIA DKMS module is compiled but NOT signed.${NC}"
+        echo -e "${RED}You MUST sign the module with MOK or disable Secure Boot in BIOS before rebooting.${NC}"
+        echo -e "${RED}See: https://wiki.debian.org/SecureBoot#Signing_kernel_modules${NC}"
+    fi
+}
+
+# Verify the DKMS build for the current kernel and repair it if needed.
+# $@ = candidate dkms packages to reconfigure, in priority order
+# (the first installed one is used for dpkg-reconfigure).
+_verify_nvidia_dkms_build() {
+    local kernel
+    kernel=$(uname -r)
+
+    echo ""
+    echo "──────────────────────────────────────────────"
+    echo "Verifying DKMS module compilation for ${kernel}:"
+
+    if ! command -v dkms &>/dev/null; then
+        echo -e "${RED}(dkms not installed — DKMS build cannot be verified)${NC}"
+        echo "──────────────────────────────────────────────"
+        return 1
+    fi
+
+    dkms status 2>/dev/null | grep "^nvidia" || echo "(no nvidia DKMS module found)"
+
+    if _nvidia_dkms_installed; then
+        _warn_secure_boot
+        echo -e "${GREEN}DKMS module compiled for ${kernel}. Reboot required.${NC}"
+        echo "──────────────────────────────────────────────"
+        return 0
+    fi
+
+    echo -e "${YELLOW}DKMS module NOT compiled for ${kernel}. Repairing...${NC}"
+    local pkg repaired=false
+    for pkg in "$@"; do
+        if dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+            _run_cmd "NVIDIA" "sudo dpkg-reconfigure $pkg" "Reconfiguring $pkg..."
+            repaired=true
+            break
+        fi
+    done
+    if ! $repaired; then
+        echo -e "${RED}No DKMS package found to reconfigure.${NC}"
+    fi
+
+    if _nvidia_dkms_installed; then
+        _warn_secure_boot
+        echo -e "${GREEN}DKMS module compiled successfully for ${kernel}. Reboot required.${NC}"
+        echo "──────────────────────────────────────────────"
+        return 0
+    else
+        echo -e "${RED}DKMS module still not compiled for ${kernel}.${NC}"
+        echo "Check the build log manually:"
+        echo "  /var/lib/dkms/nvidia*/.../build/make.log"
+        echo "  dmesg | grep nvidia"
+        echo "──────────────────────────────────────────────"
+        return 1
+    fi
+}
+
+# -------------------------------------------------------------------
+# NVIDIA driver version selection (Debian 12/13)
+# Sets the global NVIDIA_SELECTED_VERSION; first option is the default.
+# Returns: 0 if a version was chosen, 1 if the user cancelled
+# -------------------------------------------------------------------
+_is_cuda_repo_ready() {
+    [ -f /etc/apt/sources.list.d/extrepo_nvidia-cuda.sources ] || \
+        grep -qr 'developer.download.nvidia.com' /etc/apt/sources.list.d/ 2>/dev/null
+}
+
+_show_nvidia_version_menu() {
+    local choice
+    if [ "$DEBIAN_VERSION" = "12" ]; then
+        choice=$(_menu "NVIDIA Driver Version" "Select the NVIDIA driver version for Debian 12 (Bookworm):" 12 70 3 \
+            "535" "Official NVIDIA driver (Recommended)" \
+            "470" "Legacy 470 (Kepler/Tesla GPUs)")
+    elif [ "$DEBIAN_VERSION" = "13" ]; then
+        choice=$(_menu "NVIDIA Driver Version" "Select the NVIDIA driver version for Debian 13 (Trixie):" 14 70 5 \
+            "550" "Official Debian driver (Recommended)" \
+            "590" "NVIDIA Repo v590 (Turing/Ampere/Ada/Blackwell)" \
+            "595" "NVIDIA Repo v595 (Latest)")
+    else
+        NVIDIA_SELECTED_VERSION="auto"
+        return 0
+    fi
+    [ -z "$choice" ] && return 1
+    NVIDIA_SELECTED_VERSION="$choice"
+    return 0
+}
+
+# -------------------------------------------------------------------
+# NVIDIA Wayland/KMS base configuration (/etc/modprobe.d/nvidia-wayland.conf)
+# Applies on Debian 12/13, any driver version (535/550/590/595).
+# Arquitectura y detección híbrida son ORTOGONALES:
+#   - Arquitectura → afecta SOLO fbdev (kepler: el 470 no lo soporta)
+#     y el color/mensaje informativo.
+#   - Híbrida vs desktop → afecta NVreg (Preserve / kernel suspend
+#     notifier), INDEPENDIENTE de la arquitectura.
+# 590/595 añaden el kernel suspend notifier (complementa, nunca
+# reemplaza, NVreg_PreserveVideoMemoryAllocations).
+# -------------------------------------------------------------------
+_configure_nvidia_wayland() {
+    local ver="${1:-$NVIDIA_SELECTED_VERSION}"
+    local conf="/etc/modprobe.d/nvidia-wayland.conf"
+    local arch
+    local content=""
+    local color="${GREEN}"
+    local msg="Wayland config (desktop): KMS + video memory preservation enabled."
+    arch=$(_get_nvidia_arch_family)
+
+    # ── Arquitectura: solo fbdev y mensaje de color ──
+    case "$arch" in
+        kepler)
+            color="${RED}"
+            msg="WARNING: Wayland not supported on Kepler. Use X11 (Xorg)."
+            ;;
+        maxwell|pascal)
+            color="${YELLOW}"
+            msg="Wayland support on ${arch} is experimental. X11 recommended."
+            ;;
+    esac
+
+    # ── Híbrida vs desktop: NVreg independiente de la arquitectura ──
+    if _is_hybrid_laptop; then
+        content="options nvidia-drm modeset=1"$'\n'
+        [ "$arch" != "kepler" ] && content+="options nvidia-drm fbdev=1"$'\n'
+        color="${GREEN}"
+        msg="Wayland config (hybrid laptop): KMS enabled — NVreg omitted."
+    else
+        content="options nvidia NVreg_PreserveVideoMemoryAllocations=1"$'\n'
+        case "$ver" in
+            590|595) content+="options nvidia NVreg_UseKernelSuspendNotifiers=1"$'\n' ;;
+        esac
+        content+="options nvidia-drm modeset=1"$'\n'
+        [ "$arch" != "kepler" ] && content+="options nvidia-drm fbdev=1"$'\n'
+    fi
+
+    printf "%b" "$content" | sudo tee "$conf" >/dev/null
+    echo -e "${color}${msg}${NC}"
 }
 
 # -------------------------------------------------------------------
 # CASE A: Trixie + Backports Kernel → Official CUDA Repo (Pinned v590)
 # -------------------------------------------------------------------
 _install_nvidia_cuda_repo() {
-    local warn="WARNING: Official Debian NVIDIA driver (v550)\n"
-    warn+="fails to compile on Trixie Backports Kernels.\n\n"
-    warn+="The script will enable the official NVIDIA CUDA\n"
-    warn+="repository and install the production branch v590\n"
-    warn+="using NVIDIA's unified driver pinning packages.\n\n"
-    warn+="Source: Official NVIDIA CUDA Repo (Pinned v590.*)\n"
-    warn+="Driver: Production Branch v590 (unified metapackage)\n"
+    local ver="${1:-590}"
+    local warn="WARNING: You are about to install NVIDIA v${ver} from\n"
+    warn+="the official NVIDIA CUDA repository.\n\n"
+    warn+="Source: Official NVIDIA CUDA Repo (Pinned v${ver}.*)\n"
+    warn+="Driver: Production Branch v${ver} (unified metapackage)\n"
     warn+="[+] nvidia-driver (full 64-bit compute + graphics)\n"
+    warn+="[+] nvidia-kernel-dkms / nvidia-kernel-open-dkms (vía metapaquete)\n"
     warn+="[+] firmware-nvidia-gsp\n"
-    warn+="[+] nvidia-driver-pinning-590 (branch locking)\n"
-    warn+="[+] APT Pinning (version 590.*)\n\n"
+    warn+="[+] nvidia-driver-pinning-${ver} (if available)\n"
+    warn+="[+] APT Pinning (version ${ver}.*)\n\n"
     warn+="Do you want to proceed at your own risk?"
 
-    if ! _confirm_custom "NVIDIA Driver — Trixie + Backports" "$warn" "Proceed" "Abort" 18 70; then
+    if ! _confirm_custom "NVIDIA Driver — v${ver}" "$warn" "Proceed" "Abort" 18 70; then
         echo -e "${YELLOW}NVIDIA installation aborted by user.${NC}"
         return 1
     fi
 
     # Step 1: Enable CUDA repo via extrepo
-    _enable_cuda_repo
+    if ! _enable_cuda_repo; then
+        _msg "CUDA Repo — Error" "Failed to enable the official NVIDIA CUDA repository.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
 
-    # Step 2: Create APT pinning to lock v590
-    _run_cmd "APT Pinning" \
-        'printf "%s\n" "Package: *nvidia*" "Package: *cuda*" "Package: libcuda1" "Package: firmware-nvidia-gsp" "Pin: version 590.*" "Pin-Priority: 1001" | sudo tee /etc/apt/preferences.d/block-nvidia > /dev/null' \
-        "Creating APT pinning to lock NVIDIA to v590 branch..."
+    # Step 2: Create APT pinning to lock to the selected branch
+    if ! _run_cmd "APT Pinning" \
+        "printf '%s\n' \"Package: *nvidia*\" \"Package: *cuda*\" \"Package: libcuda1\" \"Package: firmware-nvidia-gsp\" \"Pin: version ${ver}.*\" \"Pin-Priority: 1001\" | sudo tee /etc/apt/preferences.d/block-nvidia > /dev/null" \
+        "Creating APT pinning to lock NVIDIA to v${ver} branch..."; then
+        _msg "APT Pinning — Error" "Failed to write APT pinning.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
 
     # Step 3: Install NVIDIA unified metapackages (driver pinning)
-    _run_cmd "NVIDIA CUDA" \
-        "sudo apt install -y nvidia-driver-pinning-590 nvidia-driver firmware-nvidia-gsp" \
-        "Installing NVIDIA v590 production driver via unified metapackages..."
+    local pin_meta="nvidia-driver-pinning-${ver}"
+    local install_cmd="nvidia-driver firmware-nvidia-gsp"
+    if apt-cache policy "$pin_meta" 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
+        install_cmd="$pin_meta $install_cmd"
+    else
+        echo -e "${YELLOW}${pin_meta} not available in the NVIDIA repo — using APT pinning only.${NC}"
+    fi
+    if ! _run_cmd "NVIDIA CUDA" \
+        "sudo apt install -y $install_cmd" \
+        "Installing NVIDIA v${ver} production driver via unified metapackages..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "NVIDIA — Error" "NVIDIA v${ver} installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
+
+    # Post-install: el módulo DKMS instalado debe coincidir con la rama ${ver}
+    local dkms_ver
+    dkms_ver=$(dpkg -l nvidia-kernel-dkms nvidia-kernel-open-dkms 2>/dev/null | awk '$1=="ii" {print $3; exit}')
+    if [[ "$dkms_ver" == ${ver}.* ]]; then
+        echo -e "${GREEN}DKMS module ${dkms_ver} matches branch v${ver}.${NC}"
+    else
+        echo -e "${RED}WARNING: DKMS package (${dkms_ver:-none}) does not match v${ver}.*${NC}"
+    fi
 
     NVIDIA_DRIVER_MODE="cuda-repo"
-    echo -e "${GREEN}NVIDIA Production Driver v590 installed from CUDA repo. Reboot required.${NC}"
+    echo -e "${GREEN}NVIDIA Production Driver v${ver} installed from CUDA repo. Reboot required.${NC}"
 
-    echo ""
-    echo "──────────────────────────────────────────────"
-    echo "Verifying DKMS module compilation:"
-    if command -v dkms &>/dev/null; then
-        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
-    else
-        echo "(dkms not installed)"
-    fi
-    echo ""
-    echo "If the line ends with 'installed' → module is OK."
-    echo "Otherwise check: dmesg | grep nvidia"
-    echo "──────────────────────────────────────────────"
+    _verify_nvidia_dkms_build nvidia-kernel-open-dkms nvidia-kernel-dkms || true
 }
 
 # -------------------------------------------------------------------
@@ -174,24 +351,17 @@ _install_nvidia_bookworm_bpo() {
         return 0
     fi
 
-    _run_cmd "NVIDIA" "sudo apt install -y -t bookworm-backports $nv_pkg firmware-misc-nonfree nvidia-vaapi-driver" \
-        "Installing NVIDIA driver from backports..."
+    if ! _run_cmd "NVIDIA" "sudo apt install -y -t bookworm-backports $nv_pkg firmware-misc-nonfree nvidia-vaapi-driver" \
+        "Installing NVIDIA driver from backports..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "NVIDIA — Error" "NVIDIA backports installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
 
     NVIDIA_DRIVER_MODE="backports"
     echo -e "${GREEN}NVIDIA driver installed from backports. Reboot required.${NC}"
 
-    echo ""
-    echo "──────────────────────────────────────────────"
-    echo "Verifying DKMS module compilation:"
-    if command -v dkms &>/dev/null; then
-        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
-    else
-        echo "(dkms not installed)"
-    fi
-    echo ""
-    echo "If the line ends with 'installed' → module is OK."
-    echo "Otherwise check: dmesg | grep nvidia"
-    echo "──────────────────────────────────────────────"
+    _verify_nvidia_dkms_build nvidia-kernel-dkms nvidia-tesla-470-kernel-dkms || true
 }
 
 # -------------------------------------------------------------------
@@ -212,6 +382,7 @@ _install_nvidia_bookworm_kepler() {
     msg+="para evitar fallos de pantalla negra.\n\n"
     msg+="  [SKIP] nvidia-detect (omitido — evita rama 535)\n"
     msg+="  [USE]  ${nv_pkg}\n"
+    msg+="  [+]   linux-headers-amd64\n"
     msg+="  [+]   firmware-misc-nonfree\n"
     msg+="  [+]   nvidia-settings\n\n"
     msg+="Instalar driver legacy para Kepler?"
@@ -222,9 +393,13 @@ _install_nvidia_bookworm_kepler() {
         return 0
     fi
 
-    _run_cmd "NVIDIA Kepler" \
-        "sudo apt install -y $nv_pkg firmware-misc-nonfree nvidia-settings" \
-        "Instalando nvidia-legacy-470xx-driver..."
+    if ! _run_cmd "NVIDIA Kepler" \
+        "sudo apt install -y linux-headers-amd64 $nv_pkg firmware-misc-nonfree nvidia-settings" \
+        "Instalando nvidia-legacy-470xx-driver..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "NVIDIA Kepler — Error" "Kepler driver installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
 
     # Si backports está habilitado, ofrecer actualización
     if [ "$(is_backports_enabled)" == "true" ]; then
@@ -235,11 +410,14 @@ _install_nvidia_bookworm_kepler() {
             local msg="Hay una versión en backports: ${bpo_ver}\n"
             msg+="Instalar desde bookworm-backports?"
             if _confirm "Kepler Backports" "$msg"; then
-                _run_cmd "NVIDIA Kepler" \
+                if _run_cmd "NVIDIA Kepler" \
                     "sudo apt install -y -t bookworm-backports $nv_pkg" \
-                    "Actualizando Kepler driver desde backports..."
-                NVIDIA_DRIVER_MODE="backports"
-                echo -e "${GREEN}Kepler driver actualizado desde backports.${NC}"
+                    "Actualizando Kepler driver desde backports..."; then
+                    NVIDIA_DRIVER_MODE="backports"
+                    echo -e "${GREEN}Kepler driver actualizado desde backports.${NC}"
+                else
+                    echo -e "${RED}Kepler backports upgrade failed — keeping the stable version.${NC}"
+                fi
             fi
         fi
     fi
@@ -247,18 +425,7 @@ _install_nvidia_bookworm_kepler() {
     NVIDIA_DRIVER_MODE="${NVIDIA_DRIVER_MODE:-stable}"
     echo -e "${GREEN}Kepler driver (${nv_pkg}) installed. Reboot required.${NC}"
 
-    echo ""
-    echo "──────────────────────────────────────────────"
-    echo "Verifying DKMS module compilation:"
-    if command -v dkms &>/dev/null; then
-        dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
-    else
-        echo "(dkms not installed)"
-    fi
-    echo ""
-    echo "If the line ends with 'installed' → module is OK."
-    echo "Otherwise check: dmesg | grep nvidia"
-    echo "──────────────────────────────────────────────"
+    _verify_nvidia_dkms_build nvidia-tesla-470-kernel-dkms || true
 }
 
 # -------------------------------------------------------------------
@@ -266,11 +433,14 @@ _install_nvidia_bookworm_kepler() {
 # -------------------------------------------------------------------
 _install_nvidia_standard() {
     # --- 1. DETERMINAR PAQUETES BASADO EN LA SEÑAL ---
+    # $1 = modo solicitado por el dispatcher ("open" para 550+Turing+);
+    #     si no se pasa, se usa NVIDIA_DRIVER_MODE o auto-detección.
+    local requested_mode="${1:-${NVIDIA_DRIVER_MODE:-auto}}"
     local nv_pkg="nvidia-driver"
     local kernel_pkg=""
     local use_bpo=false
 
-    case "${NVIDIA_DRIVER_MODE:-auto}" in
+    case "$requested_mode" in
         open)
             kernel_pkg="nvidia-open-kernel-dkms"
             ;;
@@ -312,9 +482,10 @@ _install_nvidia_standard() {
     msg="Source: ${src_label}\n"
     msg+="NVIDIA Driver: ${nv_pkg} ${stable_nv_ver:-unknown}\n"
     msg+="Kernel Module: ${kernel_pkg} ${kernel_ver:-unknown}\n"
+    msg+="[+] linux-headers-amd64\n"
     msg+="[+] firmware-misc-nonfree (o firmware-nvidia-gsp en Trixie)\n"
-    msg+="[+] nvidia-vaapi-driver\n"
-    msg+="[+] mesa-vdpau-drivers"
+    msg+="[+] nvidia-vaapi-driver"
+    [ "$DEBIAN_VERSION" = "12" ] && msg+="\n[+] mesa-vdpau-drivers"
 
     if ! _confirm "NVIDIA Driver" "$msg" 14 70; then
         echo "Skipping NVIDIA driver installation."
@@ -322,24 +493,35 @@ _install_nvidia_standard() {
     fi
 
     # --- 4. EJECUCIÓN ---
-    local extra_pkgs="firmware-misc-nonfree nvidia-vaapi-driver mesa-vdpau-drivers"
+    local extra_pkgs="linux-headers-amd64 firmware-misc-nonfree nvidia-vaapi-driver"
+    [ "$DEBIAN_VERSION" = "12" ] && extra_pkgs+=" mesa-vdpau-drivers"
     local install_pkgs="$kernel_pkg $nv_pkg $extra_pkgs"
 
     if $use_bpo; then
-        _run_cmd "NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $install_pkgs" \
-            "Installing NVIDIA driver from backports..."
+        if ! _run_cmd "NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $install_pkgs" \
+            "Installing NVIDIA driver from backports..."; then
+            NVIDIA_DRIVER_MODE=""
+            _msg "NVIDIA — Error" "NVIDIA driver installation from backports FAILED.\n\nNo NVIDIA driver was installed." 10 60
+            return 1
+        fi
         NVIDIA_DRIVER_MODE="backports"
     else
-        _run_cmd "NVIDIA" "sudo apt install -y $install_pkgs" \
-            "Installing NVIDIA driver from stable..."
+        if ! _run_cmd "NVIDIA" "sudo apt install -y $install_pkgs" \
+            "Installing NVIDIA driver from stable..."; then
+            NVIDIA_DRIVER_MODE=""
+            _msg "NVIDIA — Error" "NVIDIA driver installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
+            return 1
+        fi
         NVIDIA_DRIVER_MODE="stable"
     fi
 
-    # --- 5. VERIFICACIÓN DKMS ---
+    # Fix obligatorio para Debian 12 con módulo abierto
+    if [ "$DEBIAN_VERSION" = "12" ] && [[ "$kernel_pkg" == *"open"* ]]; then
+        echo "options nvidia NVreg_OpenRmEnableUnsupportedGpus=1" | sudo tee /etc/modprobe.d/nvidia-open.conf > /dev/null
+        echo "Applied required Open RM parameter for Debian 12."
+    fi
+
+    # --- 5. VERIFICACIÓN DKMS POST-INSTALL ---
     echo -e "${GREEN}NVIDIA driver installed. Reboot required.${NC}"
-    echo "──────────────────────────────────────────────"
-    echo "Verifying DKMS module compilation:"
-    command -v dkms &>/dev/null && dkms status 2>/dev/null | grep nvidia || echo "(no nvidia DKMS module found)"
-    echo "If the line ends with 'installed' → module is OK."
-    echo "──────────────────────────────────────────────"
+    _verify_nvidia_dkms_build "$kernel_pkg" || true
 }
