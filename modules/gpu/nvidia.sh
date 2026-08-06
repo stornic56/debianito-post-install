@@ -61,17 +61,41 @@ The script will enable the official NVIDIA CUDA\nrepository and install the v590
 }
 
 # -------------------------------------------------------------------
-# Shared helper: enable NVIDIA CUDA repo via extrepo
+# Shared helper: enable NVIDIA CUDA repo
+#   Debian 13 (Trixie): cuda-keyring (método oficial — extrepo roto)
+#   Debian 12 (Bookworm): extrepo nvidia-cuda (funciona)
 # -------------------------------------------------------------------
 _enable_cuda_repo() {
-    if ! _is_cuda_repo_ready; then
-        if ! command -v extrepo &>/dev/null; then
-            _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..." || return 1
+    _is_cuda_repo_ready && return 0
+
+    if [ "$DEBIAN_VERSION" = "13" ]; then
+        # Método oficial NVIDIA: cuda-keyring (extrepo no configura
+        # correctamente el repo en Trixie)
+        if dpkg -s cuda-keyring &>/dev/null; then
+            return 0   # ya instalado → su .list ya existe
         fi
-        _run_cmd "CUDA Repo" \
-            "sudo extrepo enable nvidia-cuda" \
-            "Enabling official NVIDIA CUDA repository..." || return 1
+        if ! wget -q "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb" \
+            -O /tmp/cuda-keyring.deb; then
+            rm -f /tmp/cuda-keyring.deb
+            _msg "CUDA Repo — Error" "Failed to download cuda-keyring.\n\nNo NVIDIA driver was installed." 10 60
+            return 1
+        fi
+        if ! sudo dpkg -i /tmp/cuda-keyring.deb; then
+            rm -f /tmp/cuda-keyring.deb
+            _msg "CUDA Repo — Error" "Failed to install cuda-keyring.\n\nNo NVIDIA driver was installed." 10 60
+            return 1
+        fi
+        rm -f /tmp/cuda-keyring.deb
+        return 0
     fi
+
+    # Debian 12 (y otros): extrepo nvidia-cuda
+    if ! command -v extrepo &>/dev/null; then
+        _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..." || return 1
+    fi
+    _run_cmd "CUDA Repo" \
+        "sudo extrepo enable nvidia-cuda" \
+        "Enabling official NVIDIA CUDA repository..." || return 1
 }
 
 # -------------------------------------------------------------------
@@ -244,11 +268,15 @@ _configure_nvidia_wayland() {
 # -------------------------------------------------------------------
 _install_nvidia_cuda_repo() {
     local ver="${1:-590}"
+    # 590/595 → metapaquete con módulo kernel ABIERTO (el dispatcher ya
+    # vetó Maxwell/Pascal, solo Turing+ llega aquí)
+    local meta="nvidia-driver"
+    [ "$ver" = "590" ] || [ "$ver" = "595" ] && meta="nvidia-open"
     local warn="WARNING: You are about to install NVIDIA v${ver} from\n"
     warn+="the official NVIDIA CUDA repository.\n\n"
     warn+="Source: Official NVIDIA CUDA Repo (Pinned v${ver}.*)\n"
     warn+="Driver: Production Branch v${ver} (unified metapackage)\n"
-    warn+="[+] nvidia-driver (full 64-bit compute + graphics)\n"
+    warn+="[+] ${meta} (full 64-bit compute + graphics)\n"
     warn+="[+] nvidia-kernel-dkms / nvidia-kernel-open-dkms (vía metapaquete)\n"
     warn+="[+] firmware-nvidia-gsp\n"
     warn+="[+] nvidia-driver-pinning-${ver} (if available)\n"
@@ -266,7 +294,27 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 2: Create APT pinning to lock to the selected branch
+    # Step 2: apt update explícito — sin índice actualizado el repo no
+    # se ve y apt resolvería el candidato Debian (v550) en vez de v${ver}.
+    if ! _run_cmd "CUDA Repo" "sudo apt update" \
+        "Updating package lists after enabling CUDA repository..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "CUDA Repo — Error" "Failed to update APT after enabling CUDA repo.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
+
+    # Step 3: Verificar que el candidato coincide con la rama pedida.
+    # Defensa en profundidad: si el repo no tiene la versión esperada,
+    # abortar limpiamente en vez de instalar una versión incorrecta.
+    local candidate
+    candidate=$(apt-cache policy "$meta" 2>/dev/null | grep "Candidate:" | awk '{print $2}')
+    if [ -z "$candidate" ] || ! echo "$candidate" | grep -q "^${ver}"; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "CUDA Repo — Error" "Expected ${meta} ${ver}.* but APT candidate is ${candidate:-none}.\n\nThe CUDA repository may not have the requested version. Aborting." 10 60
+        return 1
+    fi
+
+    # Step 4: Create APT pinning to lock to the selected branch
     if ! _run_cmd "APT Pinning" \
         "printf '%s\n' \"Package: *nvidia*\" \"Package: *cuda*\" \"Package: libcuda1\" \"Package: firmware-nvidia-gsp\" \"Pin: version ${ver}.*\" \"Pin-Priority: 1001\" | sudo tee /etc/apt/preferences.d/block-nvidia > /dev/null" \
         "Creating APT pinning to lock NVIDIA to v${ver} branch..."; then
@@ -274,9 +322,9 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 3: Install NVIDIA unified metapackages (driver pinning)
+    # Step 5: Install NVIDIA unified metapackages (driver pinning)
     local pin_meta="nvidia-driver-pinning-${ver}"
-    local install_cmd="nvidia-driver firmware-nvidia-gsp"
+    local install_cmd="$meta firmware-nvidia-gsp"
     if apt-cache policy "$pin_meta" 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
         install_cmd="$pin_meta $install_cmd"
     else
@@ -316,26 +364,8 @@ _install_nvidia_bookworm_bpo() {
     if [ "$is_kepler" = "true" ]; then
         nv_pkg="nvidia-tesla-470-driver"
     else
-        local nd_ver
-        nd_ver=$(apt-cache policy nvidia-detect 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
-        if _confirm "NVIDIA Detect" "Install nvidia-detect to determine the correct driver?\n\n  nvidia-detect  ${nd_ver:-unknown}" 12 70; then
-            _run_cmd "NVIDIA" "sudo apt install -y nvidia-detect" "Installing nvidia-detect..."
-        else
-            echo "Skipping NVIDIA driver detection."
-            NVIDIA_DRIVER_MODE=""
-            return 0
-        fi
-        local recommended
-        recommended=$(nvidia-detect 2>/dev/null | grep -oP 'nvidia[\w-]+(?= package)') || true
-        if [ -z "$recommended" ]; then
-            echo -e "${RED}nvidia-detect could not determine a suitable driver.${NC}"
-            return 1
-        fi
-        if [[ "$recommended" =~ legacy-390|legacy-340 ]]; then
-            echo -e "${RED}Your GPU requires $recommended, which is not available.${NC}"
-            return 1
-        fi
-        nv_pkg="$recommended"
+        # Backports de Bookworm solo tienen el módulo cerrado
+        nv_pkg="nvidia-driver"
     fi
 
     local nv_ver
@@ -366,7 +396,6 @@ _install_nvidia_bookworm_bpo() {
 
 # -------------------------------------------------------------------
 # Bookworm Kepler intercepción — fuerza nvidia-legacy-470xx-driver
-# sin pasar por nvidia-detect (evita falsa recomendación rama 535)
 # -------------------------------------------------------------------
 _install_nvidia_bookworm_kepler() {
     local nv_pkg="nvidia-tesla-470-driver"
@@ -380,7 +409,6 @@ _install_nvidia_bookworm_kepler() {
     msg+="en lugar del moderno. Se usará el paquete:\n"
     msg+="  ${nv_pkg}  ${nv_ver:-unknown}\n"
     msg+="para evitar fallos de pantalla negra.\n\n"
-    msg+="  [SKIP] nvidia-detect (omitido — evita rama 535)\n"
     msg+="  [USE]  ${nv_pkg}\n"
     msg+="  [+]   linux-headers-amd64\n"
     msg+="  [+]   firmware-misc-nonfree\n"
@@ -429,61 +457,33 @@ _install_nvidia_bookworm_kepler() {
 }
 
 # -------------------------------------------------------------------
-# CASE C: Kernel stable (any distro) → Debian stable, optional backports
+# CASE C: Kernel stable (any distro) → Debian stable
 # -------------------------------------------------------------------
 _install_nvidia_standard() {
-    # --- 1. DETERMINAR PAQUETES BASADO EN LA SEÑAL ---
-    # $1 = modo solicitado por el dispatcher ("open" para 550+Turing+);
-    #     si no se pasa, se usa NVIDIA_DRIVER_MODE o auto-detección.
-    local requested_mode="${1:-${NVIDIA_DRIVER_MODE:-auto}}"
-    local nv_pkg="nvidia-driver"
-    local kernel_pkg=""
-    local use_bpo=false
-
-    case "$requested_mode" in
-        open)
-            kernel_pkg="nvidia-open-kernel-dkms"
-            ;;
-        classic|stable|backports)
-            kernel_pkg="nvidia-kernel-dkms"
-            ;;
-        auto)
-            kernel_pkg="$(nvidia-detect 2>/dev/null | grep -oP 'nvidia-kernel-dkms' || echo "")"
-            [ -z "$kernel_pkg" ] && kernel_pkg="nvidia-kernel-dkms"
-            ;;
+    # --- 1. ARQUITECTURA → MÓDULO KERNEL ---
+    # Solo Turing+ (conocido) usa el módulo abierto. Arquitectura
+    # unknown/vacía o antigua (Kepler/Fermi/Maxwell/Pascal/Volta) →
+    # módulo cerrado como fallback seguro.
+    local fam
+    fam=$(_get_nvidia_arch_family)
+    local kernel_pkg="nvidia-kernel-dkms"
+    case "$fam" in
+        turing|ampere|ada|blackwell) kernel_pkg="nvidia-open-kernel-dkms" ;;
     esac
 
-    # --- 2. DIÁLOGO DE BACKPORTS ---
-    if [ "$(is_backports_enabled)" == "true" ] && [ "${NVIDIA_DRIVER_MODE:-auto}" != "stable" ]; then
-        local stable_nv_ver bpo_nv_ver msg
-        stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
-        bpo_nv_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1) || true
-
-        if [ -n "$bpo_nv_ver" ]; then
-            msg="Source: Debian ${DEBIAN_CODENAME^} (Backports available)\n"
-            msg+="NVIDIA Driver: ${nv_pkg}\n\n"
-            msg+="  Backports: ${bpo_nv_ver}\n"
-            msg+="  Stable:    ${stable_nv_ver:-unknown}\n\n"
-            msg+="Choose version:"
-            if _confirm_custom "NVIDIA Driver" "$msg" "Backports" "Stable" 14 70; then
-                use_bpo=true
-            fi
-        fi
-    fi
+    # --- 2. PAQUETES — UN SOLO apt install ---
+    local extra_pkgs="linux-headers-amd64 nvidia-driver firmware-nvidia-gsp nvidia-vaapi-driver"
+    [ "$DEBIAN_VERSION" = "12" ] && extra_pkgs+=" mesa-vdpau-drivers"
+    local install_pkgs="$kernel_pkg $extra_pkgs"
 
     # --- 3. MENSAJE DE CONFIRMACIÓN ---
-    local src_label="Debian ${DEBIAN_CODENAME^} Stable"
-    $use_bpo && src_label="Debian ${DEBIAN_CODENAME^}-Backports"
-
-    local stable_nv_ver kernel_ver msg
-    stable_nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
+    local kernel_ver msg
     kernel_ver=$(apt-cache policy "$kernel_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
 
-    msg="Source: ${src_label}\n"
-    msg+="NVIDIA Driver: ${nv_pkg} ${stable_nv_ver:-unknown}\n"
-    msg+="Kernel Module: ${kernel_pkg} ${kernel_ver:-unknown}\n"
+    msg="Source: Debian ${DEBIAN_CODENAME^} Stable\n"
+    msg+="Kernel Module: ${kernel_pkg} ${kernel_ver:-unknown} (arch: ${fam:-unknown})\n"
     msg+="[+] linux-headers-amd64\n"
-    msg+="[+] firmware-misc-nonfree (o firmware-nvidia-gsp en Trixie)\n"
+    msg+="[+] firmware-nvidia-gsp\n"
     msg+="[+] nvidia-vaapi-driver"
     [ "$DEBIAN_VERSION" = "12" ] && msg+="\n[+] mesa-vdpau-drivers"
 
@@ -493,27 +493,13 @@ _install_nvidia_standard() {
     fi
 
     # --- 4. EJECUCIÓN ---
-    local extra_pkgs="linux-headers-amd64 firmware-misc-nonfree nvidia-vaapi-driver"
-    [ "$DEBIAN_VERSION" = "12" ] && extra_pkgs+=" mesa-vdpau-drivers"
-    local install_pkgs="$kernel_pkg $nv_pkg $extra_pkgs"
-
-    if $use_bpo; then
-        if ! _run_cmd "NVIDIA" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $install_pkgs" \
-            "Installing NVIDIA driver from backports..."; then
-            NVIDIA_DRIVER_MODE=""
-            _msg "NVIDIA — Error" "NVIDIA driver installation from backports FAILED.\n\nNo NVIDIA driver was installed." 10 60
-            return 1
-        fi
-        NVIDIA_DRIVER_MODE="backports"
-    else
-        if ! _run_cmd "NVIDIA" "sudo apt install -y $install_pkgs" \
-            "Installing NVIDIA driver from stable..."; then
-            NVIDIA_DRIVER_MODE=""
-            _msg "NVIDIA — Error" "NVIDIA driver installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
-            return 1
-        fi
-        NVIDIA_DRIVER_MODE="stable"
+    if ! _run_cmd "NVIDIA" "sudo apt install -y $install_pkgs" \
+        "Installing NVIDIA driver from stable..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "NVIDIA — Error" "NVIDIA driver installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
     fi
+    NVIDIA_DRIVER_MODE="stable"
 
     # Fix obligatorio para Debian 12 con módulo abierto
     if [ "$DEBIAN_VERSION" = "12" ] && [[ "$kernel_pkg" == *"open"* ]]; then
