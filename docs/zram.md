@@ -74,10 +74,11 @@ The script follows a deterministic flow to ensure safe, reproducible configurati
 │                                                             │
 │ 3. Size Calculation Logic                                   │
 │    ┌──────────────────────────────────────────────┐         │
-│    │ half_ram_mb = ((RAM_KB / 1024 / 1024 + 1)   │          │
-│    │                / 2) * 1024                   │         │
+│    │ ram_gb > 16 ? 25% : 50% of total RAM         │         │
+│    │ recommended_mb = ((RAM_KB/1024/1024 + 1)     │          │
+│    │                / (ram_gb > 16 ? 4 : 2))      │         │
 │    └──────────────────────────────────────────────┘         │
-│    └─ Result: ~50% of total physical RAM in MB              │
+│    └─ Result: ~25% RAM if > 16 GB, else ~50% in MB          │
 │                                                             │
 │ 4. Configuration Confirmation                               │
 │    ├─ Display summary with algorithm, size, priority=100    │
@@ -86,14 +87,21 @@ The script follows a deterministic flow to ensure safe, reproducible configurati
 │ 5. Package Installation                                     │
 │    sudo apt install -y zram-tools                           │
 │                                                             │
-│ 6. Configuration File Write                                 │
+│ 6. Reset Existing ZRAM Device                               │
+│    sudo swapoff /dev/zram0 (ignore errors)                  │
+│    sudo modprobe -r zram (ignore errors)                    │
+│    └─ Guarantees the old device is released before          │
+│       applying the new configuration                        │
+│                                                             │
+│ 7. Configuration File Write                                 │
 │    /etc/default/zramswap                                    │
 │    ALGO=$algo                                               │
 │    SIZE=$zram_size                                          │
 │    PRIORITY=100                                             │
 │                                                             │
-│ 7. Service Restart                                          │
+│ 8. Service Restart                                          │
 │    sudo systemctl restart zramswap                          │
+│    └─ Verify: comp_algorithm shows [algo]; sudo zramctl     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -102,24 +110,37 @@ The script follows a deterministic flow to ensure safe, reproducible configurati
 The script uses this formula to determine ZRAM size:
 
 ```bash
-half_ram_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
+ram_gb=$(( RAM_KB / 1024 / 1024 ))
+if [ "$ram_gb" -gt 16 ]; then
+    recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 4) * 1024 ))
+else
+    recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
+fi
 ```
 
 **Breakdown:**
 - `RAM_KB`: Total RAM in kilobytes from `/proc/meminfo`
 - `/ 1024 / 1024`: Convert KB to MB
 - `+ 1`: Add rounding buffer for odd values
-- `/ 2`: Target approximately 50% of total RAM
+- `/ 4`: Target 25% of total RAM on systems with more than 16 GB (avoids excessive RAM reservation on high-memory machines)
+- `/ 2`: Target 50% of total RAM on systems with 16 GB or less
 - `* 1024`: Round back to nearest MB
 
-**Example:**
+**Examples:**
 ```
-System with 8 GB (8388608 KB) RAM:
-half_ram_mb = ((8388608 / 1024 / 1024 + 1) / 2) * 1024
-            = ((8 + 1) / 2) * 1024
-            = (9 / 2) * 1024
-            = 4.5 * 1024
-            = 4608 MB (~4.5 GB)
+System with 32 GB (33554432 KB) RAM (>16 GB):
+recommended_mb = ((33554432 / 1024 / 1024 + 1) / 4) * 1024
+              = ((32 + 1) / 4) * 1024
+              = (33 / 4) * 1024
+              = 8 * 1024
+              = 8192 MB (8 GB)
+
+System with 8 GB (8388608 KB) RAM (<=16 GB):
+recommended_mb = ((8388608 / 1024 / 1024 + 1) / 2) * 1024
+              = ((8 + 1) / 2) * 1024
+              = (9 / 2) * 1024
+              = 4 * 1024
+              = 4096 MB (4 GB)
 ```
 
 ### Priority Configuration (`PRIORITY=100`)

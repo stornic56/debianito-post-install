@@ -175,7 +175,7 @@ The NVIDIA driver installation process is inherently complex due to proprietary 
 #### **Blackwell Architecture & CUDA v590**
 - **Detection**: `_helpers.sh` function `is_nvidia_blackwell()` identifies GPUs via PCI IDs `10de:24xx`, `0x2900–0x29BF`, and `0x2B80–0x31FF`.
 - **Reason for v590**: Debian 13 (Trixie) stable drivers only support up to v550, which lacks Blackwell (GB20x) architecture. The NVIDIA CUDA repository provides production branch v590 with unified driver packages. Specifically, the goal is to install the latest version of the nvidia-driver from the 590 branch, which would be [590.48.01](https://download.nvidia.com/XFree86/Linux-x86_64/590.48.01/README/supportedchips.html).
-- **Extrepo Mechanism**: Enables `nvidia-cuda` repository via `extrepo`, creates APT pinning in `/etc/apt/preferences.d/block-nvidia` to lock to version `590.*`, and installs `nvidia-driver-pinning-590`, `nvidia-driver`, and `firmware-nvidia-gsp`.
+- **CUDA Repository Enablement**: On Debian 12 (Bookworm) the `nvidia-cuda` repository is enabled via `extrepo`. On Debian 13 (Trixie) the official `cuda-keyring` package is used instead (`wget` + `dpkg -i`), since extrepo cannot configure the repo correctly on Trixie. After enabling, the script always runs an explicit `apt update` and verifies the APT candidate matches the requested branch (`595.*`) before writing APT pinning in `/etc/apt/preferences.d/block-nvidia` and installing `nvidia-driver-pinning-<ver>`, `nvidia-driver`, and `firmware-nvidia-gsp`. If the candidate does not match, the installation aborts cleanly.
 
 #### **Installation Flow**
 ```bash
@@ -212,7 +212,7 @@ Depending on your GPU generation and your Debian ecosystem, you must select the 
 *   **Blackwell (RTX 5000)**: Not officially supported by standard Debian drivers yet. The script provides a path to the Enterprise Repo for users who need this hardware to function immediately.
 
 #### **Kepler Interception in Bookworm:**
-When Kepler is detected on Bookworm, `nvidia.sh` bypasses `nvidia-detect` (which might recommend v535) and forces installation of `nvidia-tesla-470-driver`:
+When Kepler is detected on Bookworm, `nvidia.sh` forces installation of `nvidia-tesla-470-driver` (the modern v535/v550 branches do not support Kepler):
 ```bash
 if [ "$is_kepler" = "true" ] && [ "$DEBIAN_CODENAME" = "bookworm" ]; then
     nv_pkg="nvidia-tesla-470-driver"

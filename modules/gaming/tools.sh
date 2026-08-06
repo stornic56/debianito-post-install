@@ -26,7 +26,7 @@ install_lutris() {
 }
 
 install_openrgb() {
-    local deb_suffix
+    local deb_suffix=""
     case "$DEBIAN_CODENAME" in
         bookworm) deb_suffix="bookworm" ;;
         trixie)   deb_suffix="trixie" ;;
@@ -41,14 +41,14 @@ install_openrgb() {
 
     _run_cmd "OpenRGB" "sudo apt install -y curl jq" "Installing dependencies..."
 
-    local json
+    local json=""
     json=$(curl -s --connect-timeout 10 \
         "https://codeberg.org/api/v1/repos/OpenRGB/OpenRGB/releases?limit=1") || {
         echo -e "${RED}Could not fetch OpenRGB releases from Codeberg API.${NC}"
         return 1
     }
 
-    local deb_url sha256
+    local deb_url="" sha256=""
     while IFS=' ' read -r url hash; do
         deb_url="$url"
         sha256="$hash"
@@ -87,7 +87,7 @@ install_openrgb() {
     if ! grep -q "^i2c-dev" /etc/modules 2>/dev/null; then
         echo "i2c-dev" | sudo tee -a /etc/modules >/dev/null
     fi
-    sudo usermod -aG i2c "$USER"
+    sudo usermod -aG i2c "${USER:-}"
     sudo udevadm control --reload-rules && sudo udevadm trigger
     sudo setcap cap_sys_rawio=ep /usr/bin/openrgb 2>/dev/null || true
 

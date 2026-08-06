@@ -85,7 +85,13 @@ _zram_create() {
         fi
     fi
 
-    local half_ram_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
+    local ram_gb=$(( RAM_KB / 1024 / 1024 ))
+    local recommended_mb
+    if [ "$ram_gb" -gt 16 ]; then
+        recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 4) * 1024 ))
+    else
+        recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
+    fi
 
     local algo
     algo=$(_menu "ZRAM Configuration" \
@@ -100,10 +106,10 @@ _zram_create() {
     fi
 
     local zram_size
-    if _confirm "ZRAM Size" "Use recommended size for ZRAM? (${half_ram_mb} MB out of ${RAM_SUMMARY})"; then
-        zram_size=$half_ram_mb
+    if _confirm "ZRAM Size" "Use recommended size for ZRAM? (${recommended_mb} MB out of ${RAM_SUMMARY})"; then
+        zram_size=$recommended_mb
     else
-        zram_size=$(_inputbox "ZRAM Size" "Enter ZRAM size in MB:" 8 60 "$half_ram_mb")
+        zram_size=$(_inputbox "ZRAM Size" "Enter ZRAM size in MB:" 8 60 "$recommended_mb")
         if [ -z "$zram_size" ] || ! [[ "$zram_size" =~ ^[0-9]+$ ]] || [ "$zram_size" -eq 0 ]; then
             echo "ZRAM configuration cancelled."
             return
@@ -117,6 +123,10 @@ _zram_create() {
 
     _run_cmd "ZRAM" "sudo apt install -y zram-tools" "Installing zram-tools..."
 
+    echo "Resetting existing ZRAM device..."
+    sudo swapoff /dev/zram0 2>/dev/null || true
+    sudo modprobe -r zram 2>/dev/null || true
+
     echo "Writing configuration..."
     sudo tee /etc/default/zramswap > /dev/null <<EOF
 ALGO=$algo
@@ -126,6 +136,10 @@ EOF
 
     echo "Restarting zramswap service..."
     sudo systemctl restart zramswap
+
+    if ! grep -q "\[${algo}\]" /sys/block/zram0/comp_algorithm 2>/dev/null; then
+        echo -e "${YELLOW}Warning: ZRAM algorithm not applied yet. Reboot to finalize.${NC}"
+    fi
 
     echo ""
     echo -e "${GREEN}ZRAM configured successfully.${NC}"
@@ -150,6 +164,10 @@ _zram_remove() {
 
     echo "Stopping zramswap service..."
     sudo systemctl stop zramswap || true
+
+    echo "Releasing ZRAM device..."
+    sudo swapoff /dev/zram0 2>/dev/null || true
+    sudo modprobe -r zram 2>/dev/null || true
 
     _run_cmd "ZRAM" "sudo apt purge -y zram-tools" "Purging zram-tools..."
 

@@ -11,6 +11,21 @@ NVIDIA_DRIVER_MODE=""
 # Set by _show_nvidia_version_menu(): "470" | "535" | "550" | "590" | "595" | "auto"
 NVIDIA_SELECTED_VERSION=""
 
+# Aviso informativo post-instalación NVIDIA: Debian bug #1109409
+# (GDM3 + NVIDIA + Wayland → pantalla negra). Solo informa, nunca
+# cambia configuración de GDM3 ni aborta la instalación.
+_warn_nvidia_gnome_wayland() {
+    command -v gdm3 &>/dev/null || return 0
+    gnome-shell --version 2>/dev/null | grep -qi "shell 4[0-9]" || return 0
+    case "$NVIDIA_DRIVER_MODE" in
+        stable|backports|cuda-repo|extrepo) ;;
+        *) return 0 ;;
+    esac
+    echo -e "${YELLOW}WARNING: Debian bug #1109409 may affect GDM3 + NVIDIA + Wayland.${NC}"
+    echo -e "${YELLOW}If you see a black screen after reboot, select 'GNOME on Xorg' at login.${NC}"
+    echo -e "${YELLOW}Or temporarily disable Wayland: sudo nano /etc/gdm3/daemon.conf${NC}"
+}
+
 _install_amd_intel_stack() {
     if [ "$GPU_TYPE" = "unknown" ] || [ -z "$GPU_TYPE" ]; then
         local mesa_pkgs=(mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl-mesa0 mesa-va-drivers)
@@ -238,8 +253,8 @@ Forcing the stable driver path." 14 70
                             _install_nvidia_standard
                         fi
                         ;;
-                    turing|ampere|ada)
-                        _install_nvidia_standard open
+                    turing|ampere|ada|blackwell)
+                        _install_nvidia_standard
                         ;;
                     *)
                         if [ "$(is_backports_kernel)" = "true" ]; then
@@ -265,14 +280,14 @@ No NVIDIA driver will be installed." 14 65
                     if ! _is_cuda_repo_ready; then
                         if ! _confirm "CUDA Repository" \
                             "The official NVIDIA CUDA repository is not enabled.\n\n\
-Enable it now via extrepo? (Required for NVIDIA v${NVIDIA_SELECTED_VERSION}.)"; then
+Enable it now? (Required for NVIDIA v${NVIDIA_SELECTED_VERSION}.)"; then
                             echo "Skipping NVIDIA driver installation."
                             NVIDIA_DRIVER_MODE=""
                             return
                         fi
                     fi
                     if _install_nvidia_cuda_repo "$NVIDIA_SELECTED_VERSION"; then
-                        NVIDIA_DRIVER_MODE="extrepo"
+                        NVIDIA_DRIVER_MODE="cuda-repo"
                     else
                         NVIDIA_DRIVER_MODE=""
                     fi
@@ -293,6 +308,7 @@ Enable it now via extrepo? (Required for NVIDIA v${NVIDIA_SELECTED_VERSION}.)"; 
             echo -e "If not found, ensure BIOS boots on iGPU and nvidia-drm is loaded."
         fi
         offer_generic_tools
+        _warn_nvidia_gnome_wayland
         local summary="NVIDIA: ${NVIDIA_DRIVER_MODE}\n"
         summary+="Tools:  nvtop + vainfo"
         _msg "NVIDIA Stack — Complete" "$summary" 10 55
