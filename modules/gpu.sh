@@ -5,6 +5,7 @@ _GPU_DIR="${MODULES_DIR}/gpu"
 source "${_GPU_DIR}/_helpers.sh"
 source "${_GPU_DIR}/amd_intel.sh"
 source "${_GPU_DIR}/nvidia.sh"
+source "${_GPU_DIR}/nvidia_manage.sh"
 
 # Consumed by gaming.sh to know which NVIDIA driver path was taken
 NVIDIA_DRIVER_MODE=""
@@ -192,6 +193,10 @@ _install_nvidia_stack() {
     fi
 
     NVIDIA_DRIVER_MODE=""
+
+    if ! _nvidia_manage_menu; then
+        return
+    fi
 
     if [ "$DEBIAN_VERSION" = "11" ]; then
         install_nvidia_bullseye
