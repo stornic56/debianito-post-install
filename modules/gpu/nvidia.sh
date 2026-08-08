@@ -195,14 +195,14 @@ _is_cuda_repo_ready() {
 _show_nvidia_version_menu() {
     local choice
     if [ "$DEBIAN_VERSION" = "12" ]; then
-        choice=$(_menu "NVIDIA Driver Version" "Select the NVIDIA driver version for Debian 12 (Bookworm):" 12 70 3 \
-            "535" "Official NVIDIA driver (Recommended)" \
-            "470" "Legacy 470 (Kepler/Tesla GPUs)")
+        choice=$(_menu "Select NVIDIA Driver for Debian 12 (Bookworm):" "Choose the NVIDIA driver version:" 12 70 3 \
+            "535" "v535 — Debian Official (Recommended)" \
+            "470" "v470 — Debian Legacy (Kepler Support)")
     elif [ "$DEBIAN_VERSION" = "13" ]; then
-        choice=$(_menu "NVIDIA Driver Version" "Select the NVIDIA driver version for Debian 13 (Trixie):" 14 70 5 \
-            "550" "Official Debian driver (Recommended)" \
-            "590" "NVIDIA Repo v590 (Turing/Ampere/Ada/Blackwell)" \
-            "595" "NVIDIA Repo v595 (Latest)")
+        choice=$(_menu "Select NVIDIA Driver for Debian 13 (Trixie):" "Choose the NVIDIA driver version:" 14 70 5 \
+            "550" "v550 — Debian Official (Recommended)" \
+            "590" "v590 — NVIDIA CUDA Repo (Production Branch)" \
+            "595" "v595 — NVIDIA CUDA Repo (Newest Stable)")
     else
         NVIDIA_SELECTED_VERSION="auto"
         return 0
