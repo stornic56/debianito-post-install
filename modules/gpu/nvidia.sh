@@ -268,19 +268,14 @@ _configure_nvidia_wayland() {
 # -------------------------------------------------------------------
 _install_nvidia_cuda_repo() {
     local ver="${1:-590}"
-    # 590/595 → metapaquete con módulo kernel ABIERTO (el dispatcher ya
-    # vetó Maxwell/Pascal, solo Turing+ llega aquí)
-    local meta="nvidia-driver"
-    [ "$ver" = "590" ] || [ "$ver" = "595" ] && meta="nvidia-open"
     local warn="WARNING: You are about to install NVIDIA v${ver} from\n"
     warn+="the official NVIDIA CUDA repository.\n\n"
-    warn+="Source: Official NVIDIA CUDA Repo (Pinned v${ver}.*)\n"
+    warn+="Source: Official NVIDIA CUDA Repo\n"
     warn+="Driver: Production Branch v${ver} (unified metapackage)\n"
-    warn+="[+] ${meta} (full 64-bit compute + graphics)\n"
+    warn+="[+] nvidia-open (full 64-bit compute + graphics)\n"
     warn+="[+] nvidia-kernel-dkms / nvidia-kernel-open-dkms (vía metapaquete)\n"
     warn+="[+] firmware-nvidia-gsp\n"
-    warn+="[+] nvidia-driver-pinning-${ver} (if available)\n"
-    warn+="[+] APT Pinning (version ${ver}.*)\n\n"
+    warn+="[+] nvidia-driver-pinning-${ver} (if available)\n\n"
     warn+="Do you want to proceed at your own risk?"
 
     if ! _confirm_custom "NVIDIA Driver — v${ver}" "$warn" "Proceed" "Abort" 18 70; then
@@ -288,7 +283,7 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 1: Enable CUDA repo via extrepo
+    # Step 1: Enable CUDA repo (cuda-keyring Trixie / extrepo Bookworm)
     if ! _enable_cuda_repo; then
         _msg "CUDA Repo — Error" "Failed to enable the official NVIDIA CUDA repository.\n\nNo NVIDIA driver was installed." 10 60
         return 1
@@ -303,38 +298,18 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 3: Verificar que el candidato coincide con la rama pedida.
-    # Defensa en profundidad: si el repo no tiene la versión esperada,
-    # abortar limpiamente en vez de instalar una versión incorrecta.
-    local candidate
-    candidate=$(apt-cache policy "$meta" 2>/dev/null | grep "Candidate:" | awk '{print $2}')
-    if [ -z "$candidate" ] || ! echo "$candidate" | grep -q "^${ver}"; then
-        NVIDIA_DRIVER_MODE=""
-        _msg "CUDA Repo — Error" "Expected ${meta} ${ver}.* but APT candidate is ${candidate:-none}.\n\nThe CUDA repository may not have the requested version. Aborting." 10 60
-        return 1
-    fi
+    # Step 3: Pinning oficial de NVIDIA (instalar si existe; el repo no
+    # siempre lo publica). Su fallo no debe romper el flujo.
+    sudo apt install -y "nvidia-driver-pinning-${ver}" >/dev/null 2>&1 || true
 
-    # Step 4: Create APT pinning to lock to the selected branch
-    if ! _run_cmd "APT Pinning" \
-        "printf '%s\n' \"Package: *nvidia*\" \"Package: *cuda*\" \"Package: libcuda1\" \"Package: firmware-nvidia-gsp\" \"Pin: version ${ver}.*\" \"Pin-Priority: 1001\" | sudo tee /etc/apt/preferences.d/block-nvidia > /dev/null" \
-        "Creating APT pinning to lock NVIDIA to v${ver} branch..."; then
-        _msg "APT Pinning — Error" "Failed to write APT pinning.\n\nNo NVIDIA driver was installed." 10 60
-        return 1
-    fi
-
-    # Step 5: Install NVIDIA unified metapackages (driver pinning)
-    local pin_meta="nvidia-driver-pinning-${ver}"
-    local install_cmd="$meta firmware-nvidia-gsp"
-    if apt-cache policy "$pin_meta" 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
-        install_cmd="$pin_meta $install_cmd"
-    else
-        echo -e "${YELLOW}${pin_meta} not available in the NVIDIA repo — using APT pinning only.${NC}"
-    fi
+    # Step 4: Instalar el metapaquete. Si falla, el error real de apt
+    # ya quedó visible arriba (output de _run_cmd) — no abortar antes
+    # de intentar la instalación.
     if ! _run_cmd "NVIDIA CUDA" \
-        "sudo apt install -y $install_cmd" \
-        "Installing NVIDIA v${ver} production driver via unified metapackages..."; then
+        "sudo apt install -y nvidia-open firmware-nvidia-gsp" \
+        "Installing NVIDIA v${ver} production driver via unified metapackage..."; then
         NVIDIA_DRIVER_MODE=""
-        _msg "NVIDIA — Error" "NVIDIA v${ver} installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
+        _msg "NVIDIA — Error" "NVIDIA v${ver} installation FAILED.\n\nCheck the apt error above.\n\nNo NVIDIA driver was installed." 10 60
         return 1
     fi
 
