@@ -178,20 +178,16 @@ The NVIDIA driver installation process is inherently complex due to proprietary 
 - **CUDA Repository Enablement**: On Debian 12 (Bookworm) the `nvidia-cuda` repository is enabled via `extrepo`. On Debian 13 (Trixie) the official `cuda-keyring` package is used instead (`wget` + `dpkg -i`), since extrepo cannot configure the repo correctly on Trixie. After enabling, the script always runs an explicit `apt update`, then installs `nvidia-driver-pinning-<ver>` if available (official NVIDIA pinning, optional), and finally installs the unified metapackage `nvidia-open` plus `firmware-nvidia-gsp`. No manual pinning file is written; if `apt install` fails, the real apt error is shown and the installation aborts.
 
 #### **Installation Flow**
-```bash
-if [ "$HAS_NVIDIA" = true ]; then
-    if [ "$(is_backports_kernel)" == "true" ] && \
-       { [ "$DEBIAN_CODENAME" != "trixie" ] || ! is_nvidia_blackwell; }; then
-        
-        # Warn about DKMS compatibility or use enterprise repo
-        offer_nvidia_enterprise_repo
-    fi
-    
-    if _confirm "NVIDIA Driver"; then
-        install_nvidia_driver  # Installs latest stable (535/550) or v590 for Blackwell
-    fi
-fi
-```
+The NVIDIA flow is driven by `_install_nvidia_stack` (dispatcher in `modules/gpu.sh`):
+
+1. **Plan** — `_msg` with detected GPUs, then `_pause`.
+2. **Manage menu** (`_nvidia_manage_menu`): "Install / Change NVIDIA Driver Version" or "Remove NVIDIA Driver and Restore Nouveau".
+3. **Version menu** (`_show_nvidia_version_menu`): Debian 12 → v535 (Recommended) / v470 (Kepler); Debian 13 → v550 (Recommended) / v590 / v595 (NVIDIA CUDA Repo).
+4. **Dispatch by hardware**: Kepler → `nvidia-tesla-470-driver`; Fermi → veto with message; Turing+ → `_install_nvidia_standard` (Debian stable); Blackwell on Trixie → CUDA repo v590.
+5. **CUDA repo (590/595)**: two separate APT transactions — `nvidia-driver-pinning-<ver>` (version lock, mandatory) then `nvidia-open` (driver + open kernel modules, firmware via transitive dependency).
+6. **Post-install**: `/etc/modprobe.d/nvidia-wayland.conf` + DKMS verification.
+
+> Note: Debian 12 (Bookworm) backports reached EOL (2026-08-09); the NVIDIA flow on Bookworm only uses the stable repository.
 ---
 
 ### 8.**NVIDIA Driver Management & Kernel Compatibility**

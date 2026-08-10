@@ -187,10 +187,7 @@ _install_nvidia_stack() {
     plan+="\nPlanned:\n  [+] NVIDIA proprietary driver"
 
     _msg "NVIDIA Stack — Plan" "$plan" 14 65
-    if ! _confirm "NVIDIA Stack" "Install the NVIDIA proprietary driver?"; then
-        echo "Skipping NVIDIA driver installation."
-        return
-    fi
+    _pause "Press Enter to continue..."
 
     NVIDIA_DRIVER_MODE=""
 
@@ -220,8 +217,6 @@ _install_nvidia_stack() {
                     _msg "NVIDIA Fermi — Bookworm" \
                         "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."
                     NVIDIA_DRIVER_MODE=""
-                elif [ "$(is_backports_kernel)" = "true" ]; then
-                    _install_nvidia_bookworm_bpo
                 else
                     _install_nvidia_standard
                 fi
@@ -282,14 +277,10 @@ Only Turing, Ampere, Ada and Blackwell GPUs are supported.\n\n\
 No NVIDIA driver will be installed." 14 65
                     NVIDIA_DRIVER_MODE=""
                 else
-                    if ! _is_cuda_repo_ready; then
-                        if ! _confirm "CUDA Repository" \
-                            "The official NVIDIA CUDA repository is not enabled.\n\n\
-Enable it now? (Required for NVIDIA v${NVIDIA_SELECTED_VERSION}.)"; then
-                            echo "Skipping NVIDIA driver installation."
-                            NVIDIA_DRIVER_MODE=""
-                            return
-                        fi
+                    if ! _enable_cuda_repo; then
+                        NVIDIA_DRIVER_MODE=""
+                        _msg "CUDA Repo — Error" "Failed to enable the official NVIDIA CUDA repository.\n\nNo NVIDIA driver was installed." 10 60
+                        return 1
                     fi
                     if _install_nvidia_cuda_repo "$NVIDIA_SELECTED_VERSION"; then
                         NVIDIA_DRIVER_MODE="cuda-repo"

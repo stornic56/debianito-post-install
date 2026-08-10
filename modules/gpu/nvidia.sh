@@ -1,64 +1,11 @@
 #!/usr/bin/env bash
-# NVIDIA GPU driver installation — 3-CASE dispatch
+# NVIDIA GPU driver installation
 #
 # CASE A : Trixie + backports kernel → Official NVIDIA CUDA Repo (Pinned v590)
-# CASE B : Bookworm + backports kernel → Debian backports (-t bookworm-backports)
-# CASE C : Kernel stable (any distro)  → Debian stable (optional backports)
-
-# --- DEPRECATED (Replaced by _install_nvidia_stack in gpu.sh) ---
-install_nvidia_driver() {
-    echo -e "${YELLOW}NVIDIA GPU detected.${NC}"
-    NVIDIA_DRIVER_MODE=""
-
-    local is_bpo_kernel;    is_bpo_kernel=$(is_backports_kernel)
-    local nv_arch;          nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
-    local is_kepler="false";   [[ "$nv_arch" == "legacy" ]] && _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && is_kepler="true"
-    local is_maxwell;       is_maxwell=$(is_nvidia_maxwell)
-    local is_pascal;        is_pascal=$(is_nvidia_pascal)
-    local is_blackwell;     is_blackwell=$(is_nvidia_blackwell)
-
-    # ── Blackwell: v550 no soporta GB20x → CUDA repo v590 ──
-    if [ "$DEBIAN_CODENAME" = "trixie" ] && [ "$is_blackwell" = "true" ]; then
-        _msg "NVIDIA Blackwell" \
-            "Your GPU is NVIDIA Blackwell architecture.\n\nDebian 13's nvidia-driver (v550) does not\nsupport Blackwell GPUs.\n\n\
-The script will enable the official NVIDIA CUDA\nrepository and install the v590 production branch,\nwhich fully supports Blackwell (GB20x)." 14 65
-        _install_nvidia_cuda_repo
-        return
-    fi
-
-    # ── Veto: Kepler en Trixie no tiene driver disponible ──
-    if [ "$is_kepler" = "true" ] && [ "$DEBIAN_CODENAME" = "trixie" ]; then
-        _msg "NVIDIA Kepler" \
-            "Your GPU is NVIDIA Kepler architecture.\n\nThe nvidia-tesla-470 driver is not available\nin Debian 13 (Trixie).\n\nNo NVIDIA driver will be installed." 14 65
-        return 1
-    fi
-
-    # ── Bloqueo: Maxwell/Pascal no son compatibles con v590 ──
-    if [ "$DEBIAN_CODENAME" = "trixie" ] && [ "$is_bpo_kernel" = "true" ]; then
-        if [ "$is_maxwell" = "true" ] || [ "$is_pascal" = "true" ]; then
-            local gpu_gen="Maxwell"
-            [ "$is_pascal" = "true" ] && gpu_gen="Pascal"
-            local block_msg="INCOMPATIBILITY DETECTED: Your NVIDIA ${gpu_gen} GPU\n"
-            block_msg+="is NOT supported by the modern v590 driver.\n\n"
-            block_msg+="To run NVIDIA safely on Debian 13 (Trixie), you MUST use\n"
-            block_msg+="the official Debian v550 driver, which requires the\n"
-            block_msg+="standard STABLE Kernel.\n\n"
-            block_msg+="The script will automatically downgrade your path to\n"
-            block_msg+="Stable Kernel mode for NVIDIA."
-            _msg "NVIDIA — Trixie + Backports" "$block_msg" 14 70
-            is_bpo_kernel=false
-        fi
-    fi
-
-    # ── Dispatch por casos ──
-    if [ "$DEBIAN_CODENAME" = "trixie" ] && [ "$is_bpo_kernel" = "true" ]; then
-        _install_nvidia_cuda_repo
-    elif [ "$DEBIAN_CODENAME" = "bookworm" ] && [ "$is_bpo_kernel" = "true" ]; then
-        _install_nvidia_bookworm_bpo
-    else
-        _install_nvidia_standard
-    fi
-}
+# CASE B : Kernel stable (any distro) → Debian stable
+#
+# Nota: Debian 12 (Bookworm) backports llegaron a EOL (2026-08-09);
+# el flujo NVIDIA solo usa el repositorio estable para Debian 12.
 
 # -------------------------------------------------------------------
 # Shared helper: enable NVIDIA CUDA repo
@@ -272,10 +219,8 @@ _install_nvidia_cuda_repo() {
     warn+="the official NVIDIA CUDA repository.\n\n"
     warn+="Source: Official NVIDIA CUDA Repo\n"
     warn+="Driver: Production Branch v${ver} (unified metapackage)\n"
-    warn+="[+] nvidia-open (full 64-bit compute + graphics)\n"
-    warn+="[+] nvidia-kernel-dkms / nvidia-kernel-open-dkms (vía metapaquete)\n"
-    warn+="[+] firmware-nvidia-gsp\n"
-    warn+="[+] nvidia-driver-pinning-${ver} (if available)\n\n"
+    warn+="[+] nvidia-driver-pinning-${ver} (version lock)\n"
+    warn+="[+] nvidia-open (driver + open kernel modules)\n\n"
     warn+="Do you want to proceed at your own risk?"
 
     if ! _confirm_custom "NVIDIA Driver — v${ver}" "$warn" "Proceed" "Abort" 18 70; then
@@ -298,18 +243,30 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 3: Pinning oficial de NVIDIA (instalar si existe; el repo no
-    # siempre lo publica). Su fallo no debe romper el flujo.
-    sudo apt install -y "nvidia-driver-pinning-${ver}" >/dev/null 2>&1 || true
-
-    # Step 4: Instalar el metapaquete. Si falla, el error real de apt
-    # ya quedó visible arriba (output de _run_cmd) — no abortar antes
-    # de intentar la instalación.
-    if ! _run_cmd "NVIDIA CUDA" \
-        "sudo apt install -y nvidia-open firmware-nvidia-gsp" \
-        "Installing NVIDIA v${ver} production driver via unified metapackage..."; then
+    # Step 3: Pinning oficial — transacción APT INDEPENDIENTE y
+    # obligatoria. APT lee /etc/apt/preferences.d/ al inicio de su
+    # ejecución, no durante la transacción: el pinning debe estar
+    # instalado ANTES de instalar el driver. Si el repo no lo publica,
+    # es un problema del repo de NVIDIA: abortar limpiamente en vez de
+    # instalar una versión que el usuario no eligió.
+    if ! _run_cmd "NVIDIA Pinning" \
+        "sudo apt install -y nvidia-driver-pinning-${ver}" \
+        "Installing NVIDIA version pinning (${ver})..."; then
         NVIDIA_DRIVER_MODE=""
-        _msg "NVIDIA — Error" "NVIDIA v${ver} installation FAILED.\n\nCheck the apt error above.\n\nNo NVIDIA driver was installed." 10 60
+        _msg "NVIDIA — Error" "Failed to install NVIDIA driver pinning ${ver}.\n\nNo NVIDIA driver was installed." 10 60
+        return 1
+    fi
+
+    # Step 4: Instalar el metapaquete (pinning ya activo). Si falla,
+    # el pinning queda instalado (solo config, no es problema).
+    # firmware-nvidia-gsp llega como dependencia transitiva obligatoria
+    # (nvidia-open → nvidia-kernel-open-dkms → firmware-nvidia-gsp),
+    # alineado con la doc oficial: apt -V install nvidia-open.
+    if ! _run_cmd "NVIDIA CUDA" \
+        "sudo apt install -y nvidia-open" \
+        "Installing NVIDIA driver from CUDA repository..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg "NVIDIA — Error" "NVIDIA driver installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
         return 1
     fi
 
@@ -326,47 +283,6 @@ _install_nvidia_cuda_repo() {
     echo -e "${GREEN}NVIDIA Production Driver v${ver} installed from CUDA repo. Reboot required.${NC}"
 
     _verify_nvidia_dkms_build nvidia-kernel-open-dkms nvidia-kernel-dkms || true
-}
-
-# -------------------------------------------------------------------
-# CASE B: Bookworm + Backports Kernel → Debian backports
-# -------------------------------------------------------------------
-_install_nvidia_bookworm_bpo() {
-    local nv_pkg=""
-    local is_kepler
-    is_kepler=$(is_nvidia_kepler)
-
-    if [ "$is_kepler" = "true" ]; then
-        nv_pkg="nvidia-tesla-470-driver"
-    else
-        # Backports de Bookworm solo tienen el módulo cerrado
-        nv_pkg="nvidia-driver"
-    fi
-
-    local nv_ver
-    nv_ver=$(apt-cache policy "$nv_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
-    local msg="Source: Debian Bookworm-Backports\n"
-    msg+="NVIDIA Driver: ${nv_pkg} ${nv_ver:-unknown}\n"
-    msg+="           (Compatible with Kernel v6.12+)\n"
-    msg+="[+] firmware-misc-nonfree\n"
-    msg+="[+] nvidia-vaapi-driver"
-
-    if ! _confirm "NVIDIA Driver — Backports" "$msg" 14 70; then
-        echo "Skipping NVIDIA driver installation."
-        return 0
-    fi
-
-    if ! _run_cmd "NVIDIA" "sudo apt install -y -t bookworm-backports $nv_pkg firmware-misc-nonfree nvidia-vaapi-driver" \
-        "Installing NVIDIA driver from backports..."; then
-        NVIDIA_DRIVER_MODE=""
-        _msg "NVIDIA — Error" "NVIDIA backports installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
-        return 1
-    fi
-
-    NVIDIA_DRIVER_MODE="backports"
-    echo -e "${GREEN}NVIDIA driver installed from backports. Reboot required.${NC}"
-
-    _verify_nvidia_dkms_build nvidia-kernel-dkms nvidia-tesla-470-kernel-dkms || true
 }
 
 # -------------------------------------------------------------------
@@ -404,27 +320,6 @@ _install_nvidia_bookworm_kepler() {
         return 1
     fi
 
-    # Si backports está habilitado, ofrecer actualización
-    if [ "$(is_backports_enabled)" == "true" ]; then
-        local bpo_ver
-        bpo_ver=$(apt-cache madison "$nv_pkg" 2>/dev/null | \
-            grep "bookworm-backports" | awk '{print $3}' | head -1) || true
-        if [ -n "$bpo_ver" ]; then
-            local msg="Hay una versión en backports: ${bpo_ver}\n"
-            msg+="Instalar desde bookworm-backports?"
-            if _confirm "Kepler Backports" "$msg"; then
-                if _run_cmd "NVIDIA Kepler" \
-                    "sudo apt install -y -t bookworm-backports $nv_pkg" \
-                    "Actualizando Kepler driver desde backports..."; then
-                    NVIDIA_DRIVER_MODE="backports"
-                    echo -e "${GREEN}Kepler driver actualizado desde backports.${NC}"
-                else
-                    echo -e "${RED}Kepler backports upgrade failed — keeping the stable version.${NC}"
-                fi
-            fi
-        fi
-    fi
-
     NVIDIA_DRIVER_MODE="${NVIDIA_DRIVER_MODE:-stable}"
     echo -e "${GREEN}Kepler driver (${nv_pkg}) installed. Reboot required.${NC}"
 
@@ -432,7 +327,7 @@ _install_nvidia_bookworm_kepler() {
 }
 
 # -------------------------------------------------------------------
-# CASE C: Kernel stable (any distro) → Debian stable
+# CASE B: Kernel stable (any distro) → Debian stable
 # -------------------------------------------------------------------
 _install_nvidia_standard() {
     # --- 1. ARQUITECTURA → MÓDULO KERNEL ---

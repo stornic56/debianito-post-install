@@ -492,6 +492,9 @@ get_intel_generation() {
 
 # ----------------------------------------------------------------------
 # Check if backports repository is enabled (active line without #)
+# Nota: el flujo NVIDIA Debian 12 (Bookworm) ya NO usa esta función
+# (backports EOL 2026-08-09). Sigue activa para kernels, desktop/greetd,
+# gaming, audio, comunicación y Mesa (AMD/Intel).
 # ----------------------------------------------------------------------
 is_backports_enabled() {
     local codename="${DEBIAN_CODENAME:-}"
