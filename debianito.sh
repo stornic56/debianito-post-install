@@ -32,6 +32,8 @@ source "${MODULES_DIR}/repos.sh"
 [ -f "${MODULES_DIR}/rescue.sh" ]    && source "${MODULES_DIR}/rescue.sh"
 [ -f "${MODULES_DIR}/swap.sh" ]     && source "${MODULES_DIR}/swap.sh"
 [ -f "${MODULES_DIR}/desktop_display.sh" ] && source "${MODULES_DIR}/desktop_display.sh"
+[ -f "${MODULES_DIR}/system/system_prefs.sh" ] && source "${MODULES_DIR}/system/system_prefs.sh"
+[ -f "${MODULES_DIR}/system/audio.sh" ] && source "${MODULES_DIR}/system/audio.sh"
 
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
 if [ -d "${MODULES_DIR}/bullseye" ]; then
@@ -60,24 +62,26 @@ main_menu() {
             $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
             "1" "System Information" \
             "2" "User Privileges & Feedback" \
-            "3" "Configure Repositories" \
-            "4" "Firmware, Wireless & Bluetooth" \
-            "5" "Graphics Drivers & Mesa Stack" \
-            "6" "Kernel" \
-            "7" "Gaming Setup" \
-            "8" "ZRAM" \
-            "9" "Swap Management" \
-            "10" "Install Programs and Software" \
-            "11" "Boot Rescue + GRUB" \
-            "12" "Desktop & Display" \
-            "13" "Exit")
+            "3" "System Preferences" \
+            "4" "Configure Repositories" \
+            "5" "Firmware, Wireless & Bluetooth" \
+            "6" "Graphics Drivers & Mesa Stack" \
+            "7" "Kernel" \
+            "8" "Gaming Setup" \
+            "9" "ZRAM" \
+            "10" "Swap Management" \
+            "11" "Install Programs and Software" \
+            "12" "Boot Rescue + GRUB" \
+            "13" "Desktop & Display" \
+            "14" "Exit")
 
         clear
 
         case "$choice" in
             1)  _show_sysinfo ;;
             2)  config_sudo || true ;;
-            3)
+            3)  _system_preferences_menu ;;
+            4)
                 if [ "$DEBIAN_VERSION" = "11" ] && type configure_repos_bullseye &>/dev/null; then
                     configure_repos_bullseye || true
                 else
@@ -85,14 +89,14 @@ main_menu() {
                 fi
                 STATE_REFRESHED=true
                 ;;
-            4)
+            5)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_firmware_bullseye &>/dev/null; then
                     install_firmware_bullseye || true
                 else
                     install_firmware || true
                 fi
                 ;;
-            5)
+            6)
                 local gpu_sub
                 gpu_sub=$(_menu "Graphics Drivers" "" 12 50 2 \
                     "1" "Radeon/Intel Mesa" \
@@ -105,8 +109,8 @@ main_menu() {
                 esac
                 STATE_REFRESHED=true
                 ;;
-            6)  show_kernel_menu || true ;;
-            7)
+            7)  show_kernel_menu || true ;;
+            8)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
                     install_gaming_bullseye || true
                 else
@@ -114,18 +118,18 @@ main_menu() {
                 fi
                 STATE_REFRESHED=true
                 ;;
-            8)  zram_menu || true ;;
-            9)  manage_swap || true; STATE_REFRESHED=true ;;
-            10)
+            9)  zram_menu || true ;;
+            10) manage_swap || true; STATE_REFRESHED=true ;;
+            11)
                 if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
                     install_extras_bullseye || true
                 else
                     install_extras || true
                 fi
                 ;;
-            11) rescue_boot || true ;;
-            12) manage_desktop_display || true ;;
-            13) echo "Exiting."; exit 0 ;;
+            12) rescue_boot || true ;;
+            13) manage_desktop_display || true ;;
+            14) echo "Exiting."; exit 0 ;;
         esac
         if $STATE_REFRESHED; then
             refresh_system_state

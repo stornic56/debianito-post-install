@@ -183,9 +183,24 @@ _cat_internet() {
 
     local cleaned; cleaned=$(echo "$choices" | tr -d '"')
 
-    if echo "$cleaned" | grep -q "firefox" && echo "$cleaned" | grep -q "firefox-esr"; then
-        _msg "Firefox" "You selected both Firefox (Mozilla) and Firefox ESR.\nPlease choose only one Firefox variant." 10 60
-        return
+    local has_firefox=false
+    local has_firefox_esr=false
+    for _p in $cleaned; do
+        [ "$_p" = "firefox" ] && has_firefox=true
+        [ "$_p" = "firefox-esr" ] && has_firefox_esr=true
+    done
+
+    if $has_firefox && $has_firefox_esr; then
+        local fchoice
+        fchoice=$(_menu "Firefox" "You selected both Firefox (Mozilla) and Firefox ESR.\nWhat do you want to do?" 12 60 3 \
+            "mozilla" "Remove Firefox ESR — keep Firefox" \
+            "esr"     "Remove Firefox — keep Firefox ESR" \
+            "both"    "Keep both variants")
+        [ -z "$fchoice" ] && return
+        case "$fchoice" in
+            mozilla) cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox-esr" | tr '\n' ' ') ;;
+            esr)     cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox" | tr '\n' ' ') ;;
+        esac
     fi
 
     for pkg in $cleaned; do

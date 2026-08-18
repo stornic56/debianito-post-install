@@ -4,7 +4,7 @@
 show_kernel_menu() {
     while true; do
         local items=("stable" "Install linux-image-amd64")
-        [ "$DEBIAN_VERSION" != "11" ] && items+=("backports" "Install from backports")
+        [ "$DEBIAN_VERSION" = "13" ] && items+=("backports" "Install from backports")
         items+=("rt" "Install linux-image-rt-amd64 (Preempt-RT)")
         items+=("cloud" "Install linux-image-cloud-amd64")
         items+=("back" "Return to main menu")

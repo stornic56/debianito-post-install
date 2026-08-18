@@ -43,8 +43,7 @@ install_extras() {
             "11" "Office & Productivity" \
             "12" "System Tools" \
             "13" "Fetch / System Info" \
-            "14" "Audio & Sound" \
-            "15" "Back to main menu")
+            "14" "Back to main menu")
 
         [ -z "$cat_choice" ] && return
         clear
@@ -64,8 +63,7 @@ install_extras() {
             11) _cat_office ;;
             12) _cat_general ;;
             13) _cat_fetch ;;
-            14) _cat_audio ;;
-            15) return ;;
+            14) return ;;
         esac
         clear
     done

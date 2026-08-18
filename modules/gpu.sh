@@ -191,12 +191,19 @@ _install_nvidia_stack() {
 
     NVIDIA_DRIVER_MODE=""
 
-    if ! _nvidia_manage_menu; then
-        return
+    if _nvidia_driver_installed; then
+        if ! _nvidia_manage_menu; then
+            return
+        fi
     fi
 
     if [ "$DEBIAN_VERSION" = "11" ]; then
-        install_nvidia_bullseye
+        if type install_nvidia_bullseye &>/dev/null; then
+            install_nvidia_bullseye
+        else
+            _msg "NVIDIA — Bullseye" "The Bullseye NVIDIA module is not available.\n\nNo NVIDIA driver was installed." 10 60
+            NVIDIA_DRIVER_MODE=""
+        fi
 
     else
         if ! _show_nvidia_version_menu; then
@@ -230,7 +237,9 @@ _install_nvidia_stack() {
                         NVIDIA_DRIVER_MODE=""
                         ;;
                     blackwell)
-                        _install_nvidia_cuda_repo
+                        _msg "NVIDIA — Blackwell (v550)" \
+                            "Your Blackwell GPU is NOT supported by the official\nDebian v550 driver.\n\nPlease select v590 or v595 (NVIDIA CUDA Repo)\nin the driver menu." 14 65
+                        NVIDIA_DRIVER_MODE=""
                         ;;
                     maxwell|pascal|volta)
                         if [ "$(is_backports_kernel)" = "true" ]; then
@@ -253,7 +262,7 @@ Forcing the stable driver path." 14 70
                             _install_nvidia_standard
                         fi
                         ;;
-                    turing|ampere|ada|blackwell)
+                    turing|ampere|ada)
                         _install_nvidia_standard
                         ;;
                     *)
