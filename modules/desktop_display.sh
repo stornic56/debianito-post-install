@@ -11,11 +11,128 @@ manage_desktop_display() {
         [ -z "$choice" ] && break
         clear
         case "$choice" in
-            1) _msg "Coming Soon" "Desktop Environment management will be available in a future update." 10 60 ;;
+            1) desktop_environment_menu ;;
             2) display_manager_menu ;;
             3) break ;;
         esac
     done
+}
+
+desktop_environment_menu() {
+    while true; do
+        local -a env_items=()
+        env_items+=("1" "XFCE")
+        env_items+=("2" "Back")
+        # Future desktop environments: add "2" "GNOME", "3" "KDE", ... here
+        # and a matching case below calling its own menu (e.g. gnome_menu).
+        local choice
+        choice=$(_menu "Desktop Environment" \
+            "Select a desktop environment:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "${env_items[@]}")
+        [ -z "$choice" ] && break
+        clear
+        case "$choice" in
+            1) xfce_menu ;;
+            2) break ;;
+        esac
+    done
+}
+
+xfce_menu() {
+    while true; do
+        local -a xf_items=()
+        xf_items+=("1" "XFCE (Full Meta Package)")
+        xf_items+=("2" "XFCE (Minimal Core)")
+        [ "$DEBIAN_VERSION" = "13" ] && xf_items+=("3" "XFCE Wayland (Experimental — labwc)")
+        xf_items+=("4" "XFCE Custom (Choose packages)")
+        xf_items+=("5" "Back")
+        local choice
+        choice=$(_menu "XFCE" \
+            "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "${xf_items[@]}")
+        [ -z "$choice" ] && break
+        clear
+        case "$choice" in
+            1) _install_xfce_full ;;
+            2) _install_xfce_minimal ;;
+            3) _install_xfce_wayland ;;
+            4) _install_xfce_custom ;;
+            5) break ;;
+        esac
+    done
+}
+
+_install_xfce_full() {
+    _run_cmd "XFCE Full" "sudo apt install -y xfce4 xfce4-goodies xfce4-power-manager" \
+        "Installing XFCE (Full Meta Package)..."
+    _xfce_polkit_rules
+}
+
+_install_xfce_minimal() {
+    _run_cmd "XFCE Minimal" "sudo apt install -y xfce4" \
+        "Installing XFCE (Minimal Core)..."
+    _xfce_polkit_rules
+}
+
+_install_xfce_wayland() {
+    _run_cmd "XFCE Wayland" "sudo apt install -y xfce4 labwc" \
+        "Installing XFCE + labwc (Wayland, experimental)..."
+    _msg "XFCE Wayland" "labwc is EXPERIMENTAL on XFCE 4.20.\n\nAfter reboot, select the Wayland session\nfrom the login screen." 12 65
+    _xfce_polkit_rules
+}
+
+_install_xfce_custom() {
+    local -a items=()
+    for pkg in thunar xfdesktop4 xfwm4 xfce4-panel xfce4-terminal \
+        xfce4-screenshooter ristretto mousepad xfce4-session \
+        xfce4-settings xfce4-power-manager; do
+        items+=("$pkg" "$pkg" "$(_state "$pkg")")
+    done
+    local choices
+    choices=$(_checklist "XFCE Custom" \
+        "Select the XFCE packages to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+        "${items[@]}")
+    [ -z "$choices" ] && return
+    local cleaned
+    cleaned=$(echo "$choices" | tr -d '"')
+    [ -z "$cleaned" ] && return
+    _run_cmd "XFCE Custom" "sudo apt install -y $cleaned" \
+        "Installing selected XFCE packages..."
+    _xfce_polkit_rules
+}
+
+_xfce_polkit_rules() {
+    is_installed xfce4-power-manager || return 0
+
+    local rules_dir="/etc/polkit-1/rules.d"
+    sudo mkdir -p "$rules_dir"
+
+    cat <<'EOF' | sudo tee "$rules_dir/85-suspend.rules" >/dev/null
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.login1.suspend" &&
+        subject.isInGroup("users")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+    cat <<'EOF' | sudo tee "$rules_dir/89-backlight.rules" >/dev/null
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.upower.backlight" &&
+        subject.isInGroup("backlight")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+
+    if ! getent group backlight >/dev/null 2>&1; then
+        sudo groupadd --system backlight || true
+    fi
+    local de_user="${SUDO_USER:-$USER}"
+    if [ -n "$de_user" ] && ! id -nG "$de_user" 2>/dev/null | grep -qw backlight; then
+        sudo usermod -aG backlight "$de_user" || true
+    fi
+    sudo systemctl restart polkit.service 2>/dev/null || true
+    echo -e "${GREEN}Polkit rules installed (suspend + backlight). User '${de_user}' added to 'backlight' group.${NC}"
 }
 
 display_manager_menu() {

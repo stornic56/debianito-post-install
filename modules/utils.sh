@@ -109,7 +109,7 @@ _ensure_time_synced() {
         if [ -n "${DISPLAY:-}" ] || [ -n "${SSH_TTY:-}" ]; then
             _msg "Timezone" \
                 "Your system timezone is not set or is set to UTC.\n\nThe script will now open the timezone\nconfiguration tool to set your local timezone." 12 60
-            sudo dpkg-reconfigure tzdata
+sudo env LC_ALL=C LANGUAGE=C dpkg-reconfigure tzdata || true
             echo -e "${GREEN}Timezone configured: $(timedatectl show -p Timezone --value 2>/dev/null)${NC}"
         else
             echo -e "${YELLOW}Timezone not set. Run 'sudo dpkg-reconfigure tzdata' later.${NC}"
@@ -163,7 +163,7 @@ detect_debian_version() {
 # CPU and RAM info (cosmetic)
 # ----------------------------------
 detect_cpu_ram() {
-    CPU_SUMMARY=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //')
+    CPU_SUMMARY=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //' || true)
     RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
     RAM_GB=$(awk -v kb="$RAM_KB" 'BEGIN { printf "%.2f", kb / 1048576 }')
     RAM_SUMMARY="${RAM_GB} GB"

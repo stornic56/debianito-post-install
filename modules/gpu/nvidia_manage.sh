@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # nvidia_manage.sh — NVIDIA management menu: install/change or remove
 
+_nvidia_driver_installed() {
+    dpkg -l 2>/dev/null | grep -qE "^ii  (nvidia-driver|nvidia-tesla-470-driver|nvidia-open|nvidia-kernel-dkms|nvidia-kernel-open-dkms|nvidia-open-kernel-dkms)"
+}
+
 _nvidia_manage_menu() {
     local choice
     choice=$(_menu "NVIDIA Driver" "Manage NVIDIA Driver" 12 70 4 \
@@ -22,7 +26,7 @@ _nvidia_manage_menu() {
 }
 
 _nvidia_remove() {
-    if ! dpkg -l 2>/dev/null | grep -qE "^ii  (nvidia-driver|nvidia-tesla-470-driver|nvidia-open-kernel-dkms|nvidia-kernel-dkms)"; then
+    if ! _nvidia_driver_installed; then
         echo -e "${YELLOW}NVIDIA driver is not installed on this system.${NC}"
         return 0
     fi
@@ -33,7 +37,7 @@ _nvidia_remove() {
     fi
 
     echo "Removing NVIDIA driver packages..."
-    sudo apt purge -y nvidia-driver nvidia-kernel-dkms nvidia-open-kernel-dkms nvidia-tesla-470-driver nvidia-settings nvidia-vaapi-driver firmware-nvidia-gsp mesa-vdpau-drivers || true
+    sudo apt purge -y nvidia-driver nvidia-kernel-dkms nvidia-open-kernel-dkms nvidia-open nvidia-kernel-open-dkms nvidia-tesla-470-driver nvidia-settings nvidia-vaapi-driver firmware-nvidia-gsp mesa-vdpau-drivers nvidia-driver-pinning-* || true
 
     echo "Cleaning up dependencies..."
     sudo apt autoremove --purge -y || true
