@@ -185,13 +185,13 @@ _cat_internet() {
 
     local has_firefox=false
     local has_firefox_esr=false
+    local fchoice=""
     for _p in $cleaned; do
         [ "$_p" = "firefox" ] && has_firefox=true
         [ "$_p" = "firefox-esr" ] && has_firefox_esr=true
     done
 
     if $has_firefox && $has_firefox_esr; then
-        local fchoice
         fchoice=$(_menu "Firefox" "You selected both Firefox (Mozilla) and Firefox ESR.\nWhat do you want to do?" 12 60 3 \
             "mozilla" "Remove Firefox ESR — keep Firefox" \
             "esr"     "Remove Firefox — keep Firefox ESR" \
@@ -206,10 +206,10 @@ _cat_internet() {
     for pkg in $cleaned; do
         case $pkg in
             firefox)
-                install_firefox_mozilla
+                install_firefox_mozilla "$fchoice"
                 ;;
             firefox-esr)
-                install_firefox_esr
+                install_firefox_esr "$fchoice"
                 ;;
             floorp)
                 _enable_floorp_repo
@@ -271,6 +271,7 @@ _cat_internet() {
 }
 
 install_firefox_mozilla() {
+    local fchoice="${1:-}"
     if [ "$DEBIAN_VERSION" -lt 12 ] 2>/dev/null; then
         _msg "Firefox" "Mozilla Firefox is only available on\nDebian 12 (Bookworm) and 13 (Trixie).\n\nSkipping installation." 10 60
         return 1
@@ -282,13 +283,24 @@ install_firefox_mozilla() {
     fi
 
     if is_installed "firefox-esr"; then
-        if _confirm "Firefox ESR" "Firefox ESR is installed.\nRemove it before installing Mozilla Firefox?"; then
-            echo "Removing Firefox ESR..."
-            sudo apt remove -y firefox-esr
-        else
-            echo "Keeping Firefox ESR."
-            return
-        fi
+        case "$fchoice" in
+            both)
+                echo -e "${CYAN}[INFO] Keeping Firefox ESR (both selected).${NC}"
+                ;;
+            mozilla)
+                echo "Removing Firefox ESR (as selected)..."
+                sudo apt remove -y firefox-esr
+                ;;
+            *)
+                if _confirm "Firefox ESR" "Firefox ESR is installed.\nRemove it before installing Mozilla Firefox?"; then
+                    echo "Removing Firefox ESR..."
+                    sudo apt remove -y firefox-esr
+                else
+                    echo "Keeping Firefox ESR."
+                    return
+                fi
+                ;;
+        esac
     fi
 
     _enable_mozilla_repo
@@ -297,19 +309,31 @@ install_firefox_mozilla() {
 }
 
 install_firefox_esr() {
+    local fchoice="${1:-}"
     if is_installed "firefox-esr"; then
         echo "Firefox ESR is already installed."
         return
     fi
 
     if command -v firefox &>/dev/null; then
-        if _confirm "Firefox" "Mozilla Firefox is installed.\nRemove it before installing Firefox ESR?"; then
-            echo "Removing Mozilla Firefox..."
-            sudo apt remove -y firefox
-        else
-            echo "Keeping Mozilla Firefox."
-            return
-        fi
+        case "$fchoice" in
+            both)
+                echo -e "${CYAN}[INFO] Keeping Mozilla Firefox (both selected).${NC}"
+                ;;
+            esr)
+                echo "Removing Mozilla Firefox (as selected)..."
+                sudo apt remove -y firefox
+                ;;
+            *)
+                if _confirm "Firefox" "Mozilla Firefox is installed.\nRemove it before installing Firefox ESR?"; then
+                    echo "Removing Mozilla Firefox..."
+                    sudo apt remove -y firefox
+                else
+                    echo "Keeping Mozilla Firefox."
+                    return
+                fi
+                ;;
+        esac
     fi
 
     _run_cmd "Firefox ESR" "sudo apt install -y firefox-esr" "Installing Firefox ESR..."

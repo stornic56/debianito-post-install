@@ -299,7 +299,8 @@ After the firmware is downloaded, reboot the system." 14 75
                 done
                 if $has_broadcom_bt; then
                     echo -e "${YELLOW}Broadcom combo card (WiFi + Bluetooth) detected.${NC}"
-                    cat > /etc/modprobe.d/broadcom-combo.conf <<'EOF'
+                    sudo mkdir -p /etc/modprobe.d
+                    sudo tee /etc/modprobe.d/broadcom-combo.conf > /dev/null <<'EOF'
 # Broadcom combo: ensure btusb loads after wl
 softdep wl post: btusb
 EOF
@@ -326,15 +327,27 @@ EOF
 }
 
 # ── Ensure non-free repository is enabled ──
+# Token-exact check for the "non-free" component. "non-free-firmware"
+# contains the substring but is a different component, so word-boundary
+# matching (\b) would produce false positives.
+_has_nonfree_component() {
+    local file="$1"
+    grep -qE '^[^#]*[[:space:]]non-free([[:space:]]|$)' "$file" 2>/dev/null
+}
+
 _ensure_nonfree_repo() {
     local nonfree_found=false
-    if [ -f /etc/apt/sources.list ] && grep -Eq '^[^#]*\bnon-free\b' /etc/apt/sources.list 2>/dev/null; then
+    if [ -f /etc/apt/sources.list ] && _has_nonfree_component /etc/apt/sources.list; then
         nonfree_found=true
     fi
     if ! $nonfree_found && [ -d /etc/apt/sources.list.d ]; then
-        if grep -qr 'Components:.*\bnon-free\b' /etc/apt/sources.list.d/*.sources 2>/dev/null; then
-            nonfree_found=true
-        fi
+        for f in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            [ -f "$f" ] || continue
+            if _has_nonfree_component "$f"; then
+                nonfree_found=true
+                break
+            fi
+        done
     fi
     if $nonfree_found; then
         return 0
@@ -352,21 +365,36 @@ _ensure_nonfree_repo() {
         fi
     else
         if [ -f /etc/apt/sources.list ]; then
-            sudo sed -i '/^deb / { /non-free/! s/\(main[^ ]*\)/\1 non-free non-free-firmware/ }' /etc/apt/sources.list
+            # Add each missing component after "main", never duplicating
+            sudo sed -i -E '/^deb / { /(^|[[:space:]])non-free([[:space:]]|$)/! s/(main[^[:space:]]*)/\1 non-free/ }' /etc/apt/sources.list
+            # non-free-firmware does not exist on Bullseye
+            if [ "$DEBIAN_VERSION" != "11" ]; then
+                sudo sed -i -E '/^deb / { /(^|[[:space:]])non-free-firmware([[:space:]]|$)/! s/(main[^[:space:]]*)/\1 non-free-firmware/ }' /etc/apt/sources.list
+            fi
         fi
         if [ -d /etc/apt/sources.list.d ]; then
             for f in /etc/apt/sources.list.d/*.sources; do
                 [ -f "$f" ] || continue
-                sudo sed -i '/^Components:/ { /non-free/! s/$/ non-free non-free-firmware/ }' "$f"
+                sudo sed -i -E '/^Components:/ { /(^|[[:space:]])non-free([[:space:]]|$)/! s/$/ non-free/ }' "$f"
+                if [ "$DEBIAN_VERSION" != "11" ]; then
+                    sudo sed -i -E '/^Components:/ { /(^|[[:space:]])non-free-firmware([[:space:]]|$)/! s/$/ non-free-firmware/ }' "$f"
+                fi
             done
         fi
     fi
 
     # Verify the component was actually added before reporting success
     local nonfree_ok=false
-    [ -f /etc/apt/sources.list ] && grep -Eq '^[^#]*\bnon-free\b' /etc/apt/sources.list 2>/dev/null && nonfree_ok=true
-    [ -d /etc/apt/sources.list.d ] && grep -qr 'Components:.*\bnon-free\b' /etc/apt/sources.list.d/*.sources 2>/dev/null && nonfree_ok=true
-    [ -d /etc/apt/sources.list.d ] && grep -qrE '^[^#]*\bnon-free\b' /etc/apt/sources.list.d/*.list 2>/dev/null && nonfree_ok=true
+    [ -f /etc/apt/sources.list ] && _has_nonfree_component /etc/apt/sources.list && nonfree_ok=true
+    if ! $nonfree_ok && [ -d /etc/apt/sources.list.d ]; then
+        for f in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            [ -f "$f" ] || continue
+            if _has_nonfree_component "$f"; then
+                nonfree_ok=true
+                break
+            fi
+        done
+    fi
     if ! $nonfree_ok; then
         echo -e "${RED}Failed to enable non-free repository. Check your APT sources.${NC}"
         return 1

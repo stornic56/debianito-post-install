@@ -9,7 +9,11 @@ _prefs_audio_menu() {
 
     local pw_label="PipeWire Audio Stack (Bluetooth Hi-Res)"
 
-    local pw_state; pw_state=$(_state "pipewire-audio")
+    # Bullseye ships the "pipewire" package; the pipewire-audio meta-package
+    # only exists from Bookworm onwards
+    local pw_pkg="pipewire-audio"
+    [ "$DEBIAN_VERSION" = "11" ] && pw_pkg="pipewire"
+    local pw_state; pw_state=$(_state "$pw_pkg")
     items+=(
         "pipewire-audio" "$pw_label" "$pw_state"
     )

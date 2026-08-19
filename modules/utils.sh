@@ -603,6 +603,11 @@ _checklist() {
     whiptail --title "$title" --ok-button "Apply" --checklist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
 }
 
+_radiolist() {
+    local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
+    whiptail --title "$title" --ok-button "Install" --radiolist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
+}
+
 _inputbox() {
     whiptail --title "$1" --ok-button "Apply" --inputbox "$2" "${3:-10}" "${4:-60}" "${5:-}" 3>&1 1>&2 2>&3 || true
 }
