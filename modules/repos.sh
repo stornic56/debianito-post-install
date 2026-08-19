@@ -55,8 +55,8 @@ cleanup_repo_backup() {
 _clean_embedded_backports_classic() {
     local codename="$1"
     local file="/etc/apt/sources.list"
-    [ ! -f "$file" ] && return
-    grep -qE "^[^#]*${codename}-backports\b" "$file" 2>/dev/null || return
+    [ ! -f "$file" ] && return 0
+    grep -qE "^[^#]*${codename}-backports\b" "$file" 2>/dev/null || return 0
     if _confirm "Clean Classic Sources" "Remove backports line from ${file}?"; then
         sudo sed -i "/${codename}-backports/d" "$file"
         echo "Removed backports from ${file}"
@@ -66,10 +66,10 @@ _clean_embedded_backports_classic() {
 _clean_embedded_backports_deb822() {
     local codename="$1"
     local file="/etc/apt/sources.list.d/debian.sources"
-    [ ! -f "$file" ] && return
+    [ ! -f "$file" ] && return 0
 
     # Only proceed if the Suites line contains the backports token
-    grep -qE "^Suites:.*${codename}-backports\b" "$file" 2>/dev/null || return
+    grep -qE "^Suites:.*${codename}-backports\b" "$file" 2>/dev/null || return 0
 
     if _confirm "Clean deb822 Sources" "Remove backports suite from ${file}?"; then
         # Remove only the backports token, leaving other suites intact
@@ -113,9 +113,9 @@ _write_deb822() {
 
     # Backports: always in separate file
     if [ "$bp_enabled" = true ]; then
-        _write_deb822_backports "$codename"
+        _write_deb822_backports "$codename" || true
     else
-        _remove_deb822_backports "$codename"
+        _remove_deb822_backports "$codename" || true
     fi
 
     # On migration from classic, disable the old file
@@ -148,12 +148,14 @@ _write_deb822_backports() {
             sudo mkdir -p /etc/apt/sources.list.d
             echo -e "$bp_content" | sudo tee "$bp_file" > /dev/null
             echo "Wrote ${bp_file}"
+        else
+            return 1
         fi
     fi
 
     # If backports were formerly embedded in debian.sources, clean them
     grep -qE "^Suites:.*${codename}-backports\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null && \
-        _clean_embedded_backports_deb822 "$codename"
+        _clean_embedded_backports_deb822 "$codename" || true
 }
 
 _remove_deb822_backports() {
@@ -164,6 +166,8 @@ _remove_deb822_backports() {
         if _confirm "Remove Backports" "Remove ${bp_file}?"; then
             sudo rm -f "$bp_file"
             echo "Removed ${bp_file}"
+        else
+            return 1
         fi
     fi
 
@@ -205,9 +209,9 @@ _write_classic() {
 
     # Backports: always in separate file
     if [ "$bp_enabled" = true ]; then
-        _write_classic_backports "$codename"
+        _write_classic_backports "$codename" || true
     else
-        _remove_classic_backports "$codename"
+        _remove_classic_backports "$codename" || true
     fi
 
     # On migration from deb822, disable the old file
@@ -238,12 +242,14 @@ _write_classic_backports() {
             sudo mkdir -p /etc/apt/sources.list.d
             echo -e "$bp_content" | sudo tee "$bp_file" > /dev/null
             echo "Wrote ${bp_file}"
+        else
+            return 1
         fi
     fi
 
     # If backports were formerly embedded in sources.list, clean them
     grep -qE "^[^#]*${codename}-backports\b" /etc/apt/sources.list 2>/dev/null && \
-        _clean_embedded_backports_classic "$codename"
+        _clean_embedded_backports_classic "$codename" || true
 }
 
 _remove_classic_backports() {
@@ -254,6 +260,8 @@ _remove_classic_backports() {
         if _confirm "Remove Backports" "Remove ${bp_file}?"; then
             sudo rm -f "$bp_file"
             echo "Removed ${bp_file}"
+        else
+            return 1
         fi
     fi
 
@@ -491,9 +499,17 @@ Writing debian.sources may duplicate your configuration. Continue?" 10 65; then
                 return
             fi
         fi
-        _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"
+        if ! _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"; then
+            echo "No changes made."
+            _pause
+            return
+        fi
     else
-        _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"
+        if ! _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components"; then
+            echo "No changes made."
+            _pause
+            return
+        fi
     fi
 
     echo "Updating package lists..."
@@ -582,18 +598,23 @@ Answer NO to disable or remove backports if they are currently enabled." 16 70; 
 
     backup_current_repos
 
+    local write_ok=true
     if $enable_backports; then
         if [ "$current_format" = "deb822" ]; then
-            _write_deb822_backports "$DEBIAN_CODENAME"
+            _write_deb822_backports "$DEBIAN_CODENAME" || write_ok=false
         else
-            _write_classic_backports "$DEBIAN_CODENAME"
+            _write_classic_backports "$DEBIAN_CODENAME" || write_ok=false
         fi
+    elif [ "$current_format" = "deb822" ]; then
+        _remove_deb822_backports "$DEBIAN_CODENAME" || write_ok=false
     else
-        if [ "$current_format" = "deb822" ]; then
-            _remove_deb822_backports "$DEBIAN_CODENAME"
-        else
-            _remove_classic_backports "$DEBIAN_CODENAME"
-        fi
+        _remove_classic_backports "$DEBIAN_CODENAME" || write_ok=false
+    fi
+
+    if ! $write_ok; then
+        echo "No changes made."
+        _pause
+        return
     fi
 
     echo "Updating package lists..."

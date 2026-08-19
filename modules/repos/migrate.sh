@@ -27,27 +27,35 @@ _restore_backup() {
     echo -e "${GREEN}Backup restored from $_MIGRATE_BACKUP${NC}"
 }
 
+# Write the target branch repository configuration.
+# DEB822 is only supported on Debian 13 (apt >= 2.3.14); Debian 11/12
+# use the classic one-line format. SID has no security archive.
+_write_branch_sources() {
+    local target="$1"
+
+    if [ "$DEBIAN_VERSION" = "13" ]; then
+        _write_deb822_branch "$target"
+    else
+        _write_classic_branch "$target"
+    fi
+}
+
 _write_deb822_branch() {
     local target="$1"
     local main_file="/etc/apt/sources.list.d/debian.sources"
 
     local main_content=""
+    main_content+="Types: deb\n"
+    main_content+="URIs: https://deb.debian.org/debian\n"
     if [ "$target" = "sid" ]; then
-        main_content+="Types: deb\n"
-        main_content+="URIs: https://deb.debian.org/debian\n"
         main_content+="Suites: sid\n"
-        main_content+="Components: main contrib non-free non-free-firmware\n"
-        main_content+="\n"
-        main_content+="Types: deb\n"
-        main_content+="URIs: https://security.debian.org/debian-security\n"
-        main_content+="Suites: sid\n"
-        main_content+="Components: main contrib non-free non-free-firmware\n"
     else
-        # testing
-        main_content+="Types: deb\n"
-        main_content+="URIs: https://deb.debian.org/debian\n"
         main_content+="Suites: testing testing-updates\n"
-        main_content+="Components: main contrib non-free non-free-firmware\n"
+    fi
+    main_content+="Components: main contrib non-free non-free-firmware\n"
+
+    # SID receives all updates via unstable itself; there is no sid-security suite
+    if [ "$target" != "sid" ]; then
         main_content+="\n"
         main_content+="Types: deb\n"
         main_content+="URIs: https://security.debian.org/debian-security\n"
@@ -56,6 +64,22 @@ _write_deb822_branch() {
     fi
 
     sudo mkdir -p /etc/apt/sources.list.d
+    echo -e "$main_content" | sudo tee "$main_file" > /dev/null
+    echo "Wrote $main_file"
+}
+
+_write_classic_branch() {
+    local target="$1"
+    local main_file="/etc/apt/sources.list"
+
+    local main_content=""
+    main_content+="deb https://deb.debian.org/debian ${target} main contrib non-free non-free-firmware\n"
+
+    # SID receives all updates via unstable itself; there is no sid-security suite
+    if [ "$target" != "sid" ]; then
+        main_content+="deb https://security.debian.org/debian-security ${target}-security main contrib non-free non-free-firmware\n"
+    fi
+
     echo -e "$main_content" | sudo tee "$main_file" > /dev/null
     echo "Wrote $main_file"
 }
@@ -82,7 +106,7 @@ so you can restore if things go wrong." 16 70
     local plan="This operation will:\n\n"
     plan+="  1. Backup current APT sources to /var/backups/\n"
     plan+="  2. Remove any backports configuration\n"
-    plan+="  3. Write new DEB822 sources for the target branch\n"
+    plan+="  3. Write new sources for the target branch\n"
     plan+="  4. Run: apt update\n"
     plan+="  5. Run: apt upgrade -y\n"
     plan+="  6. Run: apt full-upgrade -y\n"
@@ -131,7 +155,7 @@ so you can restore if things go wrong." 16 70
     [ -f /etc/apt/sources.list ] && sudo rm -f /etc/apt/sources.list
 
     # 4d. Write new sources
-    _write_deb822_branch "$target"
+    _write_branch_sources "$target"
 
     # 4e. SID guardrails: install bug alerts before upgrade
     if [ "$target" = "sid" ]; then
