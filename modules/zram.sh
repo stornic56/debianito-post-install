@@ -86,9 +86,8 @@ _zram_create() {
     fi
 
     local ram_gb=$(( RAM_KB / 1024 / 1024 ))
-    local recommended_mb
-    if [ "$ram_gb" -gt 16 ]; then
-        recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 4) * 1024 ))
+    if [ "$ram_gb" -gt 8 ]; then
+        recommended_mb=4096
     else
         recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
     fi
