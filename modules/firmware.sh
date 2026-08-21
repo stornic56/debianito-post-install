@@ -118,7 +118,7 @@ _detect_firmware_needs() {
 # ── Broadcom chip classification helpers ──
 _is_broadcom_brcm() {
     local id="$1"
-    for supported in 4357 4358 4360 4727 43a0 43a1 43a2 43b1; do
+    for supported in 4360 43a0 43a1 43a2 43b1; do
         [ "$id" = "$supported" ] && return 0
     done
     return 1
@@ -136,6 +136,21 @@ _is_broadcom_b43() {
 
 _is_broadcom_b43legacy() {
     [ "$1" = "4302" ] || [ "$1" = "4306" ]
+}
+
+# ── Broadcom Tier 1 plan line (display-only, runs before the plan is built) ──
+_detect_broadcom_plan_lines() {
+    for dev in "${PCI_NET_DEVS[@]}"; do
+        local bcm_id dev_id desc
+        bcm_id=$(echo "$dev" | grep -oP '14e4:[0-9a-fA-F]+' || true)
+        [ -z "$bcm_id" ] && continue
+        dev_id=$(echo "$bcm_id" | cut -d: -f2 | tr '[:upper:]' '[:lower:]')
+        if _is_broadcom_brcm "$dev_id"; then
+            desc=$(echo "$dev" | sed -E 's/^[^ ]+ [^:]+: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev.*\)//')
+            _FW_PLAN_PKG_LINES+=("  [+] firmware-brcm80211  \xe2\x86\x90 ${desc}")
+            break
+        fi
+    done
 }
 
 # ── Build plan string ──
@@ -235,6 +250,8 @@ _install_detected_firmware() {
 # ── Wireless handler (Broadcom 3-tier) ──
 _handle_wireless() {
     local installed_any=false
+    local wl_conflict_offered=false
+    local wl_build_failed=false
     if [ ${#PCI_NET_DEVS[@]} -eq 0 ] && [ ${#USB_WIFI_DEVS[@]} -eq 0 ]; then
         _detect_all_network_devices
     fi
@@ -247,9 +264,38 @@ _handle_wireless() {
         dev_id=$(echo "$bcm_id" | cut -d: -f2 | tr '[:upper:]' '[:lower:]')
 
         if _is_broadcom_brcm "$dev_id"; then
+            # ── Tier 1 (brcmfmac) ──
+            # Conflict check: broadcom-sta-dkms blacklists brcmfmac via
+            # /etc/modprobe.d/broadcom-sta-dkms.conf. Offer to remove it,
+            # otherwise the freshly installed firmware will never load.
+            if is_installed "broadcom-sta-dkms" && ! $wl_conflict_offered; then
+                wl_conflict_offered=true
+                if _confirm "Broadcom Driver Conflict" \
+                    "Detected broadcom-sta-dkms (proprietary wl driver). This package blacklists brcmfmac, the correct open-source driver for your chip.\n\nRemove it?"; then
+                    if _run_cmd "Broadcom" "sudo apt purge -y broadcom-sta-dkms" "Removing broadcom-sta-dkms..."; then
+                        sudo rm -f /etc/modprobe.d/broadcom-sta-dkms.conf
+                        echo -e "${GREEN}broadcom-sta-dkms removed. brcmfmac can now load.${NC}"
+                    fi
+                else
+                    _msg "Broadcom Driver Conflict" \
+                        "broadcom-sta-dkms was NOT removed. brcmfmac will remain blacklisted and WiFi may not work.\n\nInstalling firmware-brcm80211 anyway." 12 70
+                fi
+            fi
+
             if ! is_installed "firmware-brcm80211"; then
                 _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y firmware-brcm80211" \
-                    "Installing firmware-brcm80211..."
+                    "Installing firmware-brcm80211..." || true
+                # Post-install verification: warn if no brcmfmac firmware files
+                # are present (non-free repos may be inactive or download failed).
+                if ! ls /lib/firmware/brcm/brcmfmac4360* /lib/firmware/brcm/brcmfmac43* 2>/dev/null | grep -q .; then
+                    _msg "Broadcom Firmware Warning" \
+                        "No brcmfmac firmware files found in /lib/firmware/brcm/. The non-free repositories may not be active or the download may have failed.\n\nRun: sudo dpkg-reconfigure firmware-brcm80211" 12 70
+                    _pause
+                else
+                    echo -e "${GREEN}[+] Broadcom brcmfmac firmware installed.${NC}"
+                    echo -e "    ${YELLOW}A system reboot is required to load the new firmware.${NC}"
+                    _pause
+                fi
             else
                 echo "  --> firmware-brcm80211 already installed."
             fi
@@ -288,7 +334,7 @@ After the firmware is downloaded, reboot the system." 14 75
 
             if _confirm "Broadcom WiFi" "Install Broadcom driver?\n\nRequired for this chipset. Compiles a kernel module.\n\n  broadcom-sta-dkms          ${bcm_ver:-unknown}\n  linux-headers-amd64        ${header_ver:-unknown}\n\nProceed?"; then
                 _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y linux-headers-amd64 broadcom-sta-dkms" \
-                    "Installing Broadcom driver..."
+                    "Installing Broadcom driver..." || true
 
                 local has_broadcom_bt=false
                 for btdev in "${PCI_BT_DEVS[@]}"; do
@@ -307,9 +353,47 @@ EOF
                     echo -e "${YELLOW}A reboot may be required for Bluetooth to work correctly.${NC}"
                 fi
 
-                echo "Broadcom proprietary driver installed. A reboot may be required."
-                _pause
-                installed_any=true
+                # ── Post-DKMS verification: apt rc=0 does not guarantee wl.ko exists ──
+                if ! ls /lib/modules/"$(uname -r)"/updates/dkms/wl.ko* 2>/dev/null | grep -q .; then
+                    _msg "Broadcom DKMS Build Failed" \
+                        "DKMS build did not produce the wl kernel module.\n\n\
+No file found at /lib/modules/\$(uname -r)/updates/dkms/wl.ko*\n\n\
+Possible causes:\n\
+  - Kernel headers mismatch or compiler error\n\
+  - Incompatible kernel version (e.g. Debian 13 / kernel 6.12)\n\n\
+Try rebuilding the module manually:\n\
+  sudo dpkg-reconfigure broadcom-sta-dkms" 14 75
+                    if _confirm "Rebuild Broadcom driver" \
+                        "Run dpkg-reconfigure broadcom-sta-dkms now to retry the DKMS build?"; then
+                        _run_cmd "Broadcom" "sudo dpkg-reconfigure broadcom-sta-dkms" \
+                            "Rebuilding Broadcom driver..." || true
+                        if ls /lib/modules/"$(uname -r)"/updates/dkms/wl.ko* 2>/dev/null | grep -q .; then
+                            echo -e "${GREEN}[+] Broadcom wl module built successfully.${NC}"
+                            echo -e "    ${YELLOW}A system reboot is required to load the module.${NC}"
+                            _pause
+                            installed_any=true
+                        else
+                            local dmesg_tail
+                            dmesg_tail=$(dmesg 2>/dev/null | tail -20 || echo "(dmesg unavailable)")
+                            _msg "Broadcom DKMS Still Failed" \
+                                "DKMS rebuild did not produce wl.ko.\n\n\
+Check the build log and recent kernel messages:\n\n\
+${dmesg_tail}\n\n\
+Try manually:\n\
+  sudo dkms status\n\
+  sudo dpkg-reconfigure broadcom-sta-dkms\n\
+  dmesg | tail -20" 18 78
+                            _pause
+                            wl_build_failed=true
+                        fi
+                    else
+                        wl_build_failed=true
+                    fi
+                else
+                    echo "Broadcom proprietary driver installed. A reboot may be required."
+                    _pause
+                    installed_any=true
+                fi
             fi
         fi
     done
@@ -320,7 +404,7 @@ EOF
         fi
     done
 
-    if ! $installed_any; then
+    if ! $installed_any && ! $wl_build_failed; then
         echo "No special WiFi firmware needed -- base firmware-linux-nonfree covers this system."
         _pause
     fi
@@ -417,6 +501,7 @@ install_firmware() {
     # 1. Detect
     _detect_all_network_devices
     _detect_firmware_needs
+    _detect_broadcom_plan_lines
 
     # 2. Plan
     local plan
