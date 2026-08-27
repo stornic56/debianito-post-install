@@ -8,7 +8,7 @@ REPO_BACKUP_DIR=""
 backup_current_repos() {
     REPO_BACKUP_DIR=$(mktemp -d)
     for f in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
-             /etc/apt/sources.list.d/debian-backports.list /etc/apt/sources.list.d/debian-backports.sources; do
+        /etc/apt/sources.list.d/debian-backports.list /etc/apt/sources.list.d/debian-backports.sources; do
         if [ -f "$f" ]; then
             mkdir -p "$REPO_BACKUP_DIR/$(dirname "${f#/etc/apt/}")"
             cp "$f" "$REPO_BACKUP_DIR/$(dirname "${f#/etc/apt/}")/$(basename "$f")"
@@ -23,7 +23,7 @@ restore_previous_repos() {
     echo -e "${RED}Restoring previous repository configuration...${NC}"
     local found=false
     for f in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
-             /etc/apt/sources.list.d/debian-backports.list /etc/apt/sources.list.d/debian-backports.sources; do
+        /etc/apt/sources.list.d/debian-backports.list /etc/apt/sources.list.d/debian-backports.sources; do
         local rel="${f#/etc/apt/}"
         local backup_file="$REPO_BACKUP_DIR/$rel"
         if [ -f "$backup_file" ]; then
@@ -103,7 +103,7 @@ _write_deb822() {
     if content_differs "$main_file" "$main_content"; then
         if _confirm "Deb822 Sources" "Write main deb822 configuration to ${main_file}?"; then
             sudo mkdir -p /etc/apt/sources.list.d
-            echo -e "$main_content" | sudo tee "$main_file" > /dev/null
+            echo -e "$main_content" | sudo tee "$main_file" >/dev/null
             echo "Wrote ${main_file}"
         else
             echo "Main repository configuration skipped."
@@ -146,7 +146,7 @@ _write_deb822_backports() {
     if content_differs "$bp_file" "$bp_content"; then
         if _confirm "Deb822 Backports" "Write backports to ${bp_file}?"; then
             sudo mkdir -p /etc/apt/sources.list.d
-            echo -e "$bp_content" | sudo tee "$bp_file" > /dev/null
+            echo -e "$bp_content" | sudo tee "$bp_file" >/dev/null
             echo "Wrote ${bp_file}"
         else
             return 1
@@ -154,7 +154,7 @@ _write_deb822_backports() {
     fi
 
     # If backports were formerly embedded in debian.sources, clean them
-    grep -qE "^Suites:.*${codename}-backports\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null && \
+    grep -qE "^Suites:.*${codename}-backports\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null &&
         _clean_embedded_backports_deb822 "$codename" || true
 }
 
@@ -172,7 +172,7 @@ _remove_deb822_backports() {
     fi
 
     # Also clean any embedded backports in main debian.sources
-    grep -qE "^Suites:.*${codename}-backports\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null && \
+    grep -qE "^Suites:.*${codename}-backports\b" /etc/apt/sources.list.d/debian.sources 2>/dev/null &&
         _clean_embedded_backports_deb822 "$codename"
 
     # Clean embedded backports from classic file too (safety net)
@@ -199,7 +199,7 @@ _write_classic() {
 
     if content_differs "$main_file" "$main_content"; then
         if _confirm "Classic Sources" "Write main classic configuration to ${main_file}?"; then
-            echo -e "$main_content" | sudo tee "$main_file" > /dev/null
+            echo -e "$main_content" | sudo tee "$main_file" >/dev/null
             echo "Wrote ${main_file}"
         else
             echo "Main repository configuration skipped."
@@ -240,7 +240,7 @@ _write_classic_backports() {
     if content_differs "$bp_file" "$bp_content"; then
         if _confirm "Classic Backports" "Write backports to ${bp_file}?"; then
             sudo mkdir -p /etc/apt/sources.list.d
-            echo -e "$bp_content" | sudo tee "$bp_file" > /dev/null
+            echo -e "$bp_content" | sudo tee "$bp_file" >/dev/null
             echo "Wrote ${bp_file}"
         else
             return 1
@@ -248,7 +248,7 @@ _write_classic_backports() {
     fi
 
     # If backports were formerly embedded in sources.list, clean them
-    grep -qE "^[^#]*${codename}-backports\b" /etc/apt/sources.list 2>/dev/null && \
+    grep -qE "^[^#]*${codename}-backports\b" /etc/apt/sources.list 2>/dev/null &&
         _clean_embedded_backports_classic "$codename" || true
 }
 
@@ -266,7 +266,7 @@ _remove_classic_backports() {
     fi
 
     # Also clean any embedded backports in main sources.list
-    grep -qE "^[^#]*${codename}-backports\b" /etc/apt/sources.list 2>/dev/null && \
+    grep -qE "^[^#]*${codename}-backports\b" /etc/apt/sources.list 2>/dev/null &&
         _clean_embedded_backports_classic "$codename"
 
     # Clean embedded backports from deb822 file too (safety net)
@@ -309,17 +309,17 @@ configure_repos() {
         clear
 
         case "$repo_choice" in
-            1) _repos_enable_components ;;
-            2) _repos_migrate_format ;;
-            3)
-                if [ "$DEBIAN_CODENAME" = "sid" ]; then
-                    break
-                else
-                    _repos_setup_backports
-                fi
-                ;;
-            4) _branch_migration || true ;;
-            5) break ;;
+        1) _repos_enable_components ;;
+        2) _repos_migrate_format ;;
+        3)
+            if [ "$DEBIAN_CODENAME" = "sid" ]; then
+                break
+            else
+                _repos_setup_backports
+            fi
+            ;;
+        4) _branch_migration || true ;;
+        5) break ;;
         esac
     done
 }
@@ -410,9 +410,15 @@ Adding deb.debian.org may duplicate your current mirror configuration. Continue?
     fi
 
     if $use_deb822; then
-        _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components" || { cleanup_repo_backup; return 1; }
+        _write_deb822 "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components" || {
+            cleanup_repo_backup
+            return 1
+        }
     else
-        _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components" || { cleanup_repo_backup; return 1; }
+        _write_classic "$DEBIAN_CODENAME" "write" "$bp_enabled" "$bp_location" "$components" || {
+            cleanup_repo_backup
+            return 1
+        }
     fi
 
     # Tidy: with deb822 chosen, an empty classic file is no longer needed
@@ -425,7 +431,6 @@ Adding deb.debian.org may duplicate your current mirror configuration. Continue?
 
     echo "Updating package lists..."
     if sudo apt update; then
-        REPOS_CONFIGURED=true
         cleanup_repo_backup
         echo -e "${GREEN}Repository components configured.${NC}"
         return 0
@@ -514,7 +519,6 @@ Writing debian.sources may duplicate your configuration. Continue?" 10 65; then
 
     echo "Updating package lists..."
     if sudo apt update; then
-        REPOS_CONFIGURED=true
         cleanup_repo_backup
         echo -e "${GREEN}Repository components configured.${NC}"
         _repos_offer_upgrade
@@ -558,7 +562,6 @@ _repos_migrate_format() {
 
     echo "Updating package lists..."
     if sudo apt update; then
-        REPOS_CONFIGURED=true
         cleanup_repo_backup
         echo -e "${GREEN}Repository format migrated to DEB822.${NC}"
     else
@@ -589,8 +592,8 @@ Answer NO to disable or remove backports if they are currently enabled." 16 70; 
     fi
 
     # Nothing to do — already in desired state
-    if { $enable_backports && [ "$bp_status" = "enabled" ]; } || \
-       { ! $enable_backports && [ "$bp_status" = "disabled" ]; }; then
+    if { $enable_backports && [ "$bp_status" = "enabled" ]; } ||
+        { ! $enable_backports && [ "$bp_status" = "disabled" ]; }; then
         echo "Backports are already configured as requested."
         _pause
         return

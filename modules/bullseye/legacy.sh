@@ -14,8 +14,8 @@ check_bullseye_archive_phase() {
     current_year=$(date +%Y)
     current_month=$(date +%-m)
 
-    if [ "$current_year" -gt 2026 ] || \
-       { [ "$current_year" -eq 2026 ] && [ "$current_month" -ge 9 ]; }; then
+    if [ "$current_year" -gt 2026 ] ||
+        { [ "$current_year" -eq 2026 ] && [ "$current_month" -ge 9 ]; }; then
         BULLSEYE_USE_ARCHIVE=true
     fi
 
@@ -33,7 +33,8 @@ No security updates will be available." 12 60
 install_nvidia_bullseye() {
     echo -e "${YELLOW}NVIDIA GPU detected (Bullseye mode).${NC}"
 
-    local is_fermi;   is_fermi=$(is_nvidia_fermi)
+    local is_fermi
+    is_fermi=$(is_nvidia_fermi)
 
     local nv_pkg=""
     local gpu_gen=""
@@ -108,13 +109,13 @@ install_gaming_bullseye() {
     local choices
     choices=$(_checklist "Gaming Setup — Bullseye" \
         "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "i386"     "Enable 32-bit (i386) architecture" ON \
-        "steam"    "Steam (requires 32-bit support)" ON \
+        "i386" "Enable 32-bit (i386) architecture" ON \
+        "steam" "Steam (requires 32-bit support)" ON \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "gamemode" "Game performance optimization" OFF \
         "goverlay" "MangoHud config GUI" ON \
-        "java"     "Minecraft Java Runtime" OFF \
-        "lutris"   "Lutris + Wine (requires 32-bit support)" OFF \
+        "java" "Minecraft Java Runtime" OFF \
+        "lutris" "Lutris + Wine (requires 32-bit support)" OFF \
         "retroarch" "RetroArch Emulator Frontend" OFF)
 
     if [ -z "$choices" ]; then
@@ -128,7 +129,7 @@ install_gaming_bullseye() {
 
     local need_32bit=false
     for p in $cleaned; do
-        case $p in steam|lutris) need_32bit=true ;; esac
+        case $p in steam | lutris) need_32bit=true ;; esac
     done
     echo "$cleaned" | grep -qw i386 && need_32bit=true
 
@@ -139,7 +140,7 @@ install_gaming_bullseye() {
     if $need_32bit && ! dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
         echo -e "${YELLOW}Enabling i386 architecture...${NC}"
         sudo dpkg --add-architecture i386
-        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+        _ensure_apt_updated
     fi
 
     if $need_32bit; then
@@ -153,20 +154,20 @@ install_gaming_bullseye() {
 
     for pkg in $install_list; do
         case $pkg in
-            steam)
-                if ensure_contrib_repo; then
-                    install_steam
-                else
-                    echo -e "${YELLOW}Skipping Steam installation (contrib repository not enabled).${NC}"
-                fi
-                ;;
-            java)     install_minecraft_java ;;
-            mangohud) install_mangohud ;;
-            gamemode) install_gamemode ;;
-            goverlay) install_goverlay ;;
-            lutris)   install_lutris ;;
-            retroarch)  install_retroarch ;;
-            *)        _run_install "$pkg" ;;
+        steam)
+            if ensure_contrib_repo; then
+                install_steam
+            else
+                echo -e "${YELLOW}Skipping Steam installation (contrib repository not enabled).${NC}"
+            fi
+            ;;
+        java) install_minecraft_java ;;
+        mangohud) install_mangohud ;;
+        gamemode) install_gamemode ;;
+        goverlay) install_goverlay ;;
+        lutris) install_lutris ;;
+        retroarch) install_retroarch ;;
+        *) _run_install "$pkg" ;;
         esac
     done
 

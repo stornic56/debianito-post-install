@@ -17,20 +17,20 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="${SCRIPT_DIR}/modules"
 
 source "${MODULES_DIR}/utils.sh"
-[ -f "${MODULES_DIR}/sysinfo.sh" ]   && source "${MODULES_DIR}/sysinfo.sh"
+[ -f "${MODULES_DIR}/sysinfo.sh" ] && source "${MODULES_DIR}/sysinfo.sh"
 source "${MODULES_DIR}/sudo_config.sh"
 source "${MODULES_DIR}/repos/repo_detect.sh"
 source "${MODULES_DIR}/repos.sh"
-[ -f "${MODULES_DIR}/firmware.sh" ]  && source "${MODULES_DIR}/firmware.sh"
+[ -f "${MODULES_DIR}/firmware.sh" ] && source "${MODULES_DIR}/firmware.sh"
 [ -f "${MODULES_DIR}/bluetooth.sh" ] && source "${MODULES_DIR}/bluetooth.sh"
-[ -f "${MODULES_DIR}/gpu.sh" ]       && source "${MODULES_DIR}/gpu.sh"
-[ -f "${MODULES_DIR}/kernel.sh" ]    && source "${MODULES_DIR}/kernel.sh"
-[ -f "${MODULES_DIR}/gaming.sh" ]    && source "${MODULES_DIR}/gaming.sh"
-[ -f "${MODULES_DIR}/extras.sh" ]    && source "${MODULES_DIR}/extras.sh"
-[ -f "${MODULES_DIR}/zram.sh" ]      && source "${MODULES_DIR}/zram.sh"
+[ -f "${MODULES_DIR}/gpu.sh" ] && source "${MODULES_DIR}/gpu.sh"
+[ -f "${MODULES_DIR}/kernel.sh" ] && source "${MODULES_DIR}/kernel.sh"
+[ -f "${MODULES_DIR}/gaming.sh" ] && source "${MODULES_DIR}/gaming.sh"
+[ -f "${MODULES_DIR}/extras.sh" ] && source "${MODULES_DIR}/extras.sh"
+[ -f "${MODULES_DIR}/zram.sh" ] && source "${MODULES_DIR}/zram.sh"
 [ -f "${MODULES_DIR}/extras/java.sh" ] && source "${MODULES_DIR}/extras/java.sh"
-[ -f "${MODULES_DIR}/rescue.sh" ]    && source "${MODULES_DIR}/rescue.sh"
-[ -f "${MODULES_DIR}/swap.sh" ]     && source "${MODULES_DIR}/swap.sh"
+[ -f "${MODULES_DIR}/rescue.sh" ] && source "${MODULES_DIR}/rescue.sh"
+[ -f "${MODULES_DIR}/swap.sh" ] && source "${MODULES_DIR}/swap.sh"
 [ -f "${MODULES_DIR}/desktop_display.sh" ] && source "${MODULES_DIR}/desktop_display.sh"
 [ -f "${MODULES_DIR}/system/system_prefs.sh" ] && source "${MODULES_DIR}/system/system_prefs.sh"
 [ -f "${MODULES_DIR}/system/audio.sh" ] && source "${MODULES_DIR}/system/audio.sh"
@@ -38,19 +38,18 @@ source "${MODULES_DIR}/repos.sh"
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
 if [ -d "${MODULES_DIR}/bullseye" ]; then
     [ -f "${MODULES_DIR}/bullseye/legacy.sh" ] && source "${MODULES_DIR}/bullseye/legacy.sh"
-    [ -f "${MODULES_DIR}/bullseye/repos.sh" ]  && source "${MODULES_DIR}/bullseye/repos.sh"
+    [ -f "${MODULES_DIR}/bullseye/repos.sh" ] && source "${MODULES_DIR}/bullseye/repos.sh"
     [ -f "${MODULES_DIR}/bullseye/extras.sh" ] && source "${MODULES_DIR}/bullseye/extras.sh"
 fi
 
-REPOS_CONFIGURED=false
 DEBIAN_VERSION=""
 DEBIAN_CODENAME=""
 
 main_menu() {
     # Auto-adjust TUI dimensions for small terminals
     if [ "${LINES:-24}" -lt $((TUI_ALTO + 6)) ] || [ "${COLUMNS:-80}" -lt $((TUI_ANCHO + 6)) ]; then
-        TUI_ALTO=$(( ${LINES:-24} - 4 > 8 ? ${LINES:-24} - 4 : 8))
-        TUI_ANCHO=$(( ${COLUMNS:-80} - 4 > 50 ? ${COLUMNS:-80} - 4 : 50))
+        TUI_ALTO=$((${LINES:-24} - 4 > 8 ? ${LINES:-24} - 4 : 8))
+        TUI_ANCHO=$((${COLUMNS:-80} - 4 > 50 ? ${COLUMNS:-80} - 4 : 50))
         TUI_ALTO_LISTA=$((TUI_ALTO - 10 > 4 ? TUI_ALTO - 10 : 4))
     fi
 
@@ -78,58 +77,81 @@ main_menu() {
         clear
 
         case "$choice" in
-            1)  _show_sysinfo ;;
-            2)  config_sudo || true ;;
-            3)  _system_preferences_menu ;;
-            4)
-                if [ "$DEBIAN_VERSION" = "11" ] && type configure_repos_bullseye &>/dev/null; then
-                    configure_repos_bullseye || true
-                else
-                    configure_repos || true
-                fi
-                STATE_REFRESHED=true
-                ;;
-            5)
-                if [ "$DEBIAN_VERSION" = "11" ] && type install_firmware_bullseye &>/dev/null; then
-                    install_firmware_bullseye || true
-                else
-                    install_firmware || true
-                fi
-                ;;
-            6)
-                local gpu_sub
-                gpu_sub=$(_menu "Graphics Drivers" "" 12 50 2 \
-                    "1" "Radeon/Intel Mesa" \
-                    "2" "NVIDIA Drivers")
-                [ -z "$gpu_sub" ] && continue
-                clear
-                case $gpu_sub in
-                    1) _install_amd_intel_stack || true ;;
-                    2) _install_nvidia_stack || true ;;
-                esac
-                STATE_REFRESHED=true
-                ;;
-            7)  show_kernel_menu || true ;;
-            8)
-                if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
-                    install_gaming_bullseye || true
-                else
-                    install_gaming || true
-                fi
-                STATE_REFRESHED=true
-                ;;
-            9)  zram_menu || true ;;
-            10) manage_swap || true; STATE_REFRESHED=true ;;
-            11)
-                if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
-                    install_extras_bullseye || true
-                else
-                    install_extras || true
-                fi
-                ;;
-            12) rescue_boot || true ;;
-            13) manage_desktop_display || true ;;
-            14) echo "Exiting."; exit 0 ;;
+        1) _show_sysinfo ;;
+        2) config_sudo || true ;;
+        3)
+            _system_preferences_menu
+            STATE_REFRESHED=true
+            ;;
+        4)
+            if [ "$DEBIAN_VERSION" = "11" ] && type configure_repos_bullseye &>/dev/null; then
+                configure_repos_bullseye || true
+            else
+                configure_repos || true
+            fi
+            STATE_REFRESHED=true
+            ;;
+        5)
+            if [ "$DEBIAN_VERSION" = "11" ] && type install_firmware_bullseye &>/dev/null; then
+                install_firmware_bullseye || true
+            else
+                install_firmware || true
+            fi
+            STATE_REFRESHED=true
+            ;;
+        6)
+            local gpu_sub
+            gpu_sub=$(_menu "Graphics Drivers" "" 12 50 2 \
+                "1" "Radeon/Intel Mesa" \
+                "2" "NVIDIA Drivers")
+            [ -z "$gpu_sub" ] && continue
+            clear
+            case $gpu_sub in
+            1) _install_amd_intel_stack || true ;;
+            2) _install_nvidia_stack || true ;;
+            esac
+            STATE_REFRESHED=true
+            ;;
+        7)
+            show_kernel_menu || true
+            STATE_REFRESHED=true
+            ;;
+        8)
+            if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
+                install_gaming_bullseye || true
+            else
+                install_gaming || true
+            fi
+            STATE_REFRESHED=true
+            ;;
+        9)
+            zram_menu || true
+            STATE_REFRESHED=true
+            ;;
+        10)
+            manage_swap || true
+            STATE_REFRESHED=true
+            ;;
+        11)
+            if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
+                install_extras_bullseye || true
+            else
+                install_extras || true
+            fi
+            STATE_REFRESHED=true
+            ;;
+        12)
+            rescue_boot || true
+            STATE_REFRESHED=true
+            ;;
+        13)
+            manage_desktop_display || true
+            STATE_REFRESHED=true
+            ;;
+        14)
+            echo "Exiting."
+            exit 0
+            ;;
         esac
         if $STATE_REFRESHED; then
             refresh_system_state
@@ -139,6 +161,10 @@ main_menu() {
 
 check_root
 check_sudo
+if ! command -v whiptail >/dev/null 2>&1; then
+    echo -e "${YELLOW}[+] whiptail not found. Installing required TUI dependencies...${NC}"
+    _ensure_apt_updated && sudo apt-get install -y whiptail
+fi
 if ! _check_network; then
     echo -e "${YELLOW}──────────────────────────────────────────${NC}"
     echo -e "${YELLOW} No internet connectivity detected.${NC}"
@@ -152,6 +178,7 @@ _ensure_time_synced
 detect_debian_version
 detect_cpu_ram
 detect_kernel
+_init_lspci_cache
 detect_gpu
 detect_network
 detect_displayserver

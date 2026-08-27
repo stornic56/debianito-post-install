@@ -16,13 +16,13 @@ _enable_mozilla_repo() {
         _run_cmd "Mozilla" "sudo extrepo enable mozilla" "Enabling Mozilla repository..."
     fi
     if [ ! -f /etc/apt/preferences.d/mozilla ]; then
-        sudo tee /etc/apt/preferences.d/mozilla > /dev/null << 'EOF'
+        sudo tee /etc/apt/preferences.d/mozilla >/dev/null <<'EOF'
 Package: *
 Pin: origin packages.mozilla.org
 Pin-Priority: 1000
 EOF
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 _enable_floorp_repo() {
@@ -30,7 +30,7 @@ _enable_floorp_repo() {
         _ensure_extrepo
         _run_cmd "Floorp" "sudo extrepo enable floorp" "Enabling Floorp repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 install_palemoon() {
@@ -60,7 +60,7 @@ install_palemoon() {
     else
         _ensure_extrepo
         _run_cmd "Pale Moon" "sudo extrepo enable ${REPO_PALEMOON}" "Enabling ${REPO_PALEMOON}..."
-        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+        _ensure_apt_updated
     fi
 
     if ! is_installed "palemoon"; then
@@ -76,7 +76,7 @@ _enable_librewolf_repo() {
         _ensure_extrepo
         _run_cmd "LibreWolf" "sudo extrepo enable librewolf" "Enabling LibreWolf repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 _enable_tailscale_repo() {
@@ -84,7 +84,7 @@ _enable_tailscale_repo() {
         _ensure_extrepo
         _run_cmd "Tailscale" "sudo extrepo enable tailscale" "Enabling Tailscale repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 _enable_mullvad_repo() {
@@ -92,14 +92,14 @@ _enable_mullvad_repo() {
         _ensure_extrepo
         _run_cmd "Mullvad" "sudo extrepo enable mullvad" "Enabling Mullvad repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 install_protonvpn() {
     if [ ! -f /etc/apt/sources.list.d/extrepo_protonvpn.sources ]; then
         _ensure_extrepo
         _run_cmd "ProtonVPN" "sudo extrepo enable protonvpn stable" "Enabling ProtonVPN repository (stable suite)..."
-        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+        _ensure_apt_updated
     else
         echo "ProtonVPN repository already enabled."
     fi
@@ -119,69 +119,90 @@ _cat_internet() {
     _is_headless && headless=true
     local -a items=()
     if ! $headless; then
-        local chromium_state;     chromium_state=$(_state "chromium")
-        local dillo_state;        dillo_state=$(_state "dillo")
-        local epiphany_state;     epiphany_state=$(_state "epiphany-browser")
-        local falkon_state;       falkon_state=$(_state "falkon")
+        local chromium_state
+        chromium_state=$(_state "chromium")
+        local dillo_state
+        dillo_state=$(_state "dillo")
+        local epiphany_state
+        epiphany_state=$(_state "epiphany-browser")
+        local falkon_state
+        falkon_state=$(_state "falkon")
         local firefox_state="OFF"
         if command -v firefox &>/dev/null && ! is_installed "firefox-esr"; then
             firefox_state="ON"
         fi
         local firefox_esr_state
         firefox_esr_state=$(_state "firefox-esr")
-        local floorp_state;       floorp_state=$(_state "floorp")
-        local konqueror_state;    konqueror_state=$(_state "konqueror")
-        local librewolf_state;    librewolf_state=$(_state "librewolf")
-        local palemoon_state;     palemoon_state=$(_state "palemoon")
-        local privacybrowser_state; privacybrowser_state=$(_state "privacybrowser")
-        local qutebrowser_state;  qutebrowser_state=$(_state "qutebrowser")
-        local thunderbird_state;  thunderbird_state=$(_state "thunderbird")
-        local torbrowser_state;   torbrowser_state=$(_state "torbrowser-launcher")
-        local mullvadbrowser_state; mullvadbrowser_state=$(_state "mullvad-browser")
-        local protonvpn_state;    protonvpn_state=$(_state "protonvpn")
+        local floorp_state
+        floorp_state=$(_state "floorp")
+        local konqueror_state
+        konqueror_state=$(_state "konqueror")
+        local librewolf_state
+        librewolf_state=$(_state "librewolf")
+        local palemoon_state
+        palemoon_state=$(_state "palemoon")
+        local privacybrowser_state
+        privacybrowser_state=$(_state "privacybrowser")
+        local qutebrowser_state
+        qutebrowser_state=$(_state "qutebrowser")
+        local thunderbird_state
+        thunderbird_state=$(_state "thunderbird")
+        local torbrowser_state
+        torbrowser_state=$(_state "torbrowser-launcher")
+        local mullvadbrowser_state
+        mullvadbrowser_state=$(_state "mullvad-browser")
+        local protonvpn_state
+        protonvpn_state=$(_state "protonvpn")
         items+=(
-            "chromium"            "Chromium web browser"                  "$chromium_state"
-            "dillo"               "Lightweight graphical browser"            "$dillo_state"
-            "epiphany-browser"    "GNOME web browser"             "$epiphany_state"
-            "falkon"              "KDE web browser (QtWebEngine)"           "$falkon_state"
-            "firefox"             "Firefox from Mozilla (replaces ESR)"                    "$firefox_state"
-            "firefox-esr"         "Firefox ESR (official Debian + locale auto)"            "$firefox_esr_state"
-            "floorp"              "Firefox-based browser (extrepo)"         "$floorp_state"
-            "konqueror"           "KDE file manager / web browser"       "$konqueror_state"
-            "librewolf"           "Privacy-focused Firefox fork (extrepo)" "$librewolf_state"
-            "palemoon"            "Classic Firefox-derived browser (extrepo)"              "$palemoon_state"
-            "privacybrowser"      "Privacy-focused web browser"     "$privacybrowser_state"
-            "qutebrowser"         "Keyboard-driven browser (Qt)"       "$qutebrowser_state"
-            "thunderbird"         "Email client"                       "$thunderbird_state"
-            "torbrowser-launcher" "Tor Browser launcher"       "$torbrowser_state"
-            "mullvad-browser"     "Mullvad privacy browser"        "$mullvadbrowser_state"
-            "protonvpn"           "ProtonVPN client"                     "$protonvpn_state"
+            "chromium" "Chromium web browser" "$chromium_state"
+            "dillo" "Lightweight graphical browser" "$dillo_state"
+            "epiphany-browser" "GNOME web browser" "$epiphany_state"
+            "falkon" "KDE web browser (QtWebEngine)" "$falkon_state"
+            "firefox" "Firefox from Mozilla (replaces ESR)" "$firefox_state"
+            "firefox-esr" "Firefox ESR (official Debian + locale auto)" "$firefox_esr_state"
+            "floorp" "Firefox-based browser (extrepo)" "$floorp_state"
+            "konqueror" "KDE file manager / web browser" "$konqueror_state"
+            "librewolf" "Privacy-focused Firefox fork (extrepo)" "$librewolf_state"
+            "palemoon" "Classic Firefox-derived browser (extrepo)" "$palemoon_state"
+            "privacybrowser" "Privacy-focused web browser" "$privacybrowser_state"
+            "qutebrowser" "Keyboard-driven browser (Qt)" "$qutebrowser_state"
+            "thunderbird" "Email client" "$thunderbird_state"
+            "torbrowser-launcher" "Tor Browser launcher" "$torbrowser_state"
+            "mullvad-browser" "Mullvad privacy browser" "$mullvadbrowser_state"
+            "protonvpn" "ProtonVPN client" "$protonvpn_state"
         )
     fi
-    local elinks_state;    elinks_state=$(_state "elinks")
-    local riseupvpn_state; riseupvpn_state=$(_state "riseup-vpn")
-    local w3m_state;       w3m_state=$(_state "w3m")
-    local tailscale_state; tailscale_state=$(_state "tailscale")
-    local mullvad_state;   mullvad_state=$(_state "mullvad-vpn")
+    local elinks_state
+    elinks_state=$(_state "elinks")
+    local riseupvpn_state
+    riseupvpn_state=$(_state "riseup-vpn")
+    local w3m_state
+    w3m_state=$(_state "w3m")
+    local tailscale_state
+    tailscale_state=$(_state "tailscale")
+    local mullvad_state
+    mullvad_state=$(_state "mullvad-vpn")
     items+=(
-        "elinks"     "Text-mode web browser"                   "$elinks_state"
-        "riseup-vpn" "Riseup VPN client"                   "$riseupvpn_state"
-        "w3m"        "Text-mode browser + deps (w3m-img)"         "$w3m_state"
-        "tailscale"  "Zero-config VPN & mesh networking"    "$tailscale_state"
-        "mullvad-vpn" "Mullvad VPN client (WireGuard)"    "$mullvad_state"
+        "elinks" "Text-mode web browser" "$elinks_state"
+        "riseup-vpn" "Riseup VPN client" "$riseupvpn_state"
+        "w3m" "Text-mode browser + deps (w3m-img)" "$w3m_state"
+        "tailscale" "Zero-config VPN & mesh networking" "$tailscale_state"
+        "mullvad-vpn" "Mullvad VPN client (WireGuard)" "$mullvad_state"
     )
 
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Internet" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
-        "${items[@]}" \
-        )
+    choices=$(
+        _checklist "Internet" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
+            "${items[@]}"
+    )
     clear
 
     [ -z "$choices" ] && return
 
-    local cleaned; cleaned=$(echo "$choices" | tr -d '"')
+    local cleaned
+    cleaned=$(echo "$choices" | tr -d '"')
 
     local has_firefox=false
     local has_firefox_esr=false
@@ -194,76 +215,76 @@ _cat_internet() {
     if $has_firefox && $has_firefox_esr; then
         fchoice=$(_menu "Firefox" "You selected both Firefox (Mozilla) and Firefox ESR.\nWhat do you want to do?" 12 60 3 \
             "mozilla" "Remove Firefox ESR — keep Firefox" \
-            "esr"     "Remove Firefox — keep Firefox ESR" \
-            "both"    "Keep both variants")
+            "esr" "Remove Firefox — keep Firefox ESR" \
+            "both" "Keep both variants")
         [ -z "$fchoice" ] && return
         case "$fchoice" in
-            mozilla) cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox-esr" | tr '\n' ' ') ;;
-            esr)     cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox" | tr '\n' ' ') ;;
+        mozilla) cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox-esr" | tr '\n' ' ') ;;
+        esr) cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox" | tr '\n' ' ') ;;
         esac
     fi
 
     for pkg in $cleaned; do
         case $pkg in
-            firefox)
-                install_firefox_mozilla "$fchoice"
-                ;;
-            firefox-esr)
-                install_firefox_esr "$fchoice"
-                ;;
-            floorp)
-                _enable_floorp_repo
-                _run_install floorp
-                echo -e "${GREEN}Floorp installed.${NC}"
-                ;;
-            librewolf)
-                _enable_librewolf_repo
-                _run_install librewolf
-                echo -e "${GREEN}LibreWolf installed.${NC}"
-                ;;
-            palemoon)
-                install_palemoon
-                ;;
-            tailscale)
-                _enable_tailscale_repo
-                _run_install tailscale
-                echo -e "${GREEN}Tailscale installed.${NC}"
-                ;;
-            mullvad-vpn)
-                _enable_mullvad_repo
-                _run_install mullvad-vpn
-                echo -e "${GREEN}Mullvad VPN installed.${NC}"
-                ;;
-            mullvad-browser)
-                _enable_mullvad_repo
-                _run_install mullvad-browser
-                echo -e "${GREEN}Mullvad Browser installed.${NC}"
-                ;;
-            protonvpn)
-                install_protonvpn
-                ;;
-            riseup-vpn)
-                install_backports_or_stable riseup-vpn
-                ;;
-            w3m)
-                local need=()
-                ! is_installed "w3m" && need+=("w3m")
-                ! is_installed "w3m-img" && need+=("w3m-img")
-                ! is_installed "ca-certificates" && need+=("ca-certificates")
-                ! is_installed "xsel" && need+=("xsel")
-                if [ ${#need[@]} -gt 0 ]; then
-                    _run_install_batch w3m w3m-img ca-certificates xsel
-                else
-                    echo "w3m already installed."
-                fi
-                ;;
-            *)
-                if ! is_installed "$pkg"; then
-                    _run_install "$pkg"
-                else
-                    echo "$pkg already installed."
-                fi
-                ;;
+        firefox)
+            install_firefox_mozilla "$fchoice"
+            ;;
+        firefox-esr)
+            install_firefox_esr "$fchoice"
+            ;;
+        floorp)
+            _enable_floorp_repo
+            _run_install floorp
+            echo -e "${GREEN}Floorp installed.${NC}"
+            ;;
+        librewolf)
+            _enable_librewolf_repo
+            _run_install librewolf
+            echo -e "${GREEN}LibreWolf installed.${NC}"
+            ;;
+        palemoon)
+            install_palemoon
+            ;;
+        tailscale)
+            _enable_tailscale_repo
+            _run_install tailscale
+            echo -e "${GREEN}Tailscale installed.${NC}"
+            ;;
+        mullvad-vpn)
+            _enable_mullvad_repo
+            _run_install mullvad-vpn
+            echo -e "${GREEN}Mullvad VPN installed.${NC}"
+            ;;
+        mullvad-browser)
+            _enable_mullvad_repo
+            _run_install mullvad-browser
+            echo -e "${GREEN}Mullvad Browser installed.${NC}"
+            ;;
+        protonvpn)
+            install_protonvpn
+            ;;
+        riseup-vpn)
+            install_backports_or_stable riseup-vpn
+            ;;
+        w3m)
+            local need=()
+            ! is_installed "w3m" && need+=("w3m")
+            ! is_installed "w3m-img" && need+=("w3m-img")
+            ! is_installed "ca-certificates" && need+=("ca-certificates")
+            ! is_installed "xsel" && need+=("xsel")
+            if [ ${#need[@]} -gt 0 ]; then
+                _run_install_batch w3m w3m-img ca-certificates xsel
+            else
+                echo "w3m already installed."
+            fi
+            ;;
+        *)
+            if ! is_installed "$pkg"; then
+                _run_install "$pkg"
+            else
+                echo "$pkg already installed."
+            fi
+            ;;
         esac
     done
 
@@ -284,22 +305,22 @@ install_firefox_mozilla() {
 
     if is_installed "firefox-esr"; then
         case "$fchoice" in
-            both)
-                echo -e "${CYAN}[INFO] Keeping Firefox ESR (both selected).${NC}"
-                ;;
-            mozilla)
-                echo "Removing Firefox ESR (as selected)..."
+        both)
+            echo -e "${CYAN}[INFO] Keeping Firefox ESR (both selected).${NC}"
+            ;;
+        mozilla)
+            echo "Removing Firefox ESR (as selected)..."
+            sudo apt remove -y firefox-esr
+            ;;
+        *)
+            if _confirm "Firefox ESR" "Firefox ESR is installed.\nRemove it before installing Mozilla Firefox?"; then
+                echo "Removing Firefox ESR..."
                 sudo apt remove -y firefox-esr
-                ;;
-            *)
-                if _confirm "Firefox ESR" "Firefox ESR is installed.\nRemove it before installing Mozilla Firefox?"; then
-                    echo "Removing Firefox ESR..."
-                    sudo apt remove -y firefox-esr
-                else
-                    echo "Keeping Firefox ESR."
-                    return
-                fi
-                ;;
+            else
+                echo "Keeping Firefox ESR."
+                return
+            fi
+            ;;
         esac
     fi
 
@@ -317,22 +338,22 @@ install_firefox_esr() {
 
     if command -v firefox &>/dev/null; then
         case "$fchoice" in
-            both)
-                echo -e "${CYAN}[INFO] Keeping Mozilla Firefox (both selected).${NC}"
-                ;;
-            esr)
-                echo "Removing Mozilla Firefox (as selected)..."
+        both)
+            echo -e "${CYAN}[INFO] Keeping Mozilla Firefox (both selected).${NC}"
+            ;;
+        esr)
+            echo "Removing Mozilla Firefox (as selected)..."
+            sudo apt remove -y firefox
+            ;;
+        *)
+            if _confirm "Firefox" "Mozilla Firefox is installed.\nRemove it before installing Firefox ESR?"; then
+                echo "Removing Mozilla Firefox..."
                 sudo apt remove -y firefox
-                ;;
-            *)
-                if _confirm "Firefox" "Mozilla Firefox is installed.\nRemove it before installing Firefox ESR?"; then
-                    echo "Removing Mozilla Firefox..."
-                    sudo apt remove -y firefox
-                else
-                    echo "Keeping Mozilla Firefox."
-                    return
-                fi
-                ;;
+            else
+                echo "Keeping Mozilla Firefox."
+                return
+            fi
+            ;;
         esac
     fi
 

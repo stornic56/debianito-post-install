@@ -60,7 +60,7 @@ ensure_contrib_repo() {
         return 1
     fi
 
-    sudo apt update
+    _ensure_apt_updated
     echo -e "${GREEN}contrib repository enabled.${NC}"
     return 0
 }
@@ -72,15 +72,15 @@ install_gaming() {
     local choices
     choices=$(_checklist "Gaming Setup" \
         "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "i386"     "Enable 32-bit (i386) architecture" ON \
-        "steam"    "Steam (requires 32-bit support)" ON \
+        "i386" "Enable 32-bit (i386) architecture" ON \
+        "steam" "Steam (requires 32-bit support)" ON \
         "mangohud" "Performance overlay (Vulkan/OpenGL)" ON \
         "gamemode" "Game performance optimization" OFF \
         "goverlay" "MangoHud config GUI" ON \
-        "heroic"   "Heroic Launcher (Epic/GOG)" OFF \
-        "java"     "Minecraft Java Runtime" OFF \
-        "openrgb"  "OpenRGB (RGB lighting control)" OFF \
-        "lutris"   "Lutris + Wine (requires 32-bit support)" OFF \
+        "heroic" "Heroic Launcher (Epic/GOG)" OFF \
+        "java" "Minecraft Java Runtime" OFF \
+        "openrgb" "OpenRGB (RGB lighting control)" OFF \
+        "lutris" "Lutris + Wine (requires 32-bit support)" OFF \
         "retroarch" "RetroArch Emulator Frontend" OFF)
 
     if [ -z "$choices" ]; then
@@ -95,7 +95,7 @@ install_gaming() {
     # 2. Determine if 32-bit is needed (steam, lutris, or explicit i386 toggle)
     local need_32bit=false
     for p in $cleaned; do
-        case $p in steam|lutris) need_32bit=true ;; esac
+        case $p in steam | lutris) need_32bit=true ;; esac
     done
     echo "$cleaned" | grep -qw i386 && need_32bit=true
 
@@ -108,7 +108,7 @@ install_gaming() {
     if $need_32bit && ! dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
         echo -e "${YELLOW}Enabling i386 architecture (required by selection)...${NC}"
         sudo dpkg --add-architecture i386
-        _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+        _ensure_apt_updated
     fi
 
     # 4. Install 32-bit graphics drivers only if 32-bit is needed
@@ -124,28 +124,28 @@ install_gaming() {
     # 5. Install selected packages
     for pkg in $install_list; do
         case $pkg in
-            steam)
-                if ensure_contrib_repo; then
-                    install_steam
-                else
-                    echo -e "${YELLOW}Skipping Steam installation (contrib repository not enabled).${NC}"
-                fi
-                ;;
-            heroic)   install_heroic ;;
-            java)     install_minecraft_java ;;
-            mangohud) install_mangohud ;;
-            gamemode) install_gamemode ;;
-            goverlay) install_goverlay ;;
-            openrgb)
-                if [ "$DEBIAN_VERSION" = "11" ]; then
-                    echo "OpenRGB requires Debian 12+."
-                    continue
-                fi
-                install_openrgb
-                ;;
-            lutris)   install_lutris ;;
-            retroarch)  install_retroarch ;;
-            *)        _run_install "$pkg" ;;
+        steam)
+            if ensure_contrib_repo; then
+                install_steam
+            else
+                echo -e "${YELLOW}Skipping Steam installation (contrib repository not enabled).${NC}"
+            fi
+            ;;
+        heroic) install_heroic ;;
+        java) install_minecraft_java ;;
+        mangohud) install_mangohud ;;
+        gamemode) install_gamemode ;;
+        goverlay) install_goverlay ;;
+        openrgb)
+            if [ "$DEBIAN_VERSION" = "11" ]; then
+                echo "OpenRGB requires Debian 12+."
+                continue
+            fi
+            install_openrgb
+            ;;
+        lutris) install_lutris ;;
+        retroarch) install_retroarch ;;
+        *) _run_install "$pkg" ;;
         esac
     done
 

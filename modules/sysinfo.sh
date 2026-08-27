@@ -37,7 +37,7 @@ _show_sysinfo() {
                 msg+="GPU ${gpu_count}:    ${desc}\n"
                 msg+="          Driver: ${mesa_ver:+Mesa }${mesa_ver:-unknown}\n"
             fi
-        done < <(timeout 2 lspci -nn | grep -E "VGA|3D" || true)
+        done < <(echo "$LSPCI_OUTPUT" | grep -E "VGA|3D" || true)
     fi
 
     if ! $found_gpu; then
@@ -52,13 +52,13 @@ _show_sysinfo() {
     declare -a pci_eth_lines=()
     while IFS= read -r line; do
         pci_eth_lines+=("$line")
-    done < <(timeout 2 lspci -d ::0200 2>/dev/null || true)
+    done < <(echo "$LSPCI_OUTPUT" | grep -i 'ethernet controller' || true)
 
     # ── 2. Detect ALL WiFi chipsets (class 0x0280 + vendor fallbacks) ──
     declare -a pci_wifi_lines=()
     while IFS= read -r line; do
         pci_wifi_lines+=("$line")
-    done < <(timeout 2 lspci -d ::0280 2>/dev/null || true)
+    done < <(echo "$LSPCI_OUTPUT" | grep -i 'network controller' || true)
 
     # Broadcom vendor-ID fallback (14e4) — include only if not already captured
     while IFS= read -r line; do
@@ -69,7 +69,7 @@ _show_sysinfo() {
             done
             ! $already && pci_wifi_lines+=("$line")
         fi
-    done < <(timeout 2 lspci -nn 2>/dev/null || true)
+    done < <(echo "$LSPCI_OUTPUT" || true)
 
     # USB WiFi fallback
     local usb_wifi_lines=()
@@ -111,7 +111,7 @@ _show_sysinfo() {
             state=$(echo "$line" | awk '{print $9}')
 
             case "$iface" in
-                lo|docker*|veth*|br-*|virbr*|tun*|tap*|bond*) continue ;;
+            lo | docker* | veth* | br-* | virbr* | tun* | tap* | bond*) continue ;;
             esac
 
             ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
@@ -121,13 +121,24 @@ _show_sysinfo() {
             pci_class=$(cat "/sys/class/net/${iface}/device/class" 2>/dev/null || true)
 
             case "$pci_class" in
-                0x0200*)
-                    has_eth=true
-                    desc="${eth_descs[$eth_idx]:-Unknown Ethernet chipset}"
-                    shown_eth_descs+=("${eth_descs[$eth_idx]:-$desc}")
-                    eth_idx=$((eth_idx + 1))
-                    ;;
-                0x0280*)
+            0x0200*)
+                has_eth=true
+                desc="${eth_descs[$eth_idx]:-Unknown Ethernet chipset}"
+                shown_eth_descs+=("${eth_descs[$eth_idx]:-$desc}")
+                eth_idx=$((eth_idx + 1))
+                ;;
+            0x0280*)
+                has_wifi=true
+                desc="${wifi_descs[$wifi_idx]:-Unknown WiFi chipset}"
+                shown_wifi_descs+=("${wifi_descs[$wifi_idx]:-$desc}")
+                wifi_idx=$((wifi_idx + 1))
+                ssid=""
+                [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
+                ;;
+            *)
+                # Fallback: classify by interface name pattern
+                case "$iface" in
+                wl* | wlp* | wlo* | wlan*)
                     has_wifi=true
                     desc="${wifi_descs[$wifi_idx]:-Unknown WiFi chipset}"
                     shown_wifi_descs+=("${wifi_descs[$wifi_idx]:-$desc}")
@@ -135,29 +146,18 @@ _show_sysinfo() {
                     ssid=""
                     [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
                     ;;
-                *)
-                    # Fallback: classify by interface name pattern
-                    case "$iface" in
-                        wl*|wlp*|wlo*|wlan*)
-                            has_wifi=true
-                            desc="${wifi_descs[$wifi_idx]:-Unknown WiFi chipset}"
-                            shown_wifi_descs+=("${wifi_descs[$wifi_idx]:-$desc}")
-                            wifi_idx=$((wifi_idx + 1))
-                            ssid=""
-                            [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
-                            ;;
-                        eth*|enp*|ens*|enx*|eno*)
-                            has_eth=true
-                            desc="${eth_descs[$eth_idx]:-Unknown Ethernet chipset}"
-                            shown_eth_descs+=("${eth_descs[$eth_idx]:-$desc}")
-                            eth_idx=$((eth_idx + 1))
-                            ;;
-                        *)
-                            has_other=true
-                            desc="(network interface)"
-                            ;;
-                    esac
+                eth* | enp* | ens* | enx* | eno*)
+                    has_eth=true
+                    desc="${eth_descs[$eth_idx]:-Unknown Ethernet chipset}"
+                    shown_eth_descs+=("${eth_descs[$eth_idx]:-$desc}")
+                    eth_idx=$((eth_idx + 1))
                     ;;
+                *)
+                    has_other=true
+                    desc="(network interface)"
+                    ;;
+                esac
+                ;;
             esac
 
             if [ "$state" = "UP" ]; then
@@ -214,7 +214,7 @@ _show_sysinfo() {
     term_cols=$(tput cols 2>/dev/null || echo 80)
     [ "$term_cols" -lt 50 ] && term_cols=50
 
-    local max_pct=$(( term_cols * 95 / 100 ))
+    local max_pct=$((term_cols * 95 / 100))
     [ "$max_pct" -lt 50 ] && max_pct=50
 
     local longest=0
@@ -223,7 +223,7 @@ _show_sysinfo() {
         [ "$len" -gt "$longest" ] && longest=$len
     done < <(echo -e "$msg")
 
-    local width=$(( longest + 6 ))
+    local width=$((longest + 6))
     [ "$width" -lt 80 ] && width=80
     [ "$width" -gt "$max_pct" ] && width=$max_pct
 
@@ -238,8 +238,8 @@ _show_sysinfo() {
 
     local lines
     lines=$(echo -e "$truncated" | wc -l)
-    local height=$(( lines + 6 ))
-    local max_height=$(( ${LINES:-24} - 4 > 10 ? ${LINES:-24} - 4 : 10 ))
+    local height=$((lines + 6))
+    local max_height=$((${LINES:-24} - 4 > 10 ? ${LINES:-24} - 4 : 10))
     [ "$height" -gt "$max_height" ] && height=$max_height
     [ "$height" -lt 10 ] && height=10
 

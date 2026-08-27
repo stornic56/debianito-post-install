@@ -19,11 +19,11 @@ config_sudo() {
         clear
 
         case "$choice" in
-            1) _check_sudo_group ;;
-            2) _configure_nopasswd ;;
-            3) _repair_home_ownership ;;
-            4) _toggle_pwfeedback ;;
-            5) return ;;
+        1) _check_sudo_group ;;
+        2) _configure_nopasswd ;;
+        3) _repair_home_ownership ;;
+        4) _toggle_pwfeedback ;;
+        5) return ;;
         esac
     done
 }
@@ -68,30 +68,35 @@ Useful for automation but reduces security." 14 70; then
         local choices
         choices=$(_checklist "NOPASSWD Commands" \
             "Select commands to allow without password:" 12 60 3 \
-            "apt"       "APT package management" ON \
+            "apt" "APT package management" ON \
             "systemctl" "Systemd service management" ON \
-            "power"     "Shutdown, reboot, halt" ON)
+            "power" "Shutdown, reboot, halt" ON)
         clear
 
-        [ -z "$choices" ] && { echo "No commands selected."; return; }
-        local cleaned; cleaned=$(echo "$choices" | tr -d '"')
+        [ -z "$choices" ] && {
+            echo "No commands selected."
+            return
+        }
+        local cleaned
+        cleaned=$(echo "$choices" | tr -d '"')
 
         local content=""
         for cmd in $cleaned; do
             case $cmd in
-                apt)
-                    content+="${USER} ALL=(root) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /bin/apt, /bin/apt-get\n"
-                    ;;
-                systemctl)
-                    content+="${USER} ALL=(root) NOPASSWD: /usr/bin/systemctl, /bin/systemctl\n"
-                    ;;
-                power)
-                    content+="${USER} ALL=(root) NOPASSWD: /usr/sbin/shutdown, /sbin/shutdown, /usr/sbin/reboot, /sbin/reboot, /usr/sbin/halt, /sbin/halt\n"
-                    ;;
+            apt)
+                content+="${USER} ALL=(root) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /bin/apt, /bin/apt-get\n"
+                ;;
+            systemctl)
+                content+="${USER} ALL=(root) NOPASSWD: /usr/bin/systemctl, /bin/systemctl\n"
+                ;;
+            power)
+                content+="${USER} ALL=(root) NOPASSWD: /usr/sbin/shutdown, /sbin/shutdown, /usr/sbin/reboot, /sbin/reboot, /usr/sbin/halt, /sbin/halt\n"
+                ;;
             esac
         done
 
-        local content_str; content_str=$(echo -e "$content")
+        local content_str
+        content_str=$(echo -e "$content")
         if _validate_sudoers "$content_str" "$nopasswd_file"; then
             echo -e "${GREEN}Passwordless sudo configured for selected commands.${NC}"
         else
@@ -103,7 +108,7 @@ Useful for automation but reduces security." 14 70; then
 # ── Option 3: Repair Home Directory Ownership ──
 _repair_home_ownership() {
     local home
-    home=$(eval echo "~$USER")
+    home=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
 
     if [ ! -d "$home" ]; then
         _msg "Home Directory" "Home directory '$home' does not exist." 8 60

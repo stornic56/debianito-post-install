@@ -10,7 +10,7 @@ _enable_onlyoffice_repo() {
         fi
         _run_cmd "OnlyOffice" "sudo extrepo enable onlyoffice-desktopeditors" "Enabling OnlyOffice repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 install_onlyoffice() {
@@ -36,7 +36,7 @@ install_joplin() {
     if [ ! -f /etc/apt/sources.list.d/extrepo_joplin.sources ]; then
         _run_cmd "Joplin" "sudo extrepo enable joplin" "Enabling Joplin repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
     if ! is_installed "joplin"; then
         _run_cmd "Joplin" "sudo apt install -y joplin" "Installing Joplin..."
         echo -e "${GREEN}Joplin installed.${NC}"
@@ -84,8 +84,8 @@ _cat_office() {
     local -a items=()
     if ! $headless; then
         items+=(
-            "onlyoffice"    "OnlyOffice Desktop Editors (extrepo)" OFF
-            "libreoffice"   "LibreOffice (backports on Bookworm/Trixie)" OFF
+            "onlyoffice" "OnlyOffice Desktop Editors (extrepo)" OFF
+            "libreoffice" "LibreOffice (backports on Bookworm/Trixie)" OFF
         )
         if [ "$DEBIAN_VERSION" = "12" ] || [ "$DEBIAN_VERSION" = "13" ]; then
             items+=(
@@ -97,18 +97,20 @@ _cat_office() {
     local item_count=${#items[@]}
     local lista_alto=$((item_count > TUI_ALTO_LISTA ? TUI_ALTO_LISTA : item_count))
     local choices
-    choices=$(_checklist "Office & Productivity" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
-        "${items[@]}" \
-        )
+    choices=$(
+        _checklist "Office & Productivity" "Check [*] the packages you want installed/updated on your system.\n" $TUI_ALTO $TUI_ANCHO $lista_alto \
+            "${items[@]}"
+    )
 
     [ -z "$choices" ] && return
-    local cleaned; cleaned=$(echo "$choices" | tr -d '"')
+    local cleaned
+    cleaned=$(echo "$choices" | tr -d '"')
 
     for pkg in $cleaned; do
         case $pkg in
-            onlyoffice)  install_onlyoffice ;;
-            libreoffice) install_libreoffice_bpo ;;
-            joplin)      install_joplin ;;
+        onlyoffice) install_onlyoffice ;;
+        libreoffice) install_libreoffice_bpo ;;
+        joplin) install_joplin ;;
         esac
     done
 }

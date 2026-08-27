@@ -19,8 +19,8 @@ _warn_nvidia_gnome_wayland() {
     command -v gdm3 &>/dev/null || return 0
     gnome-shell --version 2>/dev/null | grep -qi "shell 4[0-9]" || return 0
     case "$NVIDIA_DRIVER_MODE" in
-        stable|backports|cuda-repo|extrepo) ;;
-        *) return 0 ;;
+    stable | backports | cuda-repo | extrepo) ;;
+    *) return 0 ;;
     esac
     echo -e "${YELLOW}WARNING: Debian bug #1109409 may affect GDM3 + NVIDIA + Wayland.${NC}"
     echo -e "${YELLOW}If you see a black screen after reboot, select 'GNOME on Xorg' at login.${NC}"
@@ -33,7 +33,7 @@ _install_amd_intel_stack() {
         local ref_ver
         ref_ver=$(apt-cache policy mesa-vulkan-drivers 2>/dev/null | awk 'NR==3 {print $2; exit}')
         local ref_bpo_ver
-        ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers 2>/dev/null | \
+        ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers 2>/dev/null |
             grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
         local comp_line="Components: Vulkan, OpenGL, GLX, EGL, VA-API (64-bit)"
 
@@ -79,11 +79,13 @@ _install_amd_intel_stack() {
         local desc
         desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
         plan+="  GPU ${gpu_count}:  ${desc}\n"
-    done < <(timeout 2 lspci -nn | grep -E "VGA|3D" || true)
+    done < <(echo "$LSPCI_OUTPUT" | grep -E "VGA|3D" || true)
     plan+="\nPlanned components:\n"
     if $HAS_INTEL; then
-        local _gen; _gen=$(get_intel_generation)
-        local _va;  [ "$_gen" = "gen7-" ] && _va="i965-va-driver-shaders" || _va="intel-media-va-driver-non-free"
+        local _gen
+        _gen=$(get_intel_generation)
+        local _va
+        [ "$_gen" = "gen7-" ] && _va="i965-va-driver-shaders" || _va="intel-media-va-driver-non-free"
         plan+="  [+] Intel firmware + ${_va}\n"
     fi
     if $HAS_AMD; then
@@ -154,7 +156,9 @@ _apply_amd_gcn_grub_fix() {
 
     sudo cp "$file" "$backup"
 
-    sudo sed -i "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"$*/${params}&/" "$file"
+    if ! sudo grep -q "amdgpu.si_support=1" "$file"; then
+        sudo sed -i -E "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"([^\"]*)\"/\"${params} \1\"/" "$file"
+    fi
 
     if _confirm "AMD GCN — GRUB" "Parameters added:\n\n  ${params}\n\nRun update-grub now?" 12 65; then
         if sudo update-grub >/dev/null 2>&1; then
@@ -183,7 +187,7 @@ _install_nvidia_stack() {
         local desc
         desc=$(echo "$gpu_line" | sed -E 's/.*: //; s/ *\(rev.*//')
         plan+="  GPU ${gpu_count}:  ${desc}\n"
-    done < <(timeout 2 lspci -nn | grep -E "VGA|3D" || true)
+    done < <(echo "$LSPCI_OUTPUT" | grep -E "VGA|3D" || true)
     plan+="\nPlanned:\n  [+] NVIDIA proprietary driver"
 
     _msg "NVIDIA Stack — Plan" "$plan" 14 65
@@ -213,94 +217,94 @@ _install_nvidia_stack() {
 
         local nv_arch=""
         case "$NVIDIA_SELECTED_VERSION" in
-            470)
-                # Legacy 470 (Kepler/Tesla) — forced, regardless of auto-detection
+        470)
+            # Legacy 470 (Kepler/Tesla) — forced, regardless of auto-detection
+            _install_nvidia_bookworm_kepler
+            ;;
+        535)
+            if [ "$(is_nvidia_kepler)" = "true" ]; then
                 _install_nvidia_bookworm_kepler
+            elif [ "$(is_nvidia_fermi)" = "true" ]; then
+                _msg "NVIDIA Fermi — Bookworm" \
+                    "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."
+                NVIDIA_DRIVER_MODE=""
+            else
+                _install_nvidia_standard
+            fi
+            ;;
+        550)
+            nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
+            case "$nv_arch" in
+            legacy)
+                _msg "NVIDIA — Trixie" \
+                    "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
+                NVIDIA_DRIVER_MODE=""
                 ;;
-            535)
-                if [ "$(is_nvidia_kepler)" = "true" ]; then
-                    _install_nvidia_bookworm_kepler
-                elif [ "$(is_nvidia_fermi)" = "true" ]; then
-                    _msg "NVIDIA Fermi — Bookworm" \
-                        "Fermi GPUs (GF1xx) are not supported\nin Debian 12 (Bookworm).\nThe nvidia-legacy-390xx driver is\nnot available in this version.\n\nNo NVIDIA driver will be installed."
-                    NVIDIA_DRIVER_MODE=""
-                else
-                    _install_nvidia_standard
-                fi
+            blackwell)
+                _msg "NVIDIA — Blackwell (v550)" \
+                    "Your Blackwell GPU is NOT supported by the official\nDebian v550 driver.\n\nPlease select v590 or v595 (NVIDIA CUDA Repo)\nin the driver menu." 14 65
+                NVIDIA_DRIVER_MODE=""
                 ;;
-            550)
-                nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
-                case "$nv_arch" in
-                    legacy)
-                        _msg "NVIDIA — Trixie" \
-                            "Kepler and Fermi GPUs are not supported\nin Debian 13 (Trixie).\n\nThe nvidia-legacy drivers are not available\nin this version of Debian.\n\nNo NVIDIA driver will be installed."
-                        NVIDIA_DRIVER_MODE=""
-                        ;;
-                    blackwell)
-                        _msg "NVIDIA — Blackwell (v550)" \
-                            "Your Blackwell GPU is NOT supported by the official\nDebian v550 driver.\n\nPlease select v590 or v595 (NVIDIA CUDA Repo)\nin the driver menu." 14 65
-                        NVIDIA_DRIVER_MODE=""
-                        ;;
-                    maxwell|pascal|volta)
-                        if [ "$(is_backports_kernel)" = "true" ]; then
-                            local gpu_gen="Maxwell"
-                            [ "$nv_arch" = "pascal" ] && gpu_gen="Pascal"
-                            [ "$nv_arch" = "volta" ] && gpu_gen="Volta"
-                            _msg "NVIDIA — Trixie + Backports" \
-                                "INCOMPATIBILITY DETECTED: Your NVIDIA ${gpu_gen} GPU\n\
+            maxwell | pascal | volta)
+                if [ "$(is_backports_kernel)" = "true" ]; then
+                    local gpu_gen="Maxwell"
+                    [ "$nv_arch" = "pascal" ] && gpu_gen="Pascal"
+                    [ "$nv_arch" = "volta" ] && gpu_gen="Volta"
+                    _msg "NVIDIA — Trixie + Backports" \
+                        "INCOMPATIBILITY DETECTED: Your NVIDIA ${gpu_gen} GPU\n\
 is NOT supported by the modern v590 driver.\n\n\
 To run NVIDIA safely on Debian 13 (Trixie), you MUST use\n\
 the official Debian v550 driver, which requires the\n\
 standard STABLE Kernel.\n\n\
 Forcing the stable driver path." 14 70
-                            if ! _install_nvidia_standard; then
-                                NVIDIA_DRIVER_MODE=""
-                                return 1
-                            fi
-                            NVIDIA_DRIVER_MODE="stable"
-                        else
-                            _install_nvidia_standard
-                        fi
-                        ;;
-                    turing|ampere|ada)
-                        _install_nvidia_standard
-                        ;;
-                    *)
-                        if [ "$(is_backports_kernel)" = "true" ]; then
-                            _install_nvidia_cuda_repo
-                        else
-                            _install_nvidia_standard
-                        fi
-                        ;;
-                esac
-                ;;
-            590|595)
-                nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
-                if [ "$nv_arch" = "maxwell" ] || [ "$nv_arch" = "pascal" ] || [ "$nv_arch" = "legacy" ]; then
-                    local gpu_gen="Kepler/Fermi"
-                    [ "$nv_arch" = "maxwell" ] && gpu_gen="Maxwell"
-                    [ "$nv_arch" = "pascal" ] && gpu_gen="Pascal"
-                    _msg "NVIDIA — v${NVIDIA_SELECTED_VERSION}" \
-                        "Your NVIDIA ${gpu_gen} GPU is NOT supported by\nNVIDIA driver v${NVIDIA_SELECTED_VERSION}.\n\n\
-Only Turing, Ampere, Ada and Blackwell GPUs are supported.\n\n\
-No NVIDIA driver will be installed." 14 65
-                    NVIDIA_DRIVER_MODE=""
-                else
-                    if ! _enable_cuda_repo; then
+                    if ! _install_nvidia_standard; then
                         NVIDIA_DRIVER_MODE=""
-                        _msg "CUDA Repo — Error" "Failed to enable the official NVIDIA CUDA repository.\n\nNo NVIDIA driver was installed." 10 60
                         return 1
                     fi
-                    if _install_nvidia_cuda_repo "$NVIDIA_SELECTED_VERSION"; then
-                        NVIDIA_DRIVER_MODE="cuda-repo"
-                    else
-                        NVIDIA_DRIVER_MODE=""
-                    fi
+                    NVIDIA_DRIVER_MODE="stable"
+                else
+                    _install_nvidia_standard
                 fi
                 ;;
-            *)
+            turing | ampere | ada)
                 _install_nvidia_standard
                 ;;
+            *)
+                if [ "$(is_backports_kernel)" = "true" ]; then
+                    _install_nvidia_cuda_repo
+                else
+                    _install_nvidia_standard
+                fi
+                ;;
+            esac
+            ;;
+        590 | 595)
+            nv_arch=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
+            if [ "$nv_arch" = "maxwell" ] || [ "$nv_arch" = "pascal" ] || [ "$nv_arch" = "legacy" ]; then
+                local gpu_gen="Kepler/Fermi"
+                [ "$nv_arch" = "maxwell" ] && gpu_gen="Maxwell"
+                [ "$nv_arch" = "pascal" ] && gpu_gen="Pascal"
+                _msg "NVIDIA — v${NVIDIA_SELECTED_VERSION}" \
+                    "Your NVIDIA ${gpu_gen} GPU is NOT supported by\nNVIDIA driver v${NVIDIA_SELECTED_VERSION}.\n\n\
+Only Turing, Ampere, Ada and Blackwell GPUs are supported.\n\n\
+No NVIDIA driver will be installed." 14 65
+                NVIDIA_DRIVER_MODE=""
+            else
+                if ! _enable_cuda_repo; then
+                    NVIDIA_DRIVER_MODE=""
+                    _msg "CUDA Repo — Error" "Failed to enable the official NVIDIA CUDA repository.\n\nNo NVIDIA driver was installed." 10 60
+                    return 1
+                fi
+                if _install_nvidia_cuda_repo "$NVIDIA_SELECTED_VERSION"; then
+                    NVIDIA_DRIVER_MODE="cuda-repo"
+                else
+                    NVIDIA_DRIVER_MODE=""
+                fi
+            fi
+            ;;
+        *)
+            _install_nvidia_standard
+            ;;
         esac
     fi
 

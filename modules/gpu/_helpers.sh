@@ -3,7 +3,7 @@
 
 declare -A NVIDIA_FAMILY_MAP=(
     # Fermi / Kepler (Legacy: el shim se encarga de separarlos)
-    ["06"]="legacy" ["0D"]="legacy" ["0E"]="legacy" 
+    ["06"]="legacy" ["0D"]="legacy" ["0E"]="legacy"
     ["0F"]="legacy" ["10"]="legacy" ["11"]="legacy" ["12"]="legacy"
     # Maxwell
     ["13"]="maxwell" ["14"]="maxwell" ["16"]="maxwell" ["17"]="maxwell"
@@ -18,12 +18,15 @@ declare -A NVIDIA_FAMILY_MAP=(
     # Ada Lovelace
     ["26"]="ada" ["27"]="ada" ["28"]="ada"
     # Blackwell
-    ["29"]="blackwell" ["2B"]="blackwell" ["2C"]="blackwell" 
+    ["29"]="blackwell" ["2B"]="blackwell" ["2C"]="blackwell"
     ["2D"]="blackwell" ["2E"]="blackwell" ["31"]="blackwell"
 )
 
 detect_nvidia_arch() {
-    [ -z "$1" ] && { echo "unknown"; return; }
+    [ -z "$1" ] && {
+        echo "unknown"
+        return
+    }
     local pci_id="${1^^}"
     local prefix="${pci_id:0:2}"
     echo "${NVIDIA_FAMILY_MAP[$prefix]:-unknown}"
@@ -56,21 +59,24 @@ _get_nvidia_arch_family() {
     fi
 }
 
-is_nvidia_kepler()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && echo true || echo false; }
-is_nvidia_fermi()    { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && ! _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && echo true || echo false; }
-is_nvidia_legacy()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && echo true || echo false; }
-is_nvidia_maxwell()  { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "maxwell" ]] && echo true || echo false; }
-is_nvidia_pascal()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "pascal" ]] && echo true || echo false; }
-is_nvidia_volta()    { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "volta" ]] && echo true || echo false; }
-is_nvidia_turing()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "turing" ]] && echo true || echo false; }
-is_nvidia_ampere()   { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "ampere" ]] && echo true || echo false; }
-is_nvidia_ada()      { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "ada" ]] && echo true || echo false; }
-is_nvidia_blackwell(){ [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "blackwell" ]] && echo true || echo false; }
+is_nvidia_kepler() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && echo true || echo false; }
+is_nvidia_fermi() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && ! _is_nvidia_kepler_id "$NVIDIA_GPU_DEVICE_ID" && echo true || echo false; }
+is_nvidia_legacy() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "legacy" ]] && echo true || echo false; }
+is_nvidia_maxwell() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "maxwell" ]] && echo true || echo false; }
+is_nvidia_pascal() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "pascal" ]] && echo true || echo false; }
+is_nvidia_volta() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "volta" ]] && echo true || echo false; }
+is_nvidia_turing() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "turing" ]] && echo true || echo false; }
+is_nvidia_ampere() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "ampere" ]] && echo true || echo false; }
+is_nvidia_ada() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "ada" ]] && echo true || echo false; }
+is_nvidia_blackwell() { [ -n "$NVIDIA_GPU_DEVICE_ID" ] && [[ "$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")" == "blackwell" ]] && echo true || echo false; }
 
 is_amd_legacy_gcn() {
     local dev_id
-    dev_id=$(timeout 2 lspci -nn | grep -iE "VGA|3D" | grep -i amd | grep -oP '1002:\K[0-9a-fA-F]{4}' | head -n1)
-    [ -z "$dev_id" ] && { echo false; return; }
+    dev_id=$(echo "$LSPCI_OUTPUT" | grep -iE "VGA|3D" | grep -i amd | grep -oP '1002:\K[0-9a-fA-F]{4}' | head -n1)
+    [ -z "$dev_id" ] && {
+        echo false
+        return
+    }
 
     local legacy_ids
     legacy_ids="6660|6664|6665|6667|6780|6784|6788|678a|6798|679a|679e|679f|3000|3001|6808|6809|6810|6811|6816|6817|6818|6819|6828|6829|682b|682c|6835|6837|683d|683f|6608|6609|6610|6611|6613|6617|1dcf|983d|6646|6649|664d|6650|6651|6658|665c|665d|67a0|67a1|67a2|67a8|67a9|67aa|67b0|67b1|67b8|67be|9830|9831|9832|9833|9834|9835|9836|9837|9838|9839|1304|1305|1306|1307|1309|130a|130b|130c|130d|130e|130f|1310|1311|1312|1313|1315|1316|1317|1318|131b|131c|131d|9850|9851|9852|9853|9854|9855|9856|9857|9858|9859|985a|985b|985c|985d|985e|985f"
@@ -94,7 +100,7 @@ _install_mesa_backports() {
 
     for mpkg in "${mesa_pkgs[@]}"; do
         local bpo_ver
-        bpo_ver=$(apt-cache madison "$mpkg" 2>/dev/null | \
+        bpo_ver=$(apt-cache madison "$mpkg" 2>/dev/null |
             grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
         if [ -n "$bpo_ver" ]; then
             bpo_pkgs+=("$mpkg")
@@ -114,7 +120,7 @@ _install_mesa_backports() {
     local ref_ver
     ref_ver=$(apt-cache policy mesa-vulkan-drivers 2>/dev/null | awk 'NR==3 {print $2; exit}')
     local ref_bpo_ver
-    ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers 2>/dev/null | \
+    ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers 2>/dev/null |
         grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
     local comp_line="Components: Vulkan, OpenGL, GLX, EGL, VA-API (64-bit)"
 
@@ -176,17 +182,17 @@ offer_generic_tools() {
 
 _is_hybrid_laptop() {
     local gpu_count nvidia_count chassis
-    gpu_count=$(lspci -nn 2>/dev/null | grep -ciE "VGA compatible|3D controller") || true
+    gpu_count=$(echo "$LSPCI_OUTPUT" | grep -ciE "VGA compatible|3D controller") || true
     [ "$gpu_count" -lt 2 ] && return 1
 
     # Defensa en profundidad: si TODAS las GPUs son NVIDIA (SLI o
     # dual-GPU desktop), no hay iGPU Intel/AMD → no es híbrida.
-    nvidia_count=$(lspci -nn 2>/dev/null | grep -iE "VGA compatible|3D controller" | grep -c "10de:") || true
+    nvidia_count=$(echo "$LSPCI_OUTPUT" | grep -iE "VGA compatible|3D controller" | grep -c "10de:") || true
     [ "$nvidia_count" -ge "$gpu_count" ] && return 1
 
     chassis=$(cat /sys/class/dmi/id/chassis_type 2>/dev/null || echo "0")
     case "$chassis" in
-        8|9|10|11|14|30|31|32) return 0 ;;
+    8 | 9 | 10 | 11 | 14 | 30 | 31 | 32) return 0 ;;
     esac
 
     ls /sys/class/power_supply/ 2>/dev/null | grep -q "^BAT" && return 0
