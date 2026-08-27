@@ -17,7 +17,7 @@ _detect_all_network_devices() {
     PCI_NET_DEVS=()
     while IFS= read -r line; do
         PCI_NET_DEVS+=("$line")
-    done < <(timeout 2 lspci -nn 2>/dev/null | grep -iE 'network controller|ethernet controller' || true)
+    done < <(echo "$LSPCI_OUTPUT" | grep -iE 'network controller|ethernet controller' || true)
 
     USB_WIFI_DEVS=()
     while IFS= read -r line; do
@@ -29,7 +29,7 @@ _detect_all_network_devices() {
     PCI_BT_DEVS=()
     while IFS= read -r line; do
         PCI_BT_DEVS+=("$line")
-    done < <(timeout 2 lspci -nn 2>/dev/null | grep -i 'Bluetooth controller' || true)
+    done < <(echo "$LSPCI_OUTPUT" | grep -i 'Bluetooth controller' || true)
 
     USB_BT_DEVS=()
     while IFS= read -r line; do
@@ -86,16 +86,16 @@ _detect_firmware_needs() {
         [[ "$vendor_lc" != *intel* && "$vendor_lc" != *realtek* && "$vendor_lc" != *atheros* && "$vendor_lc" != *qualcomm* && "$vendor_lc" != *mediatek* ]] && continue
 
         case "$vendor_lc" in
-            *intel*)
-                if echo "$dev" | grep -qiE 'wireless|wi-fi|wlan|802\.11'; then
-                    pkg="firmware-iwlwifi"
-                else
-                    pkg="firmware-intel-misc"
-                fi
-                ;;
-            *realtek*)       pkg="firmware-realtek" ;;
-            *atheros*|*qualcomm*) pkg="firmware-atheros" ;;
-            *mediatek*)      pkg="firmware-mediatek" ;;
+        *intel*)
+            if echo "$dev" | grep -qiE 'wireless|wi-fi|wlan|802\.11'; then
+                pkg="firmware-iwlwifi"
+            else
+                pkg="firmware-intel-misc"
+            fi
+            ;;
+        *realtek*) pkg="firmware-realtek" ;;
+        *atheros* | *qualcomm*) pkg="firmware-atheros" ;;
+        *mediatek*) pkg="firmware-mediatek" ;;
         esac
 
         local short_dev
@@ -153,7 +153,8 @@ _build_firmware_plan() {
     if ! $has_bt; then
         for dev in "${USB_WIFI_DEVS[@]}"; do
             if echo "$dev" | grep -qi 'bluetooth'; then
-                has_bt=true; break
+                has_bt=true
+                break
             fi
         done
     fi
@@ -166,13 +167,14 @@ _build_firmware_plan() {
             plan+="  [+] bluez + bluez-tools + bluez-obexd (base stack)\n"
         fi
         case "${DESKTOP_ENV:-other}" in
-            kde)   plan+="  [+] bluedevil (KDE applet)\n"
-                   if [ "${AUDIO_SERVER:-}" = "pipewire" ]; then
-                       plan+="  → pipewire-pulse + wireplumber (if missing)\n"
-                   fi
-                   ;;
-            gnome) plan+="  (already in gnome-control-center)\n" ;;
-            *)     plan+="  [+] blueman (GTK Bluetooth manager)\n" ;;
+        kde)
+            plan+="  [+] bluedevil (KDE applet)\n"
+            if [ "${AUDIO_SERVER:-}" = "pipewire" ]; then
+                plan+="  → pipewire-pulse + wireplumber (if missing)\n"
+            fi
+            ;;
+        gnome) plan+="  (already in gnome-control-center)\n" ;;
+        *) plan+="  [+] blueman (GTK Bluetooth manager)\n" ;;
         esac
         plan+="  → Bluetooth service will be enabled\n"
     else
@@ -224,25 +226,35 @@ _handle_wireless() {
         [ -z "$bcm_id" ] && continue
         dev_id=$(echo "$bcm_id" | cut -d: -f2 | tr '[:upper:]' '[:lower:]')
 
-        # --- Verificación de headers ---
-        if ! apt-cache policy linux-headers-amd64 2>/dev/null | grep -q "Candidate: [^ (none)]"; then
-            _msg "Broadcom Error" "linux-headers-amd64 is not available. Cannot compile Broadcom driver.\n\nEnsure non-free repositories are enabled and run:\n  sudo apt install linux-headers-amd64"
-            _pause
+        # --- Dependencies verification ---
+        if ! is_installed "linux-headers-amd64" || ! is_installed "dkms"; then
+            if ! apt-cache show linux-headers-amd64 dkms >/dev/null 2>&1; then
+                _msg "Broadcom Error" "linux-headers-amd64 or dkms are not available in your repositories. Cannot compile Broadcom driver.\n\nEnsure repositories are enabled and run:\n  sudo apt install linux-headers-amd64 dkms"
+                _pause
+                continue
+            fi
+        fi
+
+        # --- Confirmation ---
+        if ! _confirm "Broadcom WiFi" "Detected Broadcom wireless device.\n\nInstall broadcom-sta-dkms, dkms, and wireless-tools?"; then
             continue
         fi
 
-        # --- Confirmación ---
-        local bcm_ver header_ver
-        bcm_ver=$(apt-cache policy broadcom-sta-dkms 2>/dev/null | awk 'NR==3 {print $2}')
-        header_ver=$(apt-cache policy linux-headers-amd64 2>/dev/null | awk 'NR==3 {print $2}')
-        if ! _confirm "Broadcom WiFi" "Detected Broadcom wireless device.\n\nInstall broadcom-sta-dkms ${bcm_ver} + linux-headers-amd64 ${header_ver}?"; then
-            continue
-        fi
+        # --- Step-by-step installation ---
+        _run_cmd "Broadcom Deps" "sudo DEBIAN_FRONTEND=noninteractive apt install -y dkms wireless-tools linux-headers-amd64" || true
+        _run_cmd "Broadcom Driver" "sudo DEBIAN_FRONTEND=noninteractive apt install -y broadcom-sta-dkms" || true
 
-        # --- Instalación ---
-        _run_cmd "Broadcom" "sudo DEBIAN_FRONTEND=noninteractive apt install -y linux-headers-amd64 broadcom-sta-dkms" || true
+        # --- Persist blacklist of conflicting modules ---
+        local blacklist_conf="/etc/modprobe.d/blacklist-broadcom.conf"
+        local blacklist_content="blacklist b43\nblacklist b43legacy\nblacklist brcmsmac\nblacklist bcma\nblacklist ssb"
+        echo -e "$blacklist_content" | sudo tee "$blacklist_conf" >/dev/null
 
-        # --- Combo BT (sin cambios respecto al código actual) ---
+        # --- Update initramfs and load module ---
+        _run_cmd "Initramfs" "sudo update-initramfs -u" || true
+        _run_cmd "Modprobe" "sudo modprobe -r b43 b43legacy b44 bcma brcmsmac brcmfmac ssb wl 2>/dev/null || true" "Removing conflicting modules" || true
+        _run_cmd "Modprobe" "sudo modprobe wl" || true
+
+        # --- Combo BT (unchanged) ---
         local has_broadcom_bt=false
         local btdev
         for btdev in "${PCI_BT_DEVS[@]}"; do
@@ -258,13 +270,12 @@ _handle_wireless() {
             echo -e "${YELLOW}    A reboot may be required for Bluetooth support.${NC}"
         fi
 
-        # --- Post-DKMS verification (Fix 5, sin cambios) ---
+        # --- Post-DKMS verification (Fix 5, unchanged) ---
         if ! ls /lib/modules/$(uname -r)/updates/dkms/wl.ko* 2>/dev/null | grep -q .; then
             _msg "Broadcom DKMS Build Failed" "The wl module was not built by DKMS.\n\nPossible causes:\n- Missing build tools (build-essential, dkms)\n- Kernel update without headers\n- Incompatible kernel version\n\nTry: sudo dpkg-reconfigure broadcom-sta-dkms"
             if _confirm "Broadcom" "Rebuild the Broadcom driver now?"; then
                 _run_cmd "Broadcom" "sudo dpkg-reconfigure broadcom-sta-dkms" || true
                 if ls /lib/modules/$(uname -r)/updates/dkms/wl.ko* 2>/dev/null | grep -q .; then
-                    # wl.ko existe tras reconfigure → continuar a limpieza/carga
                     :
                 else
                     local dmesg_out
@@ -280,7 +291,6 @@ _handle_wireless() {
             fi
         fi
 
-        # --- Limpieza de módulos conflictivos + carga wl (patrón Mint) ---
         sudo modprobe -r b43 b43legacy b44 bcma brcmsmac brcmfmac ssb wl 2>/dev/null || true
         sudo modprobe wl 2>/dev/null
 
@@ -297,7 +307,7 @@ _handle_wireless() {
         fi
     done
 
-    # --- USB Broadcom (sin cambios) ---
+    # --- USB Broadcom (unchanged) ---
     local usb_dev
     for usb_dev in "${USB_WIFI_DEVS[@]}"; do
         if echo "$usb_dev" | grep -qi '0a5c'; then
@@ -306,7 +316,7 @@ _handle_wireless() {
         fi
     done
 
-    # --- Mensaje final (sin cambios) ---
+    # --- Mensaje final (unchanged) ---
     if ! $installed_any && ! $wl_build_failed; then
         echo "No special WiFi firmware needed -- base firmware-linux-nonfree covers this system."
         _pause
@@ -387,7 +397,7 @@ _ensure_nonfree_repo() {
         return 1
     fi
 
-    sudo apt update
+    _ensure_apt_updated
     echo -e "${GREEN}non-free repository enabled.${NC}"
     return 0
 }
@@ -419,7 +429,7 @@ install_firmware() {
     # 4. Install base firmware meta-package (unchanged logic)
     local fw_pkg="firmware-linux-nonfree"
     local fw_bpo
-    fw_bpo=$(apt-cache madison "$fw_pkg" 2>/dev/null | \
+    fw_bpo=$(apt-cache madison "$fw_pkg" 2>/dev/null |
         grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
 
     local fw_stable

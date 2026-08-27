@@ -8,7 +8,7 @@ _enable_jellyfin_repo() {
         fi
         _run_cmd "Jellyfin" "sudo extrepo enable jellyfin" "Enabling Jellyfin repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 install_jellyfin() {

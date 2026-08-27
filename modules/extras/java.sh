@@ -10,18 +10,21 @@ _enable_temurin_repo() {
         _run_cmd "extrepo" "sudo apt install -y extrepo" "Installing extrepo..."
     fi
     _run_cmd "Temurin" "sudo extrepo enable temurin" "Enabling Adoptium Temurin repository..."
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
 }
 
 install_minecraft_java() {
     local choices
     choices=$(_checklist "Java Runtimes for Minecraft" \
         "Select Java version(s) to install:" 15 65 4 \
-        "8"  "Java 8  — Classic mods & Minecraft <= 1.16.5" OFF \
+        "8" "Java 8  — Classic mods & Minecraft <= 1.16.5" OFF \
         "17" "Java 17 — Minecraft 1.17 to 1.20.4" ON \
         "21" "Java 21 — Modern Minecraft >= 1.20.5 & 1.21+" OFF \
         "25" "Java 25 — Minecraft 26+" OFF)
-    [ -z "$choices" ] && { echo "No Java version selected."; return; }
+    [ -z "$choices" ] && {
+        echo "No Java version selected."
+        return
+    }
     _enable_temurin_repo
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
@@ -38,7 +41,10 @@ _install_dev_java() {
         "17" "Java 17 LTS Development Kit" \
         "21" "Java 21 LTS Development Kit" \
         "25" "Java 25 LTS Development Kit")
-    [ -z "$ver" ] && { echo "No JDK version selected."; return; }
+    [ -z "$ver" ] && {
+        echo "No JDK version selected."
+        return
+    }
     _enable_temurin_repo
     _run_install "temurin-${ver}-jdk"
 }

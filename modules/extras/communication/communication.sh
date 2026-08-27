@@ -6,7 +6,7 @@ _install_signal() {
     if [ ! -f /etc/apt/sources.list.d/extrepo_signal.sources ]; then
         _run_cmd "Signal" "sudo extrepo enable signal" "Enabling Signal repository..."
     fi
-    _run_cmd "APT Update" "sudo apt update" "Updating package lists..."
+    _ensure_apt_updated
     if ! is_installed "signal-desktop"; then
         _run_cmd "Signal" "sudo apt install -y signal-desktop" "Installing Signal..."
         echo -e "${GREEN}Signal installed.${NC}"
@@ -50,13 +50,16 @@ _cat_communication() {
     fi
 
     local -a items=()
-    local signal_state;   signal_state=$(_state "signal-desktop")
-    local telegram_state; telegram_state=$(_state "telegram-desktop")
-    local hexchat_state;  hexchat_state=$(_state "hexchat")
+    local signal_state
+    signal_state=$(_state "signal-desktop")
+    local telegram_state
+    telegram_state=$(_state "telegram-desktop")
+    local hexchat_state
+    hexchat_state=$(_state "hexchat")
     items+=(
-        "signal-desktop"   "Signal Private Messenger (extrepo)"   "$signal_state"
-        "telegram-desktop" "Telegram Desktop messaging"           "$telegram_state"
-        "hexchat"          "IRC client (HexChat)"                 "$hexchat_state"
+        "signal-desktop" "Signal Private Messenger (extrepo)" "$signal_state"
+        "telegram-desktop" "Telegram Desktop messaging" "$telegram_state"
+        "hexchat" "IRC client (HexChat)" "$hexchat_state"
     )
 
     local item_count=${#items[@]}
@@ -67,19 +70,20 @@ _cat_communication() {
     clear
     [ -z "$choices" ] && return
 
-    local cleaned; cleaned=$(echo "$choices" | tr -d '"')
+    local cleaned
+    cleaned=$(echo "$choices" | tr -d '"')
     for pkg in $cleaned; do
         case $pkg in
-            signal-desktop)   _install_signal ;;
-            telegram-desktop) _install_telegram ;;
-            hexchat)
-                if ! is_installed "hexchat"; then
-                    _run_install "hexchat"
-                    echo -e "${GREEN}hexchat installed.${NC}"
-                else
-                    echo "hexchat already installed."
-                fi
-                ;;
+        signal-desktop) _install_signal ;;
+        telegram-desktop) _install_telegram ;;
+        hexchat)
+            if ! is_installed "hexchat"; then
+                _run_install "hexchat"
+                echo -e "${GREEN}hexchat installed.${NC}"
+            else
+                echo "hexchat already installed."
+            fi
+            ;;
         esac
     done
     echo -e "${GREEN}Communication tools installed.${NC}"

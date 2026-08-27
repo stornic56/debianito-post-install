@@ -22,6 +22,12 @@ WIFI_CHIPSET=""
 DESKTOP_ENV=""
 AUDIO_SERVER=""
 
+# APT update deduplication flag (set to 1 after the first successful apt-get update)
+APT_UPDATED=0
+
+# Cached output of `lspci -nn` for the whole session (populated once via _init_lspci_cache)
+LSPCI_OUTPUT=""
+
 # --------------------------
 # Pre-flight checks
 # --------------------------
@@ -109,7 +115,7 @@ _ensure_time_synced() {
         if [ -n "${DISPLAY:-}" ] || [ -n "${SSH_TTY:-}" ]; then
             _msg "Timezone" \
                 "Your system timezone is not set or is set to UTC.\n\nThe script will now open the timezone\nconfiguration tool to set your local timezone." 12 60
-sudo env LC_ALL=C LANGUAGE=C dpkg-reconfigure tzdata || true
+            sudo env LC_ALL=C LANGUAGE=C dpkg-reconfigure tzdata || true
             echo -e "${GREEN}Timezone configured: $(timedatectl show -p Timezone --value 2>/dev/null)${NC}"
         else
             echo -e "${YELLOW}Timezone not set. Run 'sudo dpkg-reconfigure tzdata' later.${NC}"
@@ -136,7 +142,7 @@ sudo env LC_ALL=C LANGUAGE=C dpkg-reconfigure tzdata || true
 # Debian version detection
 # --------------------------------
 detect_debian_version() {
-    if ! command -v lsb_release &> /dev/null; then
+    if ! command -v lsb_release &>/dev/null; then
         if [ -f /etc/os-release ]; then
             DEBIAN_CODENAME=$(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "")
         fi
@@ -149,13 +155,13 @@ detect_debian_version() {
         DEBIAN_CODENAME=$(lsb_release -cs 2>/dev/null || echo "")
     fi
     case "$DEBIAN_CODENAME" in
-        bullseye) DEBIAN_VERSION="11" ;;
-        bookworm) DEBIAN_VERSION="12" ;;
-        trixie)   DEBIAN_VERSION="13" ;;
-        *)
-            echo -e "${RED}Unsupported Debian version: '$DEBIAN_CODENAME'. Only 11 (bullseye), 12 (bookworm) and 13 (trixie) are supported.${NC}"
-            exit 1
-            ;;
+    bullseye) DEBIAN_VERSION="11" ;;
+    bookworm) DEBIAN_VERSION="12" ;;
+    trixie) DEBIAN_VERSION="13" ;;
+    *)
+        echo -e "${RED}Unsupported Debian version: '$DEBIAN_CODENAME'. Only 11 (bullseye), 12 (bookworm) and 13 (trixie) are supported.${NC}"
+        exit 1
+        ;;
     esac
 }
 
@@ -226,11 +232,22 @@ detect_kernel() {
 }
 
 # ----------------------------------
+# lspci output cache
+# ----------------------------------
+# Populates LSPCI_OUTPUT once per session. `lspci -nn` includes the textual PCI
+# class (VGA/3D/Ethernet/Network/Bluetooth controller) and the device IDs
+# (e.g. 14e4:), so a single capture covers every grep used across modules.
+_init_lspci_cache() {
+    [ -n "${LSPCI_OUTPUT:-}" ] && return
+    LSPCI_OUTPUT=$(timeout 2 lspci -nn 2>/dev/null || true)
+}
+
+# ----------------------------------
 # GPU detection
 # ----------------------------------
 detect_gpu() {
     local gpu_lines
-    gpu_lines=$(timeout 2 lspci -nn | grep -E "VGA|3D") || true
+    gpu_lines=$(echo "$LSPCI_OUTPUT" | grep -E "VGA|3D") || true
     if [ -z "$gpu_lines" ]; then
         GPU_TYPE="unknown"
         GPU_DESC="No GPU detected"
@@ -257,7 +274,7 @@ detect_gpu() {
             has_intel=true
             [ -z "$intel_dev_id" ] && intel_dev_id=$(echo "$line" | grep -oP '8086:\K[0-9a-fA-F]+' | head -n1)
         fi
-    done <<< "$gpu_lines"
+    done <<<"$gpu_lines"
 
     GPU_DESC="$desc_lines"
     HAS_NVIDIA=$has_nvidia
@@ -322,21 +339,21 @@ declare -a WIFI_SSIDS=()
 
 detect_network() {
     local eth_line
-    eth_line=$(timeout 2 lspci -nn | grep -i 'Ethernet controller' | head -n1) || true
+    eth_line=$(echo "$LSPCI_OUTPUT" | grep -i 'Ethernet controller' | head -n1) || true
     if [ -n "$eth_line" ]; then
         ETH_DESC=$(echo "$eth_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
     fi
 
     local wifi_line
     # Layer 1: grep by PCI class description text
-    wifi_line=$(timeout 2 lspci -nn 2>/dev/null | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
+    wifi_line=$(echo "$LSPCI_OUTPUT" | grep -iE 'network controller|wireless|wi-fi|wlan|802\.11' | head -n1) || true
     # Layer 2: grep by exact PCI class code 0x0280 (Network controller)
     if [ -z "$wifi_line" ]; then
-        wifi_line=$(timeout 2 lspci -d ::0280 2>/dev/null | head -n1) || true
+        wifi_line=$(echo "$LSPCI_OUTPUT" | grep -i 'network controller' | head -n1) || true
     fi
     # Layer 3: Broadcom vendor ID fallback (14e4)
     if [ -z "$wifi_line" ]; then
-        wifi_line=$(timeout 2 lspci -nn 2>/dev/null | grep -i '14e4:' | head -n1) || true
+        wifi_line=$(echo "$LSPCI_OUTPUT" | grep -i '14e4:' | head -n1) || true
     fi
     if [ -n "$wifi_line" ]; then
         WIFI_CHIPSET="$wifi_line"
@@ -363,23 +380,23 @@ detect_network() {
         iface=$(echo "$line" | awk -F': ' '{print $2}' | sed 's/@.*//')
         state=$(echo "$line" | awk '{print $9}')
         case "$iface" in
-            eth*|enp*|ens*|enx*|eno*)
-                ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
-                ETH_NAMES+=("$iface")
-                ETH_STATES+=("$state")
-                ETH_IPS+=("${ip4:-}")
-                ETH_DESCS+=("${ETH_DESC:-}")
-                ;;
-            wl*|wlp*|wlo*|wlan*)
-                ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
-                ssid=""
-                [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
-                WIFI_NAMES+=("$iface")
-                WIFI_STATES+=("$state")
-                WIFI_IPS+=("${ip4:-}")
-                WIFI_SSIDS+=("${ssid:-}")
-                WIFI_DESCS+=("${WIFI_DESC:-}")
-                ;;
+        eth* | enp* | ens* | enx* | eno*)
+            ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+            ETH_NAMES+=("$iface")
+            ETH_STATES+=("$state")
+            ETH_IPS+=("${ip4:-}")
+            ETH_DESCS+=("${ETH_DESC:-}")
+            ;;
+        wl* | wlp* | wlo* | wlan*)
+            ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+            ssid=""
+            [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
+            WIFI_NAMES+=("$iface")
+            WIFI_STATES+=("$state")
+            WIFI_IPS+=("${ip4:-}")
+            WIFI_SSIDS+=("${ssid:-}")
+            WIFI_DESCS+=("${WIFI_DESC:-}")
+            ;;
         esac
     done < <(timeout 2 ip -o link show 2>/dev/null)
 }
@@ -390,18 +407,18 @@ detect_network() {
 detect_displayserver() {
     local st="${XDG_SESSION_TYPE:-}"
     case "$st" in
-        wayland) DISPLAY_SERVER="Wayland" ;;
-        x11)     DISPLAY_SERVER="X11" ;;
-        tty)     DISPLAY_SERVER="none (tty)" ;;
-        *)
-            if [ -n "${WAYLAND_DISPLAY:-}" ]; then
-                DISPLAY_SERVER="Wayland"
-            elif [ -n "${DISPLAY:-}" ]; then
-                DISPLAY_SERVER="X11"
-            else
-                DISPLAY_SERVER="unknown"
-            fi
-            ;;
+    wayland) DISPLAY_SERVER="Wayland" ;;
+    x11) DISPLAY_SERVER="X11" ;;
+    tty) DISPLAY_SERVER="none (tty)" ;;
+    *)
+        if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+            DISPLAY_SERVER="Wayland"
+        elif [ -n "${DISPLAY:-}" ]; then
+            DISPLAY_SERVER="X11"
+        else
+            DISPLAY_SERVER="unknown"
+        fi
+        ;;
     esac
 }
 
@@ -451,10 +468,10 @@ detect_storage() {
 # ---------------------------------------
 detect_desktop_environment() {
     case "${XDG_CURRENT_DESKTOP:-}" in
-        *GNOME*) DESKTOP_ENV="gnome" ;;
-        *KDE*)   DESKTOP_ENV="kde" ;;
-        *XFCE*)  DESKTOP_ENV="xfce" ;;
-        *)       DESKTOP_ENV="other" ;;
+    *GNOME*) DESKTOP_ENV="gnome" ;;
+    *KDE*) DESKTOP_ENV="kde" ;;
+    *XFCE*) DESKTOP_ENV="xfce" ;;
+    *) DESKTOP_ENV="other" ;;
     esac
 }
 
@@ -483,7 +500,7 @@ get_intel_generation() {
     fi
     local dev_int
     dev_int=$(printf "%d" "$INTEL_GPU_DEVICE_ID")
-    if [ "$dev_int" -lt 5632 ]; then  # 0x1600 = 5632
+    if [ "$dev_int" -lt 5632 ]; then # 0x1600 = 5632
         echo "gen7-"
     else
         echo "gen8+"
@@ -498,29 +515,34 @@ get_intel_generation() {
 # ----------------------------------------------------------------------
 is_backports_enabled() {
     local codename="${DEBIAN_CODENAME:-}"
-    [ -z "$codename" ] && { echo false; return; }
+    [ -z "$codename" ] && {
+        echo false
+        return
+    }
 
     local c_pattern="^[^#]*${codename}-backports[[:space:]]+"
     local d_pattern="Suites:.*${codename}-backports"
 
     # Classic embedded (sources.list)
     if [ -f /etc/apt/sources.list ] && grep -Eq "$c_pattern" /etc/apt/sources.list 2>/dev/null; then
-        echo true; return
+        echo true
+        return
     fi
 
     # Classic standalone (any .list file in sources.list.d)
     if [ -d /etc/apt/sources.list.d ] && grep -qrE "$c_pattern" /etc/apt/sources.list.d/*.list 2>/dev/null; then
-        echo true; return
+        echo true
+        return
     fi
 
     # Deb822 any .sources file
     if [ -d /etc/apt/sources.list.d ] && grep -qr "$d_pattern" /etc/apt/sources.list.d/*.sources 2>/dev/null; then
-        echo true; return
+        echo true
+        return
     fi
 
     echo false
 }
-
 
 install_backports_or_stable() {
     local pkg="$1"
@@ -528,7 +550,7 @@ install_backports_or_stable() {
 
     local bpo_ver=""
     if [ "$(is_backports_enabled)" == true ]; then
-        bpo_ver=$(apt-cache madison "$pkg" 2>/dev/null | \
+        bpo_ver=$(apt-cache madison "$pkg" 2>/dev/null |
             grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
     fi
 
@@ -594,17 +616,20 @@ _msg_red() {
 }
 
 _menu() {
-    local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
+    local title="$1" text="$2" h="$3" w="$4" lh="$5"
+    shift 5
     whiptail --title "$title" --menu "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
 }
 
 _checklist() {
-    local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
+    local title="$1" text="$2" h="$3" w="$4" lh="$5"
+    shift 5
     whiptail --title "$title" --ok-button "Apply" --checklist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
 }
 
 _radiolist() {
-    local title="$1" text="$2" h="$3" w="$4" lh="$5"; shift 5
+    local title="$1" text="$2" h="$3" w="$4" lh="$5"
+    shift 5
     whiptail --title "$title" --ok-button "Install" --radiolist "$text" "$h" "$w" "$lh" "$@" 3>&1 1>&2 2>&3 || true
 }
 
@@ -616,7 +641,7 @@ _validate_sudoers() {
     local content="$1" dest="$2"
     local tmpfile
     tmpfile=$(mktemp) || return 1
-    echo "$content" > "$tmpfile"
+    echo "$content" >"$tmpfile"
     if ! /usr/sbin/visudo -cf "$tmpfile" &>/dev/null; then
         local err
         err=$(/usr/sbin/visudo -cf "$tmpfile" 2>&1 || true)
@@ -701,8 +726,8 @@ _run_install_pkg() {
 
 get_backports_kernel_version() {
     local ver
-    ver=$(apt-cache policy linux-image-amd64 2>/dev/null | \
-          grep -E '^[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+.*~bpo' | head -n1 | awk '{print $1}')
+    ver=$(apt-cache policy linux-image-amd64 2>/dev/null |
+        grep -E '^[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+.*~bpo' | head -n1 | awk '{print $1}')
     if [ -n "$ver" ]; then
         echo "$ver"
     else
@@ -760,9 +785,28 @@ _check_network() {
 }
 
 # ----------------------------------
+# APT update deduplication
+# ----------------------------------
+# Runs `apt-get update` at most once per session. Subsequent calls bypass the
+# network refresh. Returns 0 on success, 1 if apt-get update fails.
+_ensure_apt_updated() {
+    if [ "$APT_UPDATED" -eq 1 ]; then
+        echo -e "${GREEN}[+]${NC} APT package lists already refreshed this session."
+        return 0
+    fi
+    echo -e "${GREEN}[+]${NC} Refreshing APT package lists..."
+    if sudo apt-get update; then
+        APT_UPDATED=1
+        return 0
+    fi
+    echo -e "${RED}[-]${NC} apt-get update failed."
+    return 1
+}
+
+# ----------------------------------
 # LightDM configuration
 # ----------------------------------
- _configure_lightdm() {
+_configure_lightdm() {
     command -v lightdm &>/dev/null || return 0
 
     if _confirm "LightDM" "Configure LightDM to show the user list on the login screen?\n\nThis disables greeter-hide-users."; then
@@ -782,7 +826,7 @@ _check_network() {
         fi
 
         sudo mkdir -p "$conf_dir"
-        printf '[Seat:*]\ngreeter-hide-users=false\n' | sudo tee "$conf_file" > /dev/null
+        printf '[Seat:*]\ngreeter-hide-users=false\n' | sudo tee "$conf_file" >/dev/null
         echo -e "${GREEN}LightDM configured to show user list.${NC}"
     fi
 }
@@ -792,4 +836,6 @@ refresh_system_state() {
     detect_debian_version
     detect_gpu
     detect_cpu_ram
+    detect_network
+    detect_desktop_environment
 }
