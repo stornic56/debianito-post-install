@@ -27,10 +27,10 @@ restore_previous_repos() {
         local rel="${f#/etc/apt/}"
         local backup_file="$REPO_BACKUP_DIR/$rel"
         if [ -f "$backup_file" ]; then
-            sudo cp "$backup_file" "$f"
+            sudo cp "$backup_file" "$f" || true
             found=true
         elif [ -f "$f" ]; then
-            sudo rm -f "$f"
+            sudo rm -f "$f" || true
             found=true
         fi
     done
@@ -103,7 +103,7 @@ _write_deb822() {
     if content_differs "$main_file" "$main_content"; then
         if _confirm "Deb822 Sources" "Write main deb822 configuration to ${main_file}?"; then
             sudo mkdir -p /etc/apt/sources.list.d
-            echo -e "$main_content" | sudo tee "$main_file" >/dev/null
+            echo -e "$main_content" | sudo tee "$main_file" >/dev/null || return 1
             echo "Wrote ${main_file}"
         else
             echo "Main repository configuration skipped."
@@ -199,7 +199,7 @@ _write_classic() {
 
     if content_differs "$main_file" "$main_content"; then
         if _confirm "Classic Sources" "Write main classic configuration to ${main_file}?"; then
-            echo -e "$main_content" | sudo tee "$main_file" >/dev/null
+            echo -e "$main_content" | sudo tee "$main_file" >/dev/null || return 1
             echo "Wrote ${main_file}"
         else
             echo "Main repository configuration skipped."
