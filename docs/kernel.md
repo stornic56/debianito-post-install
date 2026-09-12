@@ -1,77 +1,152 @@
-## Option 6: Debian Backports Kernel Integration
+# Option 7: Kernel Variants (Stable, Backports, RT, Cloud)
 
-### 1. Why a Backports Kernel?
+## 1. What Does This Component Do?
 
-The decision to integrate the Debian Backports kernel into `debianito.sh` is driven by the fundamental architectural conflict between **Stability** and **Hardware Enablement**.
+The **Kernel** module (`modules/kernel.sh`) manages which Linux kernel your system boots. Unlike a simple `apt install`, it enforces **atomic installation of image + headers** and validates repository state before touching the boot chain. The menu (`show_kernel_menu`) offers four distinct kernel flavours plus a Backports path that is only available on Debian 13 (Trixie):
 
-Debian Stable (including Debian 13 "Trixie") prioritizes long-term reliability. As a result, its kernel version is frozen at a Long Term Support (LTS) release—in this case, Linux 6.12 LTS. While 6.12 is robust and secure, it represents a snapshot of the upstream kernel from late 2024/early 2025. It does not include the rapid stream of hardware enablement, scheduler refinements, or power management optimizations that occur in subsequent releases (e.g., Linux 7.0+).
+| Key | Variant | Package | Use Case |
+| ----- | --------- | --------- | ---------- |
+| `stable` | Stable | `linux-image-amd64` | Default Debian kernel (6.12 LTS on Trixie). Maximum stability. |
+| `backports` | Backports | `linux-image-amd64` from `trixie-backports` | Newer kernel (e.g., 7.x) for recent hardware. **Trixie only**, requires backports enabled. |
+| `rt` | Real-Time | `linux-image-rt-amd64` | Preempt-RT kernel for low-latency / audio production. Warns on NVIDIA. |
+| `cloud` | Cloud | `linux-image-cloud-amd64` | Minimal kernel for VMs, containers, and cloud images. |
 
-For users with modern hardware released between 2025 and 2026, this freeze creates a compatibility gap:
-*   **New Architectures:** CPUs like Intel Arrow Lake/Panther Lake or AMD Zen 5 require specific microcode, scheduler hints (e.g., "slow workload hints"), and CXL support that are absent in the frozen 6.12 LTS branch.
-*   **Graphics Performance:** New GPUs (Intel Battlemage) may lack optimized power states (like D3cold enablement) or improved driver integration found in newer kernels.
-*   **Filesystem Integrity:** Advanced features like XFS self-healing or Btrfs remap-tree improvements are exclusive to newer kernel versions.
+All variants install the matching **headers** package (`linux-headers-amd64`, `linux-headers-rt-amd64`, `linux-headers-cloud-amd64`) in the same transaction — critical for DKMS modules (NVIDIA, VirtualBox, ZFS).
 
-The `kernel.sh` module leverages the Debian Backports repository (`trixie-backports`) as a "best-effort" bridge. This allows users to opt-in to Kernel 7.0+ without abandoning the Stable base entirely. The script ensures that this upgrade is treated as an exception, providing access to modern enablement while maintaining the safety net of the Stable ecosystem for core system packages.
+> **Position in menu:** This is Option 7 in the current `debianito.sh` main menu. Previous documentation listed it as Option 6 (Backports only). The module was expanded to support RT and Cloud kernels after the initial release.
 
-### 2. Synchronized Installation Pipeline (Kernel + Headers)
+---
 
-A critical engineering principle in kernel management is **Atomicity**. Installing a new kernel image without its corresponding headers breaks the build chain for third-party modules (such as NVIDIA DKMS, VirtualBox, or ZFS). The `install_kernel_backports` function enforces this by ensuring the installation command targets both components.
+## 2. Why Offer Backports at All?
 
-**The Installation Command Logic:**
-The script utilizes `apt` with a specific target release flag to pull packages from the backports suite:
+Debian Stable freezes its kernel at an LTS release (6.12 LTS on Trixie). This is intentional for reliability, but creates a hardware enablement gap for machines released in 2025-2026:
+
+- **New CPUs** (Intel Arrow Lake / Panther Lake, AMD Zen 5) need scheduler hints, CXL, and microcode not in 6.12
+- **New GPUs** (Intel Battlemage D3cold, NVIDIA Blackwell) need power-state and firmware support added after 6.12
+- **Filesystem fixes** (XFS self-healing, Btrfs remap-tree) land only in newer kernels
+
+The `trixie-backports` repository provides a **best-effort newer kernel** without moving the rest of the system to Testing. Debian backports kernels receive security updates but are not LTS themselves.
+
+This is why the menu shows `backports` only when `DEBIAN_VERSION == 13` and greys it out otherwise. Bookworm backports is intentionally not offered — its EOL was 2026-08-09 and the NVIDIA path on Bookworm no longer uses backports.
+
+---
+
+## 3. The Installation Pipeline: Image + Headers Atomically
+
+### Function: `_install_kernel_package` (`kernel.sh`)
 
 ```bash
-sudo apt install -y -t ${DEBIAN_CODENAME}-backports linux-image-amd64
+_install_kernel_package "linux-image-amd64" "Backports" "-t trixie-backports"
+_install_kernel_package "linux-image-rt-amd64" "RT" ""
 ```
 
-While Debian's dependency resolver often pulls headers automatically when installing `linux-image`, explicit documentation and engineering best practices dictate that the system must be configured to ensure both are present. The pipeline operates as follows:
+Execution steps:
 
-1.  **Target Specification (`-t`):** The flag `-t ${DEBIAN_CODENAME}-backports` explicitly directs APT to ignore the Stable repository for this specific transaction, ensuring the latest backported version is selected rather than a cached Stable package.
-2.  **Image Package:** `linux-image-amd64` contains the bootable kernel binary and associated modules.
-3.  **Headers Dependency:** Although often implicit, the documentation mandates that `linux-headers-amd64` must be present for DKMS drivers to recompile successfully after a reboot. If these are missing, external drivers may fail to load until manually rebuilt against the new headers.
+1. **Availability check** — `apt-cache show <pkg>` must succeed. If the package does not exist for the current Debian version, a whiptail message `Kernel not available` is shown and the function returns.
+2. **Hardware warnings** (flavour-specific):
+   - **Backports + NVIDIA** (`GPU_TYPE == "nvidia"`): `_confirm "Kernel" "WARNING: Backports kernel changes the kernel version. Your NVIDIA driver will need recompilation (DKMS)."`. Users can still proceed — DKMS will rebuild on next boot if headers match.
+   - **RT + NVIDIA**: `_msg "Kernel — RT" "Ensure your NVIDIA driver supports the RT kernel. Some proprietary drivers may not work correctly."`. Not a blocker, but informs that some closed drivers fail with PREEMPT_RT.
+3. **Version resolution** for the confirmation dialog:
 
-This synchronized approach ensures that when the system boots into the new kernel, all dependent modules have access to the correct symbol tables and build environment provided by the matching headers.
+   ```bash
+   # Backports path
+   ver=$(apt-cache madison linux-image-amd64 | grep trixie-backports | awk '{print $3}' | head -1)
+   headers_ver=$(apt-cache madison linux-headers-amd64 | grep trixie-backports | awk '{print $3}' | head -1)
+   # Stable/RT/Cloud path
+   ver=$(apt-cache show linux-image-amd64 | sed -n 's/^Version: //p' | grep -v '~bpo' | head -1)
+   ```
 
-### 3. Safety Mechanisms and Atomic Operation
+   The dialog shows `Image: linux-image-amd64 (6.12.22-1)` + `Headers: linux-headers-amd64 (6.12.22-1)` + `From: Trixie-backports` when a backports flag is present.
+4. **User confirmation** — `whiptail --yesno "Install Backports kernel? Image: ... Headers: ..."` with the version string. Declining aborts with `Skipping.`.
+5. **Atomic install**:
 
-To prevent boot loops or system instability, `kernel.sh` implements several safety checks before executing any installation commands:
+   ```bash
+   sudo apt install -y [-t trixie-backports] linux-image-amd64 linux-headers-amd64
+   sudo apt install -y linux-image-rt-amd64 linux-headers-rt-amd64
+   sudo apt install -y linux-image-cloud-amd64 linux-headers-cloud-amd64
+   ```
 
-*   **Pre-flight Repository Validation:**
-    The function begins with a strict check using `is_backports_enabled()`. If the backports repository is not active in `/etc/apt/sources.list`, the script halts and instructs the user to enable it via Option 3. This prevents accidental dependency conflicts or installation failures due to missing sources.
+   Both image and headers are passed in a **single `apt` transaction**. This guarantees the symbol tables match and DKMS can rebuild. The helper `_run_cmd "Kernel"` prints the command, captures the exit code, and pauses for the user to review output.
+6. **Post-install** — prints `Backports kernel installed. Reboot to use it.` and pauses. The new kernel is added to `/boot` alongside the old one; GRUB will show both at next boot. The script does not remove the old kernel — rollback is simply rebooting into the previous entry.
 
-*   **Hardware Compatibility Warnings:**
-    The script detects if an NVIDIA GPU is present (`GPU_TYPE == "nvidia"`). In this scenario, a warning is displayed: *"WARNING: may break NVIDIA driver."*. This alerts the user that proprietary drivers might require DKMS recompilation against the new headers.
+---
 
-*   **Bootloader Update (GRUB):**
-    Although not explicitly shown in the minimal `kernel.sh` snippet provided, standard kernel engineering practice dictates that after a successful installation, the bootloader must be updated to register the new entry:
-    ```bash
-    sudo update-grub
-    ```
-    This ensures the new kernel appears in the GRUB menu and can be set as the default.
+## 4. Menu Logic: `show_kernel_menu`
 
-*   **Fallback Preservation:**
-    The script does not remove the previous kernel. Debian's package manager retains older kernels, preserving them in `/boot`. If the new backports kernel fails to boot (e.g., due to a hardware incompatibility), the user can simply select the previous stable version from the GRUB menu during startup. This "Rollback Safety" is inherent to the Debian Stable model and is reinforced by the script's non-destructive installation approach.
+```bash
+show_kernel_menu() {
+  while true; do
+    items=("stable" "Install linux-image-amd64")
+    [ "$DEBIAN_VERSION" = "13" ] && items+=("backports" "Install from backports")
+    items+=("rt" "Install linux-image-rt-amd64 (Preempt-RT)")
+    items+=("cloud" "Install linux-image-cloud-amd64")
+    items+=("back" "Return to main menu")
+    choice=$(whiptail --menu "Kernel Installation" "Select kernel variant:" 16 65 5 "${items[@]}")
 
-### 4. Critical Interconnection with Other Modules (Script Ecosystem)
+    case "$choice" in
+      stable)    _install_kernel_package "linux-image-amd64" "Stable" "" ;;
+      backports)
+        if [ "$(is_backports_enabled)" != "true" ]; then
+          whiptail --msgbox "Backports repository is not enabled.\nUse option 4 (Configure repositories) to enable backports before installing."
+        else
+          _install_kernel_package "linux-image-amd64" "Backports" "-t ${DEBIAN_CODENAME}-backports"
+        fi ;;
+      rt)        _install_kernel_package "linux-image-rt-amd64" "RT" "" ;;
+      cloud)     _install_kernel_package "linux-image-cloud-amd64" "Cloud" "" ;;
+      back) break ;;
+    esac
+  done
+}
+```
 
-The Backports Kernel module does not operate in isolation; it relies on a tightly coupled ecosystem within `debianito.sh` to ensure full functionality:
+Key details:
 
-*   **Option 4: Firmware & Wireless Drivers:**
-    New kernels often introduce support for new hardware IDs, but they require corresponding firmware blobs (e.g., `firmware-misc-nonfree`). If the user installs Kernel 7.0+ without updating their firmware repository, wireless cards or specific storage controllers may remain unfunctional. The script ensures that Option 4 is logically dependent on a compatible kernel state.
+- **Backports visibility** — The `backports` entry is only appended when `DEBIAN_VERSION == 13`. On Bullseye/Bookworm it does not appear.
+- **Backports guard** — Selecting `backports` without backports enabled shows a message pointing to **Option 4 (Configure Repositories)**. No install is attempted.
+- **Loop** — The menu is a `while true` loop; the user can install multiple variants sequentially (e.g., Stable + RT) before returning with `back` or `ESC`.
 
-*   **Option 5: Graphics Drivers (NVIDIA DKMS):**
-    For systems with NVIDIA hardware, the installation of a new kernel triggers a dependency chain for `nvidia-dkms`. If the user has proprietary drivers installed, they must be recompiled against the new headers provided by the backports kernel. The script's detection logic (`HAS_NVIDIA`) allows it to warn users or trigger DKMS rebuilds automatically if integrated into a larger workflow.
+---
 
-*   **Bullseye-Specific Logic:**
-    As seen in `debianito.sh`, the Backports Kernel module is conditionally loaded based on the Debian version:
-    ```bash
-    if [ "$DEBIAN_VERSION" = "11" ]; then
-        _msg "Not Available" ...
-    else
-        install_kernel_backports || true
-    fi
-    ```
-    This ensures that legacy systems (Debian 11 Bullseye) do not attempt to use a backports workflow that may not be supported or stable in older architectures, while newer versions (Bookworm/Trixie) utilize the full feature set.
+## 5. Safety Mechanisms
 
-*   **Gaming & Extras:**
-    The Backports kernel is often recommended for gaming due to improved scheduler performance and low-latency networking features found in Linux 7.0+. By linking Option 6 with `gaming.sh`, users can ensure their hardware is tuned correctly before launching high-performance applications.
+| Mechanism | How It Works |
+| ----------- | -------------- |
+| **Pre-flight `is_backports_enabled`** | `utils.sh:is_backports_enabled` greps `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.sources` / `*.list` for `trixie-backports`. Prevents `apt -t` from failing with `E: Release not found`. |
+| **NVIDIA RT warning** | `utils.sh:GPU_TYPE` is set at startup by `detect_gpu` (lspci). RT kernels change scheduling semantics; some `nvidia.ko` builds reject `PREEMPT_RT`. |
+| **Atomic image+headers** | Both packages in one `apt` call. If headers are missing, `dkms` will fail at boot — so they are never installed separately. |
+| **Fallback preservation** | `apt` never removes the running kernel. `/boot` retains `vmlinuz-*` and `initrd.img-*` for both. GRUB keeps both entries; if the new kernel panics, select the old one. |
+| **Version-aware messaging** | The confirmation dialog always shows the exact version string (`apt-cache madison` / `apt-cache show`) so users know they are not reinstalling the same package. |
+
+GRUB update is **not** explicitly called — `linux-image-*` postinst triggers `update-grub` (or `kernel-install` on systemd-boot) automatically. If GRUB is broken, use **Option 12 (Boot Rescue + GRUB)** to rebuild it.
+
+---
+
+## 6. Interconnection with Other Modules
+
+- **Option 4: Repositories** — Must enable `trixie-backports` before `Kernel → backports` is usable. The kernel menu explicitly checks `is_backports_enabled` and directs the user there if missing.
+- **Option 5: Firmware** — Newer kernels expose new hardware IDs (e.g., `8086:7e40` for Panther Lake). Without updated `firmware-linux-nonfree` or `firmware-iwlwifi`, the new kernel will show the device but fail to load firmware. Run Firmware after a kernel upgrade if WiFi/storage is not recognized.
+- **Option 6: Graphics Drivers** — NVIDIA `dkms` needs the exact `linux-headers-*` version. The atomic install ensures headers match. On Bookworm the NVIDIA path deliberately avoids backports kernels; on Trixie a backports kernel + Maxwell/Pascal GPU is forced to the stable NVIDIA driver (`v550`) to avoid `v590` incompatibility.
+- **Gaming (`gaming.sh`)** — The backports kernel is sometimes recommended for gaming (scheduler latency, `SCHED_EXT`), but not required. Benchmarks show <3% difference for most titles; enable it only for newer hardware that needs it.
+
+---
+
+## 7. Verification After Installation
+
+```bash
+uname -r                      # Should show the new kernel after reboot
+dpkg -l linux-image-amd64 | grep ^ii
+dpkg -l linux-headers-amd64 | grep ^ii
+ls -l /boot/vmlinuz-*         # Both old and new kernels present
+grep -E 'menuentry' /boot/grub/grub.cfg | head -5  # GRUB entries
+```
+
+If the new kernel fails to boot, hold `ESC` (or `Shift` on BIOS) at power-on, select **Advanced options for Debian** → previous kernel version.
+
+---
+
+## References
+
+- [Debian Backports — backports.debian.org](https://backports.debian.org/)
+- [Debian Kernel Handbook](https://kernel-handbook.alioth.debian.org/)
+- [PREEMPT_RT — wiki.debian.org/RealTime](https://wiki.debian.org/RealTime)
+- [Installing a new kernel — wiki.debian.org/DebianKernel](https://wiki.debian.org/DebianKernel)

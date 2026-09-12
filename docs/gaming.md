@@ -1,4 +1,4 @@
-## Option 7: Gaming Ecosystem, Performance Tweaks & Runtimes
+# Option 8: Gaming Ecosystem, Performance Tweaks & Runtimes
 
 ### 1. Philosophy of the Gaming Environment in Debian
 
@@ -19,6 +19,7 @@ The module architecture separates concerns into distinct scripts (`steam.sh`, `h
 **Steam Installation Logic:** The `install_steam()` function in `steam.sh` leverages Debian's native package management through the `apt install -y steam-installer` command. This approach differs from Valve's official repository for several reasons:
 
 1. **32-bit Architecture Requirement:** Steam requires 32-bit libraries to run modern Windows games via Proton. The script explicitly prompts users to enable Multi-Arch support (`dpkg --add-architecture i386`) and install the complete Mesa stack for both amd64 and i386 architectures:
+
    ```bash
    apt install mesa-vulkan-drivers libglx-mesa0:i386 mesa-vulkan-drivers:i386 \
               libgl1-mesa-dri:i386 libegl-mesa0:i386 mesa-va-drivers:i386
@@ -59,6 +60,7 @@ This approach ensures users always get the latest stable release while maintaini
 4. **Screensaver Inhibition:** Prevents screensavers from activating during gaming sessions
 
 The `install_gamemode()` function in `tools.sh` ensures the daemon is available system-wide:
+
 ```bash
 _run_install gamemode
 ```
@@ -73,6 +75,7 @@ This allows users to wrap game launch commands with `gamemoderun %command%` for 
 4. **Native Rendering:** Uses Vulkan/OpenGL hooks for efficient overlay rendering without impacting game performance
 
 The `install_mangohud()` function handles both 64-bit and 32-bit installations:
+
 ```bash
 if dpkg --print-foreign-architectures | grep -q i386; then
     echo "Installing 32-bit MangoHud..."
@@ -94,6 +97,7 @@ The `goverlay` component extends this functionality by integrating with Wayland 
 4. **Capability Assignment:** Sets raw I/O capabilities on the binary using `setcap cap_sys_rawio=ep /usr/bin/openrgb`, allowing direct hardware communication while maintaining user-space execution
 
 The script includes version-specific download URLs for Debian Bookworm (12) and Trixie (13), ensuring compatibility with different kernel versions:
+
 ```bash
 if [ "$DEBIAN_VERSION" = "12" ]; then
     url="https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_candidate_1.0rc2/openrgb_1.0rc2_amd64_bookworm_0fca93e.deb"
@@ -111,7 +115,7 @@ This approach eliminates the security risk of running OpenRGB as root while main
 **Multi-Version Support:** The gaming module provides four specific Eclipse Temurin versions to accommodate different game requirements:
 
 | Version | Use Case | Justification |
-|---------|----------|---------------|
+| --------- | ---------- | --------------- |
 | **Temurin 8** | Legacy Minecraft mods, older Java games | Maintains compatibility with mods written for Java 8 (2014-2019 era) |
 | **Temurin 17** | Modern Minecraft servers, newer game clients | Balances performance and compatibility for post-1.16+ game versions |
 | **Temurin 21** | Latest game engines, cutting-edge mods | Provides best performance for modern Java applications |
@@ -119,20 +123,19 @@ This approach eliminates the security risk of running OpenRGB as root while main
 
 **Repository Management via extrepo:** The script leverages the `extrepo` utility to manage external repositories cleanly rather than manually injecting repository URLs into system files. This approach offers several advantages:
 
-1.  **Automated Keyring Handling:** `extrepo` manages GPG keys and source file configurations automatically, eliminating manual intervention with `/etc/apt/sources.list.d/`.
-2.  **Dependency Resolution:** The utility checks for its own installation and handles the enabling of the Adoptium Temurin repository before proceeding with package installation.
-3.  **Maintenance Safety:** Updates to the upstream repository are reflected through `extrepo` without requiring direct edits to system configuration files, reducing the risk of breakage during OS updates.
+1. **Automated Keyring Handling:** `extrepo` manages GPG keys and source file configurations automatically, eliminating manual intervention with `/etc/apt/sources.list.d/`.
+2. **Dependency Resolution:** The utility checks for its own installation and handles the enabling of the Adoptium Temurin repository before proceeding with package installation.
+3. **Maintenance Safety:** Updates to the upstream repository are reflected through `extrepo` without requiring direct edits to system configuration files, reducing the risk of breakage during OS updates.
 
 **Version Selection Logic:** Users can choose which Temurin version to install based on their specific game requirements via a TUI menu (`install_minecraft_java()`). The module justifies offering all four versions because:
 
-1.  **Backward Compatibility:** Java 8 remains in use by many Minecraft mods and older game clients that haven't been updated for newer JVMs
-2.  **Performance Optimization:** Java 21 provides the best performance characteristics for modern games with heavy multithreading requirements
-3.  **Security Updates:** All Temurin versions receive regular security patches from the Eclipse Foundation community
+1. **Backward Compatibility:** Java 8 remains in use by many Minecraft mods and older game clients that haven't been updated for newer JVMs
+2. **Performance Optimization:** Java 21 provides the best performance characteristics for modern games with heavy multithreading requirements
+3. **Security Updates:** All Temurin versions receive regular security patches from the Eclipse Foundation community
 
 The installation process ensures clean repository management without polluting the system with multiple conflicting JRE installations, maintaining Debian's package integrity while providing flexibility for different gaming scenarios. It automatically installs `extrepo` if not present and enables the Adoptium source before proceeding with version-specific packages (e.g., `temurin-8-jre`, `temurin-17-jre`, `temurin-25-jre`).
 
-
-### References:
+### References
 
 - [https://wiki.debian.org/Steam](https://wiki.debian.org/Steam)
 - [wiki.archlinux.org/title/Steam](wiki.archlinux.org/title/Steam)
@@ -145,7 +148,3 @@ The installation process ensures clean repository management without polluting t
 - [https://github.com/feralinteractive/gamemode](https://github.com/feralinteractive/gamemode)
 - [https://gitlab.com/CalcProgrammer1/OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB)
 - [https://adoptium.net/es/installation/linux](https://adoptium.net/es/installation/linux)
-
-
-
-

@@ -1,11 +1,13 @@
-## Option 11: Boot Rescue & Repair
+# Option 12: Boot Rescue + GRUB
 
 ### 1. What does this component do?
+
 This component serves as a comprehensive rescue toolkit designed to diagnose and fix boot-related issues on Debian systems, specifically targeting GRUB configuration, UEFI Secure Boot integrity, and initrd image validity. It provides three primary operations: configuring the GRUB boot menu behavior (including timeout adjustments and visibility settings), repairing UEFI Secure Boot by reinstalling signed bootloader packages after kernel or driver changes, and regenerating initramfs images to resolve missing driver errors. All modifications are protected by automatic backup creation before system files are altered, with built-in rollback mechanisms that restore the original state if any operation fails during execution.
 
 ### 2. Logical Execution Flow
 
 **Block 1 — GRUB Boot Menu Settings**
+
 - **Menu Options:** Users select from four presets or a custom option to control boot behavior:
     1. Hide GRUB menu entirely (Fastest boot, requires holding ESC during power-on).
     2. Show 3-second countdown (Faster boot).
@@ -16,6 +18,7 @@ This component serves as a comprehensive rescue toolkit designed to diagnose and
 - **Execution & Rollback:** The system runs `update-grub` to apply changes. If this command fails, the script automatically restores the timestamped backup and removes the override file to prevent boot issues.
 
 **Block 2 — UEFI Secure Boot Repair**
+
 - **Pre-checks:** Before proceeding, the script verifies two conditions:
     1. The system is running in UEFI mode (checks for existence of `/sys/firmware/efi`).
     2. Secure Boot is currently enabled (uses `mokutil --sb-state` to confirm status).
@@ -26,8 +29,9 @@ This component serves as a comprehensive rescue toolkit designed to diagnose and
     3. Regenerates the GRUB configuration via `update-grub`.
 
 **Block 3 — Initramfs Regeneration**
+
 - **Confirmation:** The script prompts for user confirmation before proceeding to avoid unintended rebuilds.
-- **Execution:** Upon approval, it runs `update-initramfs -u -k all` to regenerate initrd images for all installed kernels.
+- **Execution:** Upon approval, it runs `update-initramfs -u -k all || true` to regenerate initrd images for all installed kernels.
 - **Purpose:** This fixes boot issues caused by missing drivers or corrupted initrd images that prevent the system from loading properly.
 
 ### 3. Intelligent Automation
@@ -43,23 +47,26 @@ This component serves as a comprehensive rescue toolkit designed to diagnose and
 ### 4. Paquetes y Recursos Gestionados
 
 **Boot Packages Reinstalled (Secure Boot Repair):**
+
 | Package | Purpose |
-|---|---|
+| --- | --- |
 | shim-signed | UEFI Secure Boot shim (first-stage bootloader) |
 | grub-efi-amd64-signed | Signed GRUB for UEFI |
 | linux-image-amd64 | Kernel image (re-signed) |
 
 **GRUB Settings Modified:**
+
 | Variable | Option 1 | Option 2 | Option 3 | Custom |
-|---|---|---|---|---|
+| --- | --- | --- | --- | --- |
 | GRUB_TIMEOUT | 0 | 3 | 5 | User value |
 | GRUB_TIMEOUT_STYLE | hidden | menu | menu | menu |
 | GRUB_RECORDFAIL_TIMEOUT | 0 | 3 | 5 | User value |
 | GRUB_DISABLE_OS_PROBER | true | — | — | — |
 
 **System Files Modified:**
+
 | Package | Purpose |
-|---|---|
+| --- | --- |
 | /etc/default/grub | Main GRUB configuration |
 | /etc/default/grub.d/99_script_override.cfg | Persistent override (survives grub updates) |
 | /etc/default/grub.backup.* | Timestamped backup (auto-created) |
