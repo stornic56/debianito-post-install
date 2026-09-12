@@ -207,7 +207,7 @@ _install_detected_firmware() {
     done
     if [ ${#to_install[@]} -gt 0 ]; then
         _run_cmd "Firmware" "sudo DEBIAN_FRONTEND=noninteractive apt install -y ${to_install[*]}" \
-            "Installing network firmware packages..."
+            "Installing network firmware packages..." || true
     fi
 }
 
@@ -247,7 +247,7 @@ _handle_wireless() {
         # --- Persist blacklist of conflicting modules ---
         local blacklist_conf="/etc/modprobe.d/blacklist-broadcom.conf"
         local blacklist_content="blacklist b43\nblacklist b43legacy\nblacklist brcmsmac\nblacklist bcma\nblacklist ssb"
-        echo -e "$blacklist_content" | sudo tee "$blacklist_conf" >/dev/null
+        echo -e "$blacklist_content" | sudo tee "$blacklist_conf" >/dev/null || true
 
         # --- Update initramfs and load module ---
         _run_cmd "Initramfs" "sudo update-initramfs -u" || true
@@ -266,7 +266,7 @@ _handle_wireless() {
         if $has_broadcom_bt; then
             echo -e "${YELLOW}[+] Broadcom WiFi+BT combo card detected.${NC}"
             sudo mkdir -p /etc/modprobe.d
-            printf 'softdep wl post: btusb\n' | sudo tee /etc/modprobe.d/broadcom-combo.conf >/dev/null
+            printf 'softdep wl post: btusb\n' | sudo tee /etc/modprobe.d/broadcom-combo.conf >/dev/null || true
             echo -e "${YELLOW}    A reboot may be required for Bluetooth support.${NC}"
         fi
 
@@ -291,8 +291,9 @@ _handle_wireless() {
             fi
         fi
 
+        _msg "Network Warning" "The script is about to unload current WiFi kernel modules to load the Broadcom driver.\n\nIf you are connected via SSH over WiFi, YOUR CONNECTION WILL DROP. Please reconnect after a few seconds."
         sudo modprobe -r b43 b43legacy b44 bcma brcmsmac brcmfmac ssb wl 2>/dev/null || true
-        sudo modprobe wl 2>/dev/null
+        sudo modprobe wl 2>/dev/null || true
 
         # --- Verificación de carga ---
         if lsmod | grep -q '^wl '; then
@@ -440,7 +441,7 @@ install_firmware() {
             local current_ver
             current_ver=$(dpkg -l "$fw_pkg" 2>/dev/null | awk '/^ii/{print $3}')
             if _confirm "Firmware" "firmware-linux-nonfree ${current_ver} already installed.\n\nUpgrade to backports version ${fw_bpo}?\n\nBackports often includes newer hardware support."; then
-                _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $fw_pkg" "Upgrading firmware..."
+                _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $fw_pkg" "Upgrading firmware..." || true
             fi
         else
             echo "$fw_pkg already installed."
@@ -457,15 +458,15 @@ install_firmware() {
             msg+="                     2025/2026: recent GPUs, processors, WiFi.\n\n"
             msg+="Choose version:"
             if _confirm_custom "Firmware" "$msg" "Backports" "Stable"; then
-                _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $fw_pkg" "Installing firmware from backports..."
+                _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $fw_pkg" "Installing firmware from backports..." || true
             else
-                _run_cmd "Firmware" "sudo apt install -y $fw_pkg" "Installing firmware from stable..."
+                _run_cmd "Firmware" "sudo apt install -y $fw_pkg" "Installing firmware from stable..." || true
             fi
         else
             msg+="  Version: ${fw_stable}\n\n"
             msg+="Install it?"
             if _confirm "Firmware" "$msg"; then
-                _run_cmd "Firmware" "sudo apt install -y $fw_pkg" "Installing firmware..."
+                _run_cmd "Firmware" "sudo apt install -y $fw_pkg" "Installing firmware..." || true
             fi
         fi
         echo -e "${GREEN}Base firmware installed.${NC}"

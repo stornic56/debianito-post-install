@@ -64,7 +64,7 @@ _write_deb822_branch() {
     fi
 
     sudo mkdir -p /etc/apt/sources.list.d
-    echo -e "$main_content" | sudo tee "$main_file" > /dev/null
+    echo -e "$main_content" | sudo tee "$main_file" >/dev/null
     echo "Wrote $main_file"
 }
 
@@ -80,14 +80,14 @@ _write_classic_branch() {
         main_content+="deb https://security.debian.org/debian-security ${target}-security main contrib non-free non-free-firmware\n"
     fi
 
-    echo -e "$main_content" | sudo tee "$main_file" > /dev/null
+    echo -e "$main_content" | sudo tee "$main_file" >/dev/null
     echo "Wrote $main_file"
 }
 
 _branch_migration() {
     # ── Screen 1: Risk warning ──
     _msg_red "WARNING: Branch Migration" \
-"Migrating from Debian Stable to Testing or SID is a\n\
+        "Migrating from Debian Stable to Testing or SID is a\n\
 MAJOR change and CAN make your system UNBOOTABLE.\n\n\
 Risks include:\n\
   • NVIDIA / DKMS drivers may break\n\
@@ -125,7 +125,10 @@ so you can restore if things go wrong." 16 70
     branch=$(_inputbox "Target Branch" \
         "Type exactly TESTING or SID (case-sensitive):" 10 60 "")
 
-    [ -z "$branch" ] && { echo "Migration cancelled."; return; }
+    [ -z "$branch" ] && {
+        echo "Migration cancelled."
+        return
+    }
 
     if [ "$branch" != "TESTING" ] && [ "$branch" != "SID" ]; then
         _msg "Invalid Branch" "You typed: $branch\n\nExpected: TESTING or SID (exact, case-sensitive).\nAborting." 10 60
@@ -155,7 +158,11 @@ so you can restore if things go wrong." 16 70
     [ -f /etc/apt/sources.list ] && sudo rm -f /etc/apt/sources.list
 
     # 4d. Write new sources
-    _write_branch_sources "$target"
+    if ! _write_branch_sources "$target"; then
+        echo -e "${RED}[-]${NC} Failed to write new sources. Restoring backup..."
+        _restore_backup || true
+        return 1
+    fi
 
     # 4e. SID guardrails: install bug alerts before upgrade
     if [ "$target" = "sid" ]; then
@@ -170,7 +177,7 @@ so you can restore if things go wrong." 16 70
         echo -e "${RED}apt update failed. Restoring backup...${NC}"
         _restore_backup
         _msg_red "Migration Failed" \
-"apt update failed. Backup has been restored from:\n\
+            "apt update failed. Backup has been restored from:\n\
 $_MIGRATE_BACKUP\n\n\
 Your system should be back to its previous state.\n\
 Run 'sudo apt update' manually to verify." 12 70
@@ -193,7 +200,7 @@ Run 'sudo apt update' manually to verify." 12 70
 
     # ── Screen 5: Reboot reminder ──
     _msg "Migration Complete" \
-"System has been migrated to ${target}.\n\n\
+        "System has been migrated to ${target}.\n\n\
 Backup saved at:\n  $_MIGRATE_BACKUP\n\n\
 REBOOT your system.\nIf it fails to boot, restore the backup manually:\n\
   sudo tar xzf $_MIGRATE_BACKUP -C /\n  sudo apt update\n  sudo apt upgrade" 16 70

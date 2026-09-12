@@ -19,7 +19,7 @@ _enable_cuda_repo() {
         # Método oficial NVIDIA: cuda-keyring (extrepo no configura
         # correctamente el repo en Trixie)
         if dpkg -s cuda-keyring &>/dev/null; then
-            return 0   # ya instalado → su .list ya existe
+            return 0 # ya instalado → su .list ya existe
         fi
         if ! wget -q "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb" \
             -O /tmp/cuda-keyring.deb; then
@@ -135,7 +135,7 @@ _verify_nvidia_dkms_build() {
 # Returns: 0 if a version was chosen, 1 if the user cancelled
 # -------------------------------------------------------------------
 _is_cuda_repo_ready() {
-    [ -f /etc/apt/sources.list.d/extrepo_nvidia-cuda.sources ] || \
+    [ -f /etc/apt/sources.list.d/extrepo_nvidia-cuda.sources ] ||
         grep -qr 'developer.download.nvidia.com' /etc/apt/sources.list.d/ 2>/dev/null
 }
 
@@ -181,14 +181,14 @@ _configure_nvidia_wayland() {
 
     # ── Arquitectura: solo fbdev y mensaje de color ──
     case "$arch" in
-        kepler)
-            color="${RED}"
-            msg="WARNING: Wayland not supported on Kepler. Use X11 (Xorg)."
-            ;;
-        maxwell|pascal)
-            color="${YELLOW}"
-            msg="Wayland support on ${arch} is experimental. X11 recommended."
-            ;;
+    kepler)
+        color="${RED}"
+        msg="WARNING: Wayland not supported on Kepler. Use X11 (Xorg)."
+        ;;
+    maxwell | pascal)
+        color="${YELLOW}"
+        msg="Wayland support on ${arch} is experimental. X11 recommended."
+        ;;
     esac
 
     # ── Híbrida vs desktop: NVreg independiente de la arquitectura ──
@@ -200,13 +200,13 @@ _configure_nvidia_wayland() {
     else
         content="options nvidia NVreg_PreserveVideoMemoryAllocations=1"$'\n'
         case "$ver" in
-            590|595) content+="options nvidia NVreg_UseKernelSuspendNotifiers=1"$'\n' ;;
+        590 | 595) content+="options nvidia NVreg_UseKernelSuspendNotifiers=1"$'\n' ;;
         esac
         content+="options nvidia-drm modeset=1"$'\n'
         [ "$arch" != "kepler" ] && content+="options nvidia-drm fbdev=1"$'\n'
     fi
 
-    printf "%b" "$content" | sudo tee "$conf" >/dev/null
+    printf "%b" "$content" | sudo tee "$conf" >/dev/null || return 1
     echo -e "${color}${msg}${NC}"
 }
 
@@ -338,7 +338,7 @@ _install_nvidia_standard() {
     fam=$(_get_nvidia_arch_family)
     local kernel_pkg="nvidia-kernel-dkms"
     case "$fam" in
-        turing|ampere|ada|blackwell) kernel_pkg="nvidia-open-kernel-dkms" ;;
+    turing | ampere | ada | blackwell) kernel_pkg="nvidia-open-kernel-dkms" ;;
     esac
 
     # --- 2. PAQUETES — UN SOLO apt install ---
@@ -373,7 +373,7 @@ _install_nvidia_standard() {
 
     # Fix obligatorio para Debian 12 con módulo abierto
     if [ "$DEBIAN_VERSION" = "12" ] && [[ "$kernel_pkg" == *"open"* ]]; then
-        echo "options nvidia NVreg_OpenRmEnableUnsupportedGpus=1" | sudo tee /etc/modprobe.d/nvidia-open.conf > /dev/null
+        echo "options nvidia NVreg_OpenRmEnableUnsupportedGpus=1" | sudo tee /etc/modprobe.d/nvidia-open.conf >/dev/null
         echo "Applied required Open RM parameter for Debian 12."
     fi
 
