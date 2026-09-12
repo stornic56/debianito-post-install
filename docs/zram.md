@@ -1,4 +1,4 @@
-# Option 8: ZRAM Configuration & Memory Optimization
+# Option 9: ZRAM Configuration & Memory Optimization
 
 ## 1. The Science of ZRAM vs. Traditional Swap
 
@@ -7,11 +7,11 @@
 Traditional swap storage operates on a fundamental latency gap that becomes critical under memory pressure:
 
 | Storage Medium | Latency Range | Write Amplification | SSD Wear Impact |
-|---------------|---------------|---------------------|-----------------|
+| --------------- | --------------- | --------------------- | ----------------- |
 | **DRAM (RAM)** | ~10–50 nanoseconds | None | Zero |
-| **NVMe SSD**   | ~20–70 microseconds | 1.2x–3.0x | Moderate to High |
-| **SATA SSD**   | ~100–200 microseconds | 1.5x–4.0x | High |
-| **HDD**        | ~5–10 milliseconds | N/A (mechanical) | Irrelevant |
+| **NVMe SSD** | ~20–70 microseconds | 1.2x–3.0x | Moderate to High |
+| **SATA SSD** | ~100–200 microseconds | 1.5x–4.0x | High |
+| **HDD** | ~5–10 milliseconds | N/A (mechanical) | Irrelevant |
 
 When a Linux system experiences memory pressure, the kernel must decide what to swap out. Traditional swap writes pages directly to disk storage:
 
@@ -74,11 +74,13 @@ The script follows a deterministic flow to ensure safe, reproducible configurati
 │                                                             │
 │ 3. Size Calculation Logic                                   │
 │    ┌──────────────────────────────────────────────┐         │
-│    │ ram_gb > 16 ? 25% : 50% of total RAM         │         │
-│    │ recommended_mb = ((RAM_KB/1024/1024 + 1)     │          │
-│    │                / (ram_gb > 16 ? 4 : 2))      │         │
+│    │ ram_gb <= 8 ? 50% : 4096 MB fixed      │         │
+│    │ recommended_mb = (ram_gb <= 8)              │         │
+│    │                ? (RAM_KB/1024/1024 + 1)      │         │
+│    │                  / 2 * 1024                 │         │
+│    │                : 4096                       │         │
 │    └──────────────────────────────────────────────┘         │
-│    └─ Result: ~25% RAM if > 16 GB, else ~50% in MB          │
+│    └─ Result: 50% RAM if ≤8 GB, else fixed 4096 MB      │
 │                                                             │
 │ 4. Configuration Confirmation                               │
 │    ├─ Display summary with algorithm, size, priority=100    │
@@ -100,7 +102,7 @@ The script follows a deterministic flow to ensure safe, reproducible configurati
 │    PRIORITY=100                                             │
 │                                                             │
 │ 8. Service Restart                                          │
-│    sudo systemctl restart zramswap                          │
+│    sudo systemctl restart zramswap || true || true                  │
 │    └─ Verify: comp_algorithm shows [algo]; sudo zramctl     │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -111,36 +113,43 @@ The script uses this formula to determine ZRAM size:
 
 ```bash
 ram_gb=$(( RAM_KB / 1024 / 1024 ))
-if [ "$ram_gb" -gt 16 ]; then
-    recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 4) * 1024 ))
-else
+if [ "$ram_gb" -le 8 ]; then
     recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
+else
+    recommended_mb=4096
 fi
 ```
 
 **Breakdown:**
+
 - `RAM_KB`: Total RAM in kilobytes from `/proc/meminfo`
-- `/ 1024 / 1024`: Convert KB to MB
+- `/ 1024 / 1024`: Convert KB to GB
 - `+ 1`: Add rounding buffer for odd values
-- `/ 4`: Target 25% of total RAM on systems with more than 16 GB (avoids excessive RAM reservation on high-memory machines)
-- `/ 2`: Target 50% of total RAM on systems with 16 GB or less
-- `* 1024`: Round back to nearest MB
+- **≤8 GB**: Target 50% of total RAM (generous swap for low-memory systems)
+- **>8 GB**: Fixed 4096 MB — avoids excessive RAM reservation on high-memory machines while still providing meaningful swap space
 
 **Examples:**
-```
-System with 32 GB (33554432 KB) RAM (>16 GB):
-recommended_mb = ((33554432 / 1024 / 1024 + 1) / 4) * 1024
-              = ((32 + 1) / 4) * 1024
-              = (33 / 4) * 1024
-              = 8 * 1024
-              = 8192 MB (8 GB)
 
-System with 8 GB (8388608 KB) RAM (<=16 GB):
+```
+System with 4 GB (4194304 KB) RAM (<=8 GB):
+recommended_mb = ((4194304 / 1024 / 1024 + 1) / 2) * 1024
+              = ((4 + 1) / 2) * 1024
+              = (5 / 2) * 1024
+              = 2 * 1024
+              = 2048 MB (2 GB)
+
+System with 8 GB (8388608 KB) RAM (<=8 GB):
 recommended_mb = ((8388608 / 1024 / 1024 + 1) / 2) * 1024
               = ((8 + 1) / 2) * 1024
               = (9 / 2) * 1024
               = 4 * 1024
               = 4096 MB (4 GB)
+
+System with 16 GB (16777216 KB) RAM (>8 GB):
+recommended_mb = 4096 MB (fixed)
+
+System with 32 GB (33554432 KB) RAM (>8 GB):
+recommended_mb = 4096 MB (fixed)
 ```
 
 ### Priority Configuration (`PRIORITY=100`)
@@ -155,38 +164,50 @@ This prevents thrashing where pages bounce between slow disk swap and fast RAM-b
 
 ---
 
-## 3. Kernel Parameter Tuning (`sysctl`)
+## 3. Priority & Swappiness Integration
 
-### Essential VM Parameters for Aggressive ZRAM Usage
+### How ZRAM Coexists with Disk Swap
 
-While the current script focuses on `zram-tools` configuration, optimal performance requires complementary kernel parameter tuning:
+The script does **not** hardcode `vm.swappiness` or watermark tuning. Instead, it uses a **priority-based swap hierarchy** combined with an explicit swappiness control in the Swap module:
+
+| Swap Device | Priority | Config Location | When It Is Used |
+|-------------|----------|-----------------|-----------------|
+| **ZRAM** | `100` | `/etc/default/zramswap` (`PRIORITY=100`) | **First** — kernel prefers higher priority |
+| **Disk swapfile** (`/swapfile`) | `10` | `/etc/fstab` (`pri=10`) + `# debianito-managed-swap` tag | **Second** — only after ZRAM device is full |
+
+This is implemented in `zram.sh:_zram_create` (writes `PRIORITY=100`) and `swap.sh:_swap_create_file` (writes `pri=10`). Priority is the canonical Linux `swapon` mechanism: `swapon --show` lists `PRIO` and the kernel always fills the highest-priority device first.
+
+### Swappiness Is Managed Separately
+
+Swappiness (`vm.swappiness`, 0–100, default 60 on Debian) controls **how eagerly the kernel swaps at all**, regardless of which device is preferred.
+
+- The ZRAM module **does not change swappiness**. Changing it would affect both ZRAM and disk swap in ways that are workload-specific.
+- To tune it, use **Option 10 → Swap Management → 4. Change swappiness** (`swap.sh:_swap_set_swappiness`):
+
+  ```bash
+  cat /proc/sys/vm/swappiness          # current value
+  # Persistent config
+  /etc/sysctl.d/99-swappiness-debianito.conf  → vm.swappiness=<value>
+  # Applied immediately
+  sudo sysctl -w vm.swappiness=<value>
+  ```
+
+- Recommended starting points (not enforced by the script):
+  - **General desktop**: `60` (Debian default)
+  - **Gaming / 8 GB or less**: `80–100` — allows ZRAM to be used earlier, trading CPU for reduced disk I/O
+  - **ZRAM-only, no disk swap**: `100–150` is safe because swap *is* RAM (compressed); there is no SSD wear cost
+
+> **Previous documentation** recommended `vm.swappiness = 180` plus `watermark_*` and `page-cluster` tuning for ZRAM. Those values are **not written by the current script** and are omitted here to avoid drifting from the implemented behavior. If you need watermark tuning, add it manually to `/etc/sysctl.d/` and validate with your workload.
+
+### Verifying the Hierarchy
 
 ```bash
-# Recommended sysctl configuration for ZRAM systems
-vm.swappiness = 180
-vm.watermark_boost_factor = 0
-vm.watermark_scale_factor = 125
-vm.page-cluster = 0
+sudo swapon --show
+# NAME       TYPE      SIZE USED PRIO
+# /dev/zram0 partition   4G   0B  100
+# /swapfile  file        4G   0B   10
+cat /proc/sys/vm/swappiness
 ```
-
-### Parameter Explanations
-
-| Parameter | Value | Purpose |
-|-----------|-------|---------|
-| **`vm.swappiness`** | `180–200` | Aggressively prefer swap over keeping pages in RAM. Higher values (up to 200) are ideal for ZRAM because it's faster than disk swap. Default 60 is too conservative for memory-constrained systems. |
-| **`vm.watermark_boost_factor`** | `0` | Disable additional watermark boosting that could cause premature page reclaim |
-| **`vm.watermark_scale_factor`** | `125` | Adjust low-memory watermark thresholds to trigger swap earlier when RAM is constrained |
-| **`vm.page-cluster`** | `0` | Disable page clustering. Research shows this reduces unnecessary sequential reads during swap operations, improving ZRAM efficiency by ~15% in gaming workloads |
-
-### Why High Swappiness for ZRAM?
-
-Traditional wisdom suggests keeping swappiness low (20–40) to avoid swapping frequently. However:
-
-- **ZRAM is faster than disk**: Microseconds vs milliseconds
-- **Thrashing prevention**: Higher swappiness moves pages to ZRAM before they hit slow disk swap
-- **Effective RAM expansion**: Compressed pages in ZRAM can store 2–3x more data, effectively increasing available memory
-
-The Pop!_OS project and Linux kernel documentation both recommend values beyond 100 for in-memory swap scenarios like ZRAM/ZSWAP.
 
 ---
 
@@ -195,10 +216,11 @@ The Pop!_OS project and Linux kernel documentation both recommend values beyond 
 ### Safe Service Initialization
 
 ```bash
-sudo systemctl restart zramswap
+sudo systemctl restart zramswap || true
 ```
 
 **Why `restart` instead of `start`:**
+
 - Ensures previous configuration is cleanly terminated
 - Prevents orphaned processes from conflicting with new settings
 - Reloads systemd unit files if they were modified during installation
@@ -212,13 +234,14 @@ sudo zramctl
 ```
 
 **Output Interpretation:**
+
 ```
 NAME       ALGORITHM DISKSIZE  DATA   COMPR    TOTAL STREAMS MOUNTPOINT
 /dev/zram0 lz4           4G     2.1G 318.6M 424.9M        [SWAP]
 ```
 
 | Column | Meaning |
-|--------|---------|
+| -------- | --------- |
 | **NAME** | Device identifier (/dev/zram0) |
 | **ALGORITHM** | Active compression algorithm (lz4, zstd, etc.) |
 | **DISKSIZE** | Maximum uncompressed data capacity configured |
@@ -250,7 +273,7 @@ watch -n 5 'free -h && zramctl'
 ### Troubleshooting Indicators
 
 | Symptom | Likely Cause | Solution |
-|---------|--------------|----------|
+| --------- | -------------- | ---------- |
 | `DATA` equals `DISKSIZE` but `COMPR` is near zero | System under memory pressure, ZRAM not being used | Increase `vm.swappiness` or check if physical swap has lower priority |
 | High CPU usage with low compression ratio | Incompressible data (e.g., encrypted files) | Consider backing device for incompressible pages |
 | Service fails to start | Missing dependencies (`zram-tools`, kernel module) | Run `sudo apt install zram-tools` and verify `modprobe zram` |
@@ -263,8 +286,7 @@ To ensure ZRAM persists across reboots, the script writes configuration to `/etc
 echo "zram" | sudo tee /etc/modules-load.d/zram.conf
 ```
 
-
-### References:
+### References
 
 - [https://docs.kernel.org/admin-guide/blockdev/zram.html](https://docs.kernel.org/admin-guide/blockdev/zram.html)
 - [https://wiki.debian.org/ZRam](https://wiki.debian.org/ZRam)
