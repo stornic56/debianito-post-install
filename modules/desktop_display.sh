@@ -130,7 +130,14 @@ _install_xfce_custom() {
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
     [ -z "$cleaned" ] && return
-    _run_cmd "XFCE Custom" "sudo apt install -y $cleaned" \
+
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a xfce_pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && xfce_pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+
+    _run_cmd "XFCE Custom" "sudo apt install -y ${xfce_pkgs[*]}" \
         "Installing selected XFCE packages..."
     _xfce_polkit_rules
 }
@@ -161,7 +168,13 @@ EOF
     if ! getent group backlight >/dev/null 2>&1; then
         sudo groupadd --system backlight || true
     fi
-    local de_user="${SUDO_USER:-$USER}"
+    # SECURITY: Validate that the target user is a real login user, not root.
+    # If SUDO_USER is empty (script run directly as root), fall back to the
+    # first non-system user from /etc/passwd, never to root.
+    local de_user="${SUDO_USER:-}"
+    if [ -z "$de_user" ] || [ "$de_user" = "root" ]; then
+        de_user=$(awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | head -1)
+    fi
     if [ -n "$de_user" ] && ! id -nG "$de_user" 2>/dev/null | grep -qw backlight; then
         sudo usermod -aG backlight "$de_user" || true
     fi
@@ -219,7 +232,13 @@ lightdm_config_menu() {
     fi
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for item in $cleaned; do
+    # SECURITY: Convert to array to avoid word splitting and command injection.
+    local -a lm_items=()
+    while IFS= read -r _item; do
+        [ -n "$_item" ] && lm_items+=("$_item")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+
+    for item in "${lm_items[@]}"; do
         case $item in
         install_lightdm)
             if ! is_installed lightdm || ! is_installed lightdm-gtk-greeter-settings; then
@@ -241,7 +260,10 @@ greeter-hide-users=false" | sudo tee "$conf" >/dev/null; then
             ;;
         enable_autologin)
             local dm_conf="/etc/lightdm/lightdm.conf"
-            local lightdm_user="${SUDO_USER:-$USER}"
+            local lightdm_user="${SUDO_USER:-}"
+            if [ -z "$lightdm_user" ] || [ "$lightdm_user" = "root" ]; then
+                lightdm_user=$(awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | head -1)
+            fi
             sudo sed -i 's/^#[[:space:]]*autologin-user[[:space:]=].*/autologin-user='"$lightdm_user"'/' "$dm_conf"
             sudo sed -i 's/^#[[:space:]]*autologin-user-timeout[[:space:]=].*/autologin-user-timeout=0/' "$dm_conf"
             echo -e "${GREEN}Autologin enabled for user: ${lightdm_user}${NC}"
@@ -338,7 +360,14 @@ configure_gdm3() {
 
         local cleaned
         cleaned=$(echo "$choice" | tr -d '"')
-        for item in $cleaned; do
+
+        # SECURITY: Convert to array to avoid word splitting and command injection.
+        local -a gdm_items=()
+        while IFS= read -r _item; do
+            [ -n "$_item" ] && gdm_items+=("$_item")
+        done < <(echo "$cleaned" | tr ' ' '\n')
+
+        for item in "${gdm_items[@]}"; do
             case $item in
             install)
                 echo "gdm3 shared/default-x-display-manager select gdm3" | sudo debconf-set-selections
@@ -358,12 +387,16 @@ configure_gdm3() {
             autologin)
                 local daemon_conf="/etc/gdm3/daemon.conf"
                 local username
-                username=$(whiptail --title "GDM3 Autologin" \
-                    --inputbox "Enter username to autologin (leave empty to DISABLE autologin):" \
-                    10 60 "" 3>&1 1>&2 2>&3 || true)
+                username=$(_inputbox "GDM3 Autologin" \
+                    "Enter username to autologin (leave empty to DISABLE autologin):" 10 60)
                 if [ -n "$username" ]; then
+                    if ! [[ "$username" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+                        _msg_red "GDM3 Autologin" "Invalid username: ${username}"
+                        continue
+                    fi
+                    [ -f "$daemon_conf" ] || sudo touch "$daemon_conf"
                     sudo sed -i 's/^# *AutomaticLoginEnable[[:space:]=].*/AutomaticLoginEnable=true/' "$daemon_conf"
-                    sudo sed -i 's/^# *AutomaticLogin[[:space:]=].*/AutomaticLogin='"$username"'/' "$daemon_conf"
+                    sudo sed -i "s|^# *AutomaticLogin[[:space:]=].*|AutomaticLogin=${username}|" "$daemon_conf"
                     echo -e "${GREEN}Autologin enabled for user: ${username}${NC}"
                 else
                     sudo sed -i 's/^AutomaticLoginEnable[[:space:]=].*/# AutomaticLoginEnable=false/' "$daemon_conf"
@@ -408,7 +441,10 @@ configure_sddm() {
             ;;
         2)
             local sddm_session=""
-            local sddm_user="${SUDO_USER:-$USER}"
+            local sddm_user="${SUDO_USER:-}"
+            if [ -z "$sddm_user" ] || [ "$sddm_user" = "root" ]; then
+                sddm_user=$(awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | head -1)
+            fi
             if [ -f /usr/share/wayland-sessions/plasmawayland.desktop ]; then
                 sddm_session="plasmawayland"
             elif [ -f /usr/share/wayland-sessions/lxqt-wayland.desktop ]; then

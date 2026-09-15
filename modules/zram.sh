@@ -15,10 +15,10 @@ zram_menu() {
         clear
 
         case "$choice" in
-            1) _zram_view ;;
-            2) _zram_create ;;
-            3) _zram_remove ;;
-            4) break ;;
+        1) _zram_view ;;
+        2) _zram_create ;;
+        3) _zram_remove ;;
+        4) break ;;
         esac
     done
 }
@@ -33,11 +33,11 @@ _zram_view() {
     if [ -f /etc/default/zramswap ]; then
         while IFS='=' read -r key val; do
             case "$key" in
-                ALGO)      algo=$val ;;
-                SIZE)      size=$val ;;
-                PRIORITY)  priority=$val ;;
+            ALGO) algo=$val ;;
+            SIZE) size=$val ;;
+            PRIORITY) priority=$val ;;
             esac
-        done < /etc/default/zramswap
+        done </etc/default/zramswap
     fi
 
     local info="ZRAM Configuration:\n"
@@ -68,11 +68,11 @@ _zram_create() {
         if [ -f /etc/default/zramswap ]; then
             while IFS='=' read -r key val; do
                 case "$key" in
-                    ALGO)     cur_algo=$val ;;
-                    SIZE)     cur_size=$val ;;
-                    PRIORITY) cur_prio=$val ;;
+                ALGO) cur_algo=$val ;;
+                SIZE) cur_size=$val ;;
+                PRIORITY) cur_prio=$val ;;
                 esac
-            done < /etc/default/zramswap
+            done </etc/default/zramswap
         fi
         local cur="ZRAM is already configured:\n"
         cur+="  Algorithm:  ${cur_algo:-not set}\n"
@@ -85,18 +85,18 @@ _zram_create() {
         fi
     fi
 
-    local ram_gb=$(( RAM_KB / 1024 / 1024 ))
+    local ram_gb=$((RAM_KB / 1024 / 1024))
     if [ "$ram_gb" -gt 8 ]; then
         recommended_mb=4096
     else
-        recommended_mb=$(( ((RAM_KB / 1024 / 1024 + 1) / 2) * 1024 ))
+        recommended_mb=$((((RAM_KB / 1024 / 1024 + 1) / 2) * 1024))
     fi
 
     local algo
     algo=$(_menu "ZRAM Configuration" \
         "ZRAM creates a compressed swap device in RAM to reduce disk I/O and boost speed. Data is stored compressed in memory. Choose an algorithm below to balance CPU usage and compression ratio:" \
         $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "lz4"  "Fastest compression. Lowest CPU overhead. (Default)" \
+        "lz4" "Fastest compression. Lowest CPU overhead. (Default)" \
         "zstd" "Higher compression ratio. Saves more RAM, uses more CPU.")
 
     if [ -z "$algo" ]; then
@@ -127,7 +127,16 @@ _zram_create() {
     sudo modprobe -r zram 2>/dev/null || true
 
     echo "Writing configuration..."
-    sudo tee /etc/default/zramswap > /dev/null <<EOF
+    # SECURITY: Validate algo and size before writing to system file.
+    [[ "$algo" =~ ^(lz4|zstd)$ ]] || {
+        echo "Invalid ZRAM algorithm" >&2
+        return 1
+    }
+    [[ "$zram_size" =~ ^[0-9]+$ ]] || {
+        echo "Invalid ZRAM size" >&2
+        return 1
+    }
+    sudo tee /etc/default/zramswap >/dev/null <<EOF
 ALGO=$algo
 SIZE=$zram_size
 PRIORITY=100

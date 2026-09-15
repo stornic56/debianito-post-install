@@ -34,7 +34,7 @@ _install_amd_intel_stack() {
         ref_ver=$(apt-cache policy mesa-vulkan-drivers 2>/dev/null | awk 'NR==3 {print $2; exit}')
         local ref_bpo_ver
         ref_bpo_ver=$(apt-cache madison mesa-vulkan-drivers 2>/dev/null |
-            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1 || true)
         local comp_line="Components: Vulkan, OpenGL, GLX, EGL, VA-API (64-bit)"
 
         if [ -n "$ref_bpo_ver" ] && [ "$(is_backports_enabled)" == "true" ]; then

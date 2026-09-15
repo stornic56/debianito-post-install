@@ -117,7 +117,8 @@ _swap_create_file() {
 
 _swap_remove_file() {
     local has_tag
-    has_tag=$(grep -c "$SWAP_FSTAB_TAG" /etc/fstab 2>/dev/null || echo 0)
+    has_tag=$(grep -c "$SWAP_FSTAB_TAG" /etc/fstab 2>/dev/null || true)
+    has_tag=${has_tag:-0}
     [ "$has_tag" -eq 0 ] && [ ! -f "$SWAP_FILE" ] && {
         _msg "Swap" "No managed swapfile found." 8 50
         return

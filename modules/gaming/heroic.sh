@@ -2,7 +2,8 @@
 # Heroic Games Launcher installation from GitHub releases
 
 install_heroic() {
-    local heroic_deb="/tmp/heroic.deb"
+    local heroic_deb
+    heroic_deb=$(mktemp "${TMPDIR:-/tmp}/heroic-XXXXXX.deb") || return 1
     local ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     _run_cmd "Heroic" "sudo apt install -y curl jq" "Installing dependencies..."
@@ -24,7 +25,7 @@ install_heroic() {
         return 1
     fi
 
-    _run_cmd "Heroic" "curl -sL -H 'User-Agent: $ua' -o '$heroic_deb' '$deb_url'" "Downloading Heroic..."
+    _run_cmd "Heroic" "curl -fsSL -H 'User-Agent: $ua' -o '$heroic_deb' '$deb_url'" "Downloading Heroic..."
 
     if ! dpkg-deb --info "$heroic_deb" >/dev/null 2>&1; then
         _msg "Heroic Error" "Downloaded .deb is corrupted or truncated.\n\nRemoving file." 10 60

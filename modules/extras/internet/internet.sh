@@ -273,7 +273,7 @@ _cat_internet() {
             ! is_installed "ca-certificates" && need+=("ca-certificates")
             ! is_installed "xsel" && need+=("xsel")
             if [ ${#need[@]} -gt 0 ]; then
-                _run_install_batch w3m w3m-img ca-certificates xsel
+                _run_install_batch "${need[@]}"
             else
                 echo "w3m already installed."
             fi

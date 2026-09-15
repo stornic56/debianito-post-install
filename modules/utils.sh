@@ -45,60 +45,6 @@ check_sudo() {
     fi
 }
 
-# --------------------------------
-# Time sync detection + NTP
-# --------------------------------
-check_system_time() {
-    command -v timedatectl &>/dev/null || return
-
-    local year
-    year=$(date +%Y)
-
-    if [ "$year" -lt 2025 ]; then
-        local msg="System date/time appears to be incorrect\n"
-        msg+="($(date '+%Y-%m-%d %H:%M')). This will prevent Debian\n"
-        msg+="repositories from working properly.\n\n"
-        msg+="Attempt automatic NTP synchronization?\n"
-        msg+="(requires network access and timedatectl)"
-        if _confirm "System Date" "$msg"; then
-            sync_system_time
-        else
-            echo -e "${YELLOW}Warning: System time is incorrect. Package installations may fail.${NC}"
-        fi
-        return
-    fi
-
-    local ntp_active
-    ntp_active=$(timedatectl show --property=NTP --value 2>/dev/null || echo "no")
-    if [ "$ntp_active" != "yes" ]; then
-        sync_system_time
-    fi
-}
-
-sync_system_time() {
-    command -v timedatectl &>/dev/null || return
-
-    if ! is_installed systemd-timesyncd; then
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-timesyncd || true
-    fi
-
-    if ! systemctl is-enabled systemd-timesyncd &>/dev/null; then
-        sudo systemctl enable systemd-timesyncd || true
-    fi
-    if ! systemctl is-active systemd-timesyncd &>/dev/null; then
-        sudo systemctl start systemd-timesyncd || true
-    fi
-
-    sudo timedatectl set-ntp true || true
-    sleep 4
-
-    if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q yes; then
-        echo -e "${GREEN}Time synchronized: $(date '+%Y-%m-%d %H:%M')${NC}"
-    else
-        echo -e "${YELLOW}NTP sync did not complete.${NC}"
-    fi
-}
-
 # -------------------------------------------------------------------
 # Robust time sync: NTP + timezone validation + service restart
 # -------------------------------------------------------------------
@@ -147,7 +93,7 @@ detect_debian_version() {
             DEBIAN_CODENAME=$(grep -oP 'VERSION_CODENAME=\K\w+' /etc/os-release 2>/dev/null || echo "")
         fi
         if [ -z "$DEBIAN_CODENAME" ]; then
-            sync_system_time || true
+            _ensure_time_synced || true
             sudo apt update -qq 2>/dev/null && sudo apt install -y -qq lsb-release || true
         fi
     fi
@@ -170,17 +116,12 @@ detect_debian_version() {
 # ----------------------------------
 detect_cpu_ram() {
     CPU_SUMMARY=$(grep -m1 'model name' /proc/cpuinfo | sed 's/.*: //' || true)
-    RAM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    RAM_KB=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}') || RAM_KB=0
+    # BH-001: If /proc/meminfo is unavailable or grep finds no MemTotal,
+    # RAM_KB would be empty under set -u. Assign 0 as safe default.
+    [ -z "$RAM_KB" ] && RAM_KB=0
     RAM_GB=$(awk -v kb="$RAM_KB" 'BEGIN { printf "%.2f", kb / 1048576 }')
     RAM_SUMMARY="${RAM_GB} GB"
-}
-
-get_cpu_summary() {
-    echo "$CPU_SUMMARY"
-}
-
-get_ram_summary() {
-    echo "$RAM_SUMMARY"
 }
 
 # ----------------------------------
@@ -203,25 +144,35 @@ is_installed() {
     dpkg -l "$1" 2>/dev/null | grep -q '^ii'
 }
 
-_state() {
-    is_installed "$1" && echo "ON" || echo "OFF"
+# ----------------------------------
+# Package version helpers
+# ----------------------------------
+
+# Get the stable version of a package from apt-cache policy
+# Returns: version string or "" if not found
+_get_pkg_version() {
+    local pkg="$1"
+    apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}'
 }
 
-# ----------------------------------
-# Package version lookup
-# ----------------------------------
-pkg_versions() {
-    local result=""
-    for pkg in "$@"; do
-        local ver
-        ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-        if [ -n "$ver" ] && [ "$ver" != "(none)" ]; then
-            result+="  - ${pkg}  ${ver}\n"
-        else
-            result+="  - ${pkg}\n"
-        fi
-    done
-    echo -e "$result"
+# Get the installed version of a package from dpkg
+# Returns: version string or "" if not installed
+_get_installed_version() {
+    local pkg="$1"
+    dpkg -l "$pkg" 2>/dev/null | awk '/^ii/{print $3; exit}'
+}
+
+# Get the backports version of a package
+# Returns: version string or "" if not found
+_get_backports_version() {
+    local pkg="$1"
+    local codename="${2:-$DEBIAN_CODENAME}"
+    apt-cache madison "$pkg" 2>/dev/null |
+        grep "${codename}-backports" | awk '{print $3}' | head -1
+}
+
+_state() {
+    is_installed "$1" && echo "ON" || echo "OFF"
 }
 
 # ----------------------------------
@@ -299,14 +250,14 @@ detect_gpu() {
         local nv_ver
         nv_ver=$(timeout 3 nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1) || true
         if [ -z "$nv_ver" ]; then
-            nv_ver=$(dpkg -l nvidia-driver 2>/dev/null | awk '/^ii/ {print $3}' | sed 's/-.*//') || true
+            nv_ver=$(_get_installed_version "nvidia-driver" | sed 's/-.*//') || true
         fi
         [ -n "$nv_ver" ] && GPU_VERSION="NVIDIA $nv_ver"
     fi
 
     if [ -z "$GPU_VERSION" ]; then
         local mesa_ver
-        mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//')
+        mesa_ver=$(_get_installed_version "libgl1-mesa-dri" | sed 's/-.*//')
         [ -n "$mesa_ver" ] && GPU_VERSION="Mesa $mesa_ver"
     fi
 }
@@ -338,6 +289,20 @@ declare -a WIFI_IPS=()
 declare -a WIFI_SSIDS=()
 
 detect_network() {
+    # BH-013: Reset all network arrays at the start.
+    # Without this, if detect_network() is called more than once (e.g. from
+    # refresh_system_state()), the arrays ETH_NAMES, WIFI_NAMES, etc. would
+    # accumulate duplicates instead of being reset, causing incorrect data.
+    ETH_NAMES=()
+    ETH_STATES=()
+    ETH_IPS=()
+    ETH_DESCS=()
+    WIFI_NAMES=()
+    WIFI_STATES=()
+    WIFI_IPS=()
+    WIFI_SSIDS=()
+    WIFI_DESCS=()
+
     local eth_line
     eth_line=$(echo "$LSPCI_OUTPUT" | grep -i 'Ethernet controller' | head -n1) || true
     if [ -n "$eth_line" ]; then
@@ -550,14 +515,13 @@ install_backports_or_stable() {
 
     local bpo_ver=""
     if [ "$(is_backports_enabled)" == true ]; then
-        bpo_ver=$(apt-cache madison "$pkg" 2>/dev/null |
-            grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+        bpo_ver=$(_get_backports_version "$pkg")
     fi
 
     if is_installed "$pkg"; then
         if [ -n "$bpo_ver" ]; then
             local current_ver
-            current_ver=$(dpkg -l "$pkg" 2>/dev/null | awk '/^ii/{print $3}')
+            current_ver=$(_get_installed_version "$pkg")
             if _confirm "Backports: ${pkg}" \
                 "${pkg} ${current_ver} installed.\nUpgrade to backports ${bpo_ver}?"; then
                 _run_cmd "Backports" \
@@ -572,7 +536,7 @@ install_backports_or_stable() {
 
     if [ -n "$bpo_ver" ]; then
         local stable_ver
-        stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        stable_ver=$(_get_pkg_version "$pkg")
         if _confirm_custom "${pkg}" "Install ${pkg_desc}?\n\n  Backports: ${bpo_ver} (newer, recommended for gaming/newer HW)\n  Stable:    ${stable_ver:-N/A}\n\nChoose version:" "Backports" "Stable"; then
             _run_cmd "Backports" \
                 "sudo DEBIAN_FRONTEND=noninteractive apt install -y -t ${DEBIAN_CODENAME}-backports $pkg" \
@@ -583,7 +547,7 @@ install_backports_or_stable() {
         return
     fi
     local stable_ver
-    stable_ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    stable_ver=$(_get_pkg_version "$pkg")
     if _confirm "Install: ${pkg}" "Install ${pkg} ${stable_ver:-}?"; then
         _run_cmd "APT" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
     fi
@@ -608,7 +572,11 @@ _confirm_custom() {
 }
 
 _msg() {
-    whiptail --title "$1" --msgbox "$2" "${3:-10}" "${4:-65}" || true
+    local _msg_title="$1"
+    local _msg_text="$2"
+    # BH-014: Escape '%' to prevent whiptail from interpreting them as printf format.
+    _msg_text="${_msg_text//%/%%}"
+    whiptail --title "$_msg_title" --msgbox "$_msg_text" "${3:-10}" "${4:-65}" || true
 }
 
 _msg_red() {
@@ -690,23 +658,13 @@ _is_headless() {
     [ -z "${DISPLAY:-}" ] && [ -z "${WAYLAND_DISPLAY:-}" ]
 }
 
-_run_install() {
-    local pkg="$1"
-    local ver
-    ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-    [ -z "$ver" ] && ver="(version unknown)"
-    if _confirm "Install: ${pkg}" "Install ${pkg}\nVersion: ${ver}?"; then
-        _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
-    fi
-}
-
 _run_install_batch() {
     local pkgs=("$@")
     [ ${#pkgs[@]} -eq 0 ] && return 0
     local ver_list=""
     for pkg in "${pkgs[@]}"; do
         local ver
-        ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        ver=$(_get_pkg_version "$pkg")
         ver_list+="  - ${pkg}  ${ver:-unknown}\n"
     done
     if _confirm "Install" "Install these packages?\n${ver_list}"; then
@@ -714,25 +672,34 @@ _run_install_batch() {
     fi
 }
 
-_run_install_pkg() {
+# Install a package with confirmation prompt.
+# Handles set -e: failures are caught and reported, not fatal.
+_install_pkg() {
     local pkg="$1"
     local ver
-    ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
-    [ -z "$ver" ] && ver="(unknown)"
-    if _confirm "Install: ${pkg}" "Package: ${pkg}\nVersion: ${ver}\n\nProceed with installation?"; then
+    ver=$(_get_pkg_version "$pkg")
+    [ -z "$ver" ] && ver="(version unknown)"
+    if _confirm "Install: ${pkg}" "Install ${pkg}\nVersion: ${ver}?"; then
         _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
     fi
 }
 
-get_backports_kernel_version() {
-    local ver
-    ver=$(apt-cache policy linux-image-amd64 2>/dev/null |
-        grep -E '^[[:space:]]+[0-9]+\.[0-9]+\.[0-9]+.*~bpo' | head -n1 | awk '{print $1}')
-    if [ -n "$ver" ]; then
-        echo "$ver"
-    else
-        echo "unknown"
+# Install a package if not already installed.
+# Returns: 0 if already installed, 1 if install failed, 2 if cancelled
+_install_if_missing() {
+    local pkg="$1"
+    if is_installed "$pkg"; then
+        echo -e "${GREEN}[+]${NC} $pkg already installed."
+        return 0
     fi
+    _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" \
+        "Installing $pkg..."
+    return $?
+}
+
+# _run_install() wrapper: redirect to _install_pkg for consistency
+_run_install() {
+    _install_pkg "$@"
 }
 
 # ----------------------------------
@@ -751,7 +718,9 @@ _detect_lang_pkg() {
 
     [ "$lang2" = "en" ] && echo "" && return
 
-    local full="${LANG%%.*}"
+    # Defensive: LANG may be unset in minimal environments; do not trip set -u.
+    local full="${LANG:-C}"
+    full="${full%%.*}"
     local hyphenated_full
     hyphenated_full=$(echo "$full" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
     local pkg
@@ -838,4 +807,6 @@ refresh_system_state() {
     detect_cpu_ram
     detect_network
     detect_desktop_environment
+    detect_displayserver
+    detect_audio_server
 }

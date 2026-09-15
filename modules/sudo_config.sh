@@ -2,6 +2,10 @@
 # sudo_config.sh — User Privileges & Feedback submenu
 # License GPL v3
 
+# Resolve the invoking user once. USER may be unset in minimal
+# environments (SSH sessions, cron), which would abort under set -u.
+TARGET_USER="${SUDO_USER:-${USER:-$(id -un)}}"
+
 config_sudo() {
     echo -e "${YELLOW}User Privileges & Feedback${NC}"
 
@@ -30,12 +34,12 @@ config_sudo() {
 
 # ── Option 1: Sudo Group Membership ──
 _check_sudo_group() {
-    if groups "$USER" | grep -qE '\bsudo\b'; then
-        _msg "Sudo Group" "User '$USER' is already in the sudo group."
+    if groups "$TARGET_USER" | grep -qE '\bsudo\b'; then
+        _msg "Sudo Group" "User '$TARGET_USER' is already in the sudo group."
     else
         if _confirm "Sudo Group" \
-            "User '$USER' is NOT in the sudo group.\n\nAdd to sudo group?"; then
-            if sudo usermod -aG sudo "$USER"; then
+            "User '$TARGET_USER' is NOT in the sudo group.\n\nAdd to sudo group?"; then
+            if sudo usermod -aG sudo "$TARGET_USER"; then
                 _msg "Sudo Group" \
                     "User added to sudo group.\n\nLog out and back in for\ngroup changes to take effect." 10 60
             else
@@ -48,7 +52,10 @@ _check_sudo_group() {
 
 # ── Option 2: Passwordless Sudo (NOPASSWD) ──
 _configure_nopasswd() {
-    local nopasswd_file="/etc/sudoers.d/${USER}-nopasswd"
+    # sudo silently ignores /etc/sudoers.d/ files whose name contains
+    # '.' or '~' (package manager / editor backup guards).
+    local safe_user="${TARGET_USER//./_}"
+    local nopasswd_file="/etc/sudoers.d/${safe_user}-nopasswd"
 
     if [ -f "$nopasswd_file" ]; then
         if _confirm "NOPASSWD" \
@@ -84,13 +91,13 @@ Useful for automation but reduces security." 14 70; then
         for cmd in $cleaned; do
             case $cmd in
             apt)
-                content+="${USER} ALL=(root) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /bin/apt, /bin/apt-get\n"
+                content+="${TARGET_USER} ALL=(root) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /bin/apt, /bin/apt-get\n"
                 ;;
             systemctl)
-                content+="${USER} ALL=(root) NOPASSWD: /usr/bin/systemctl, /bin/systemctl\n"
+                content+="${TARGET_USER} ALL=(root) NOPASSWD: /usr/bin/systemctl, /bin/systemctl\n"
                 ;;
             power)
-                content+="${USER} ALL=(root) NOPASSWD: /usr/sbin/shutdown, /sbin/shutdown, /usr/sbin/reboot, /sbin/reboot, /usr/sbin/halt, /sbin/halt\n"
+                content+="${TARGET_USER} ALL=(root) NOPASSWD: /usr/sbin/shutdown, /sbin/shutdown, /usr/sbin/reboot, /sbin/reboot, /usr/sbin/halt, /sbin/halt\n"
                 ;;
             esac
         done
@@ -108,7 +115,7 @@ Useful for automation but reduces security." 14 70; then
 # ── Option 3: Repair Home Directory Ownership ──
 _repair_home_ownership() {
     local home
-    home=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
+    home=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 
     if [ ! -d "$home" ]; then
         _msg "Home Directory" "Home directory '$home' does not exist." 8 60
@@ -116,15 +123,15 @@ _repair_home_ownership() {
     fi
 
     local uid uid_owner
-    uid=$(id -u "$USER" 2>/dev/null)
+    uid=$(id -u "$TARGET_USER" 2>/dev/null)
     uid_owner=$(stat -c '%u' "$home" 2>/dev/null || echo "0")
 
     if [ "$uid_owner" != "$uid" ]; then
         local expected_user
         expected_user=$(id -nu "$uid_owner" 2>/dev/null || echo "UID $uid_owner")
         if _confirm "Home Permissions" \
-            "Home directory '$home' is owned by\n'$expected_user' (expected: '$USER').\n\nRepair ownership?" 12 65; then
-            if sudo chown -R "$USER:$USER" "$home"; then
+            "Home directory '$home' is owned by\n'$expected_user' (expected: '$TARGET_USER').\n\nRepair ownership?" 12 65; then
+            if sudo chown -R "$TARGET_USER:$TARGET_USER" "$home"; then
                 echo -e "${GREEN}Home directory ownership repaired.${NC}"
             else
                 echo -e "${RED}Failed to repair home directory ownership.${NC}"
@@ -132,7 +139,7 @@ _repair_home_ownership() {
             fi
         fi
     else
-        _msg "Home Permissions" "Home directory ownership is correct\n(owner: $USER)." 8 60
+        _msg "Home Permissions" "Home directory ownership is correct\n(owner: $TARGET_USER)." 8 60
     fi
 }
 
