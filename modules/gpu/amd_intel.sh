@@ -5,7 +5,9 @@ install_amd_firmware() {
     local fw_info
     fw_info=$(pkg_versions firmware-amd-graphics)
     if _confirm "AMD Firmware" "Install AMD GPU firmware?\n\n${fw_info}"; then
-        _run_cmd "AMD" "sudo apt install -y firmware-amd-graphics" "Installing AMD GPU firmware..."
+        if ! _run_cmd "AMD" "sudo apt install -y firmware-amd-graphics" "Installing AMD GPU firmware..."; then
+            _msg_red "AMD Firmware" "Failed to install AMD GPU firmware."
+        fi
     fi
 }
 
@@ -24,15 +26,30 @@ offer_amd_tools() {
         return
     fi
 
+    local tools_failed=false
     if [ "$DEBIAN_VERSION" = "11" ]; then
-        _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} vainfo" "Installing AMD tools..."
+        if ! _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} vainfo" "Installing AMD tools..."; then
+            _msg_red "AMD Tools" "Failed to install AMD monitoring tools."
+            tools_failed=true
+        fi
     else
-        _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} nvtop vainfo" "Installing AMD tools..."
+        if ! _run_cmd "AMD Tools" "sudo apt install -y ${amd_tools[*]} nvtop vainfo" "Installing AMD tools..."; then
+            _msg_red "AMD Tools" "Failed to install AMD monitoring tools."
+            tools_failed=true
+        fi
     fi
-    vainfo
-    _pause "vainfo output shown above."
+    if command -v vainfo &>/dev/null; then
+        vainfo
+        _pause "vainfo output shown above."
+    else
+        echo -e "${YELLOW}vainfo not available, skipping report.${NC}"
+    fi
 
-    echo -e "${GREEN}AMD tools installed.${NC}"
+    if $tools_failed; then
+        echo -e "${RED}AMD tools installation failed.${NC}"
+    else
+        echo -e "${GREEN}AMD tools installed.${NC}"
+    fi
 }
 
 install_intel_firmware() {
@@ -48,7 +65,9 @@ install_intel_firmware() {
     local fw_info
     fw_info=$(pkg_versions firmware-intel-graphics "$va_driver")
     if _confirm "Intel Firmware" "Install Intel GPU firmware?\n\n${fw_info}"; then
-        _run_cmd "Intel" "sudo apt install -y firmware-intel-graphics $va_driver" "Installing Intel GPU firmware..."
+        if ! _run_cmd "Intel" "sudo apt install -y firmware-intel-graphics $va_driver" "Installing Intel GPU firmware..."; then
+            _msg_red "Intel Firmware" "Failed to install Intel GPU firmware."
+        fi
     fi
 }
 
@@ -87,9 +106,20 @@ offer_intel_tools() {
     pkg_info=$(pkg_versions "${pkg_list[@]}" vainfo)
 
     if _confirm "Intel Tools" "Intel GPU monitoring tools\n\n${driver_info}\n\nPackages:\n${pkg_info}"; then
-        _run_cmd "Intel Tools" "sudo apt install -y ${pkg_list[*]} vainfo" "Installing Intel monitoring tools..."
-        vainfo
-        _pause "vainfo output shown above."
+        local intel_failed=false
+        if ! _run_cmd "Intel Tools" "sudo apt install -y ${pkg_list[*]} vainfo" "Installing Intel monitoring tools..."; then
+            _msg_red "Intel Tools" "Failed to install Intel monitoring tools."
+            intel_failed=true
+        fi
+        if command -v vainfo &>/dev/null; then
+            vainfo
+            _pause "vainfo output shown above."
+        else
+            echo -e "${YELLOW}vainfo not available, skipping report.${NC}"
+        fi
+        if $intel_failed; then
+            echo -e "${RED}Intel monitoring tools installation failed.${NC}"
+        fi
     else
         echo "Skipping Intel monitoring tools."
     fi

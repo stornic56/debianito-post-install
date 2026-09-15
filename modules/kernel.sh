@@ -16,18 +16,18 @@ show_kernel_menu() {
         clear
 
         case "$choice" in
-            stable)    _install_kernel_package "linux-image-amd64" "Stable" "" ;;
-            rt)        _install_kernel_package "linux-image-rt-amd64" "RT" "" ;;
-            cloud)     _install_kernel_package "linux-image-cloud-amd64" "Cloud" "" ;;
-            backports)
-                if [ "$(is_backports_enabled)" != "true" ]; then
-                    _msg "Kernel" "Backports repository is not enabled.\n\nUse option 3 (Configure repositories) to enable backports\nbefore installing the backports kernel."
-                else
-                    _install_kernel_package "linux-image-amd64" "Backports" \
-                        "-t ${DEBIAN_CODENAME}-backports"
-                fi
-                ;;
-            back) break ;;
+        stable) _install_kernel_package "linux-image-amd64" "Stable" "" ;;
+        rt) _install_kernel_package "linux-image-rt-amd64" "RT" "" ;;
+        cloud) _install_kernel_package "linux-image-cloud-amd64" "Cloud" "" ;;
+        backports)
+            if [ "$(is_backports_enabled)" != "true" ]; then
+                _msg "Kernel" "Backports repository is not enabled.\n\nUse option 3 (Configure repositories) to enable backports\nbefore installing the backports kernel."
+            else
+                _install_kernel_package "linux-image-amd64" "Backports" \
+                    "-t ${DEBIAN_CODENAME}-backports"
+            fi
+            ;;
+        back) break ;;
         esac
     done
 }
@@ -44,7 +44,8 @@ _install_kernel_package() {
 
     if [ "$flavor" = "Backports" ] && [ "$GPU_TYPE" = "nvidia" ]; then
         if ! _confirm "Kernel" "WARNING: Backports kernel changes the kernel version.\nYour NVIDIA driver will need recompilation (DKMS).\n\nProceed?"; then
-            echo "Skipping."; return
+            echo "Skipping."
+            return
         fi
     fi
     if [ "$flavor" = "RT" ] && [ "$GPU_TYPE" = "nvidia" ]; then
@@ -54,8 +55,8 @@ _install_kernel_package() {
     local headers_pkg="${pkg_base/linux-image-/linux-headers-}"
     local ver headers_ver
     if [ -n "$bpo_flag" ]; then
-        ver=$(apt-cache madison "$pkg_base" 2>/dev/null | grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
-        headers_ver=$(apt-cache madison "$headers_pkg" 2>/dev/null | grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+        ver=$(apt-cache madison "$pkg_base" 2>/dev/null | grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1 || true)
+        headers_ver=$(apt-cache madison "$headers_pkg" 2>/dev/null | grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1 || true)
     else
         ver=$(apt-cache show "$pkg_base" 2>/dev/null | sed -n 's/^Version: //p' | grep -v '~bpo' | head -1)
         headers_ver=$(apt-cache show "$headers_pkg" 2>/dev/null | sed -n 's/^Version: //p' | grep -v '~bpo' | head -1)
@@ -66,7 +67,8 @@ _install_kernel_package() {
     [ -n "$bpo_flag" ] && summary+="\n  From:    ${DEBIAN_CODENAME^}-backports"
 
     if ! _confirm "Kernel — ${flavor}" "$summary"; then
-        echo "Skipping."; return
+        echo "Skipping."
+        return
     fi
 
     _run_cmd "Kernel" "sudo apt install -y ${bpo_flag} ${pkg_base} ${headers_pkg}" \

@@ -36,7 +36,8 @@ install_openrgb() {
             ;;
     esac
 
-    local deb_path="/tmp/openrgb.deb"
+    local deb_path
+    deb_path=$(mktemp "${TMPDIR:-/tmp}/openrgb-XXXXXX.deb") || return 1
     local ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     _run_cmd "OpenRGB" "sudo apt install -y curl jq" "Installing dependencies..."
@@ -62,7 +63,7 @@ install_openrgb() {
         return 1
     fi
 
-    _run_cmd "OpenRGB" "curl -L -o '${deb_path}' -A '${ua}' '${deb_url}'" "Downloading OpenRGB..."
+    _run_cmd "OpenRGB" "curl -fsSL -o '${deb_path}' -A '${ua}' '${deb_url}'" "Downloading OpenRGB..."
 
     if [ -n "$sha256" ]; then
         if ! echo "$sha256  $deb_path" | sha256sum -c --strict; then

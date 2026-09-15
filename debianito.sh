@@ -42,6 +42,26 @@ if [ -d "${MODULES_DIR}/bullseye" ]; then
     [ -f "${MODULES_DIR}/bullseye/extras.sh" ] && source "${MODULES_DIR}/bullseye/extras.sh"
 fi
 
+# ── Interrupt safety: restore repository state on Ctrl+C / TERM ──
+_on_interrupt() {
+    echo -e "${RED}[!] Interrupted. Restoring repository state if possible...${NC}"
+    if type restore_previous_repos &>/dev/null; then
+        restore_previous_repos 2>/dev/null || true
+    fi
+
+    # Kill any lingering child processes (apt, dpkg) from interrupted runs
+    pkill -f "apt.*install" 2>/dev/null || true
+    pkill -f "dpkg.*configure" 2>/dev/null || true
+
+    # Clean up temporary files created during execution
+    rm -rf /tmp/debianito.* 2>/dev/null || true
+
+    echo -e "${YELLOW}[!] Child processes killed and temp files cleaned.${NC}"
+
+    exit 130
+}
+trap _on_interrupt INT TERM
+
 DEBIAN_VERSION=""
 DEBIAN_CODENAME=""
 
@@ -163,7 +183,12 @@ check_root
 check_sudo
 if ! command -v whiptail >/dev/null 2>&1; then
     echo -e "${YELLOW}[+] whiptail not found. Installing required TUI dependencies...${NC}"
-    _ensure_apt_updated && sudo apt-get install -y whiptail
+    if _ensure_apt_updated && sudo apt-get install -y whiptail; then
+        echo -e "${GREEN}[+] whiptail installed.${NC}"
+    else
+        echo -e "${RED}[-] Could not install whiptail (no network?).${NC}" >&2
+        echo -e "${RED}    The TUI menu requires it; install manually and re-run.${NC}" >&2
+    fi
 fi
 if ! _check_network; then
     echo -e "${YELLOW}──────────────────────────────────────────${NC}"
@@ -190,6 +215,11 @@ detect_audio_server
 # ── Bullseye-specific init (archive phase) ──
 if [ "$DEBIAN_VERSION" = "11" ] && type check_bullseye_archive_phase &>/dev/null; then
     check_bullseye_archive_phase
+fi
+
+if ! command -v whiptail >/dev/null 2>&1; then
+    echo -e "${RED}[-] whiptail is required for the TUI menu. Aborting.${NC}" >&2
+    exit 1
 fi
 
 main_menu

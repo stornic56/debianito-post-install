@@ -11,8 +11,8 @@ _FW_PLAN_PKG_LINES=()
 
 # ── Network device detection (PCI + USB) ──
 _detect_all_network_devices() {
-    ! is_installed pciutils && _run_install_pkg pciutils
-    ! is_installed usbutils && _run_install_pkg usbutils
+    ! is_installed pciutils && _install_pkg pciutils
+    ! is_installed usbutils && _install_pkg usbutils
 
     PCI_NET_DEVS=()
     while IFS= read -r line; do
@@ -21,7 +21,11 @@ _detect_all_network_devices() {
 
     USB_WIFI_DEVS=()
     while IFS= read -r line; do
-        if echo "$line" | grep -qiE 'wireless|wifi|802\.11|bluetooth|wlan'; then
+        # Exclude Bluetooth dongles: many report e.g. "Bluetooth wireless
+        # interface" and would otherwise be classified as WiFi and mapped
+        # to firmware-iwlwifi.
+        if echo "$line" | grep -qiE 'wireless|wifi|802\.11|wlan' &&
+            ! echo "$line" | grep -qi 'bluetooth'; then
             USB_WIFI_DEVS+=("$line")
         fi
     done < <(lsusb 2>/dev/null || true)
@@ -33,10 +37,10 @@ _detect_all_network_devices() {
 
     USB_BT_DEVS=()
     while IFS= read -r line; do
+        # All Bluetooth dongles belong here (the WiFi filter above now
+        # excludes anything containing "bluetooth").
         if echo "$line" | grep -qi 'bluetooth'; then
-            if ! echo "$line" | grep -qiE 'wireless|wifi|802\.11|wlan'; then
-                USB_BT_DEVS+=("$line")
-            fi
+            USB_BT_DEVS+=("$line")
         fi
     done < <(lsusb 2>/dev/null || true)
 
@@ -136,7 +140,7 @@ _build_firmware_plan() {
     local fw_line
     if is_installed firmware-linux-nonfree; then
         local cur_ver
-        cur_ver=$(dpkg -l firmware-linux-nonfree 2>/dev/null | awk '/^ii/{print $3}')
+        cur_ver=$(_get_installed_version "firmware-linux-nonfree")
         fw_line="  [+] firmware-linux-nonfree ${cur_ver} (already installed)"
     else
         fw_line="  [+] firmware-linux-nonfree (base meta-package)"
@@ -198,7 +202,7 @@ _install_detected_firmware() {
             continue
         fi
         local ver
-        ver=$(apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+        ver=$(_get_pkg_version "$pkg")
         if [ -z "$ver" ] || [ "$ver" = "(none)" ]; then
             echo "  --> $pkg not available in repositories, skipping."
             continue
@@ -363,16 +367,20 @@ _ensure_nonfree_repo() {
         fi
     else
         if [ -f /etc/apt/sources.list ]; then
-            # Add each missing component after "main", never duplicating
-            sudo sed -i -E '/^deb / { /(^|[[:space:]])non-free([[:space:]]|$)/! s/(main[^[:space:]]*)/\1 non-free/ }' /etc/apt/sources.list
+            sudo cp /etc/apt/sources.list "/etc/apt/sources.list.backup.$(date +%Y%m%d_%H%M%S)"
+            # Add each missing component after the space-delimited "main"
+            # component; a bare s/main/ would corrupt mirror URLs that
+            # contain "main" (e.g. https://main.example.com).
+            sudo sed -i -E '/^deb / { /(^|[[:space:]])non-free([[:space:]]|$)/! s/ main([[:space:]]|$)/ main non-free\1/ }' /etc/apt/sources.list
             # non-free-firmware does not exist on Bullseye
             if [ "$DEBIAN_VERSION" != "11" ]; then
-                sudo sed -i -E '/^deb / { /(^|[[:space:]])non-free-firmware([[:space:]]|$)/! s/(main[^[:space:]]*)/\1 non-free-firmware/ }' /etc/apt/sources.list
+                sudo sed -i -E '/^deb / { /(^|[[:space:]])non-free-firmware([[:space:]]|$)/! s/ main([[:space:]]|$)/ main non-free-firmware\1/ }' /etc/apt/sources.list
             fi
         fi
         if [ -d /etc/apt/sources.list.d ]; then
             for f in /etc/apt/sources.list.d/*.sources; do
                 [ -f "$f" ] || continue
+                sudo cp "$f" "${f}.backup.$(date +%Y%m%d_%H%M%S)"
                 sudo sed -i -E '/^Components:/ { /(^|[[:space:]])non-free([[:space:]]|$)/! s/$/ non-free/ }' "$f"
                 if [ "$DEBIAN_VERSION" != "11" ]; then
                     sudo sed -i -E '/^Components:/ { /(^|[[:space:]])non-free-firmware([[:space:]]|$)/! s/$/ non-free-firmware/ }' "$f"
@@ -430,16 +438,15 @@ install_firmware() {
     # 4. Install base firmware meta-package (unchanged logic)
     local fw_pkg="firmware-linux-nonfree"
     local fw_bpo
-    fw_bpo=$(apt-cache madison "$fw_pkg" 2>/dev/null |
-        grep "${DEBIAN_CODENAME}-backports" | awk '{print $3}' | head -1)
+    fw_bpo=$(_get_backports_version "$fw_pkg")
 
     local fw_stable
-    fw_stable=$(apt-cache policy "$fw_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
+    fw_stable=$(_get_pkg_version "$fw_pkg")
 
     if is_installed "$fw_pkg"; then
         if [ -n "$fw_bpo" ]; then
             local current_ver
-            current_ver=$(dpkg -l "$fw_pkg" 2>/dev/null | awk '/^ii/{print $3}')
+            current_ver=$(_get_installed_version "$fw_pkg")
             if _confirm "Firmware" "firmware-linux-nonfree ${current_ver} already installed.\n\nUpgrade to backports version ${fw_bpo}?\n\nBackports often includes newer hardware support."; then
                 _run_cmd "Firmware" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports $fw_pkg" "Upgrading firmware..." || true
             fi

@@ -178,8 +178,11 @@ _cat_general() {
                 _run_cmd "fwupd" "sudo fwupdmgr refresh --force" "Refreshing firmware metadata..."
                 echo ""
                 echo "Checking for firmware updates..."
-                sudo fwupdmgr get-updates 2>&1 || true
-                if sudo fwupdmgr get-updates 2>&1 | grep -q "available"; then
+                local _fwupd_out
+                _fwupd_out=$(sudo fwupdmgr get-updates 2>&1 || true)
+                # Strict match: must not trigger on "No updates available"
+                # or "Devices with the latest available firmware version".
+                if echo "$_fwupd_out" | grep -Eq 'Upgrade available|New version:'; then
                     if _confirm "Firmware Update" "Firmware updates are available.\nInstall them now?"; then
                         _run_cmd "fwupd" "sudo fwupdmgr update -y" "Installing firmware updates..."
                     else

@@ -40,7 +40,10 @@ ensure_contrib_repo() {
         fi
     else
         if [ -f /etc/apt/sources.list ]; then
-            sudo sed -i '/^deb / { /contrib/! s/main/main contrib/ }' /etc/apt/sources.list
+            sudo cp /etc/apt/sources.list "/etc/apt/sources.list.backup.$(date +%Y%m%d_%H%M%S)"
+            # Anchor to the space-delimited "main" component so mirror URLs
+            # containing "main" (e.g. https://main.example.com) are untouched.
+            sudo sed -i -E '/^deb / { /\bcontrib\b/! s/ main([[:space:]]|$)/ main contrib\1/ }' /etc/apt/sources.list
         fi
         if [ -d /etc/apt/sources.list.d ]; then
             for f in /etc/apt/sources.list.d/*.sources; do
@@ -94,15 +97,23 @@ install_gaming() {
 
     # 2. Determine if 32-bit is needed (steam, lutris, or explicit i386 toggle)
     local need_32bit=false
-    for p in $cleaned; do
-        case $p in steam | lutris) need_32bit=true ;; esac
+
+    local -a install_pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && install_pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+
+    for p in "${install_pkgs[@]}"; do
+        case "$p" in steam | lutris) need_32bit=true ;; esac
     done
     echo "$cleaned" | grep -qw i386 && need_32bit=true
 
     # Strip pseudo-entry "i386" from the install list
-    local install_list
-    install_list=$(echo "$cleaned" | tr ' ' '\n' | grep -v '^i386$' | tr '\n' ' ')
-    install_list=${install_list% }
+    local -a install_list=()
+    while IFS= read -r _pkg; do
+        [ "$_pkg" = "i386" ] && continue
+        [ -n "$_pkg" ] && install_list+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
 
     # 3. Enable i386 architecture if needed
     if $need_32bit && ! dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
@@ -122,7 +133,7 @@ install_gaming() {
     fi
 
     # 5. Install selected packages
-    for pkg in $install_list; do
+    for pkg in "${install_list[@]}"; do
         case $pkg in
         steam)
             if ensure_contrib_repo; then

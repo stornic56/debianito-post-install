@@ -19,6 +19,7 @@ _install_bluetooth_stack() {
         return
     fi
 
+    local stack_failed=false
     if is_installed bluez; then
         echo "  → Bluetooth stack already installed."
         service_enable_only=true
@@ -30,7 +31,10 @@ _install_bluetooth_stack() {
         ! is_installed bluez-tools  && bt_pkgs+=(bluez-tools)
         ! is_installed bluez-obexd  && bt_pkgs+=(bluez-obexd)
         if [ ${#bt_pkgs[@]} -gt 0 ]; then
-            _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y ${bt_pkgs[*]}" "Installing Bluetooth stack..."
+            if ! _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y ${bt_pkgs[*]}" "Installing Bluetooth stack..."; then
+                _msg_red "Bluetooth" "Failed to install the Bluetooth stack."
+                stack_failed=true
+            fi
         fi
     fi
 
@@ -44,11 +48,21 @@ _install_bluetooth_stack() {
     case "${DESKTOP_ENV:-other}" in
         kde)
             if ! is_installed bluedevil; then
-                _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y bluedevil" "Installing bluedevil..."
+                if ! _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y bluedevil" "Installing bluedevil..."; then
+                    _msg_red "Bluetooth" "Failed to install bluedevil."
+                fi
             fi
             if [ "${AUDIO_SERVER:-}" = "pipewire" ]; then
-                ! is_installed pipewire-pulse && _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y pipewire-pulse" "Installing pipewire-pulse..."
-                ! is_installed wireplumber && _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y wireplumber" "Installing wireplumber..."
+                if ! is_installed pipewire-pulse; then
+                    if ! _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y pipewire-pulse" "Installing pipewire-pulse..."; then
+                        _msg_red "Bluetooth" "Failed to install pipewire-pulse."
+                    fi
+                fi
+                if ! is_installed wireplumber; then
+                    if ! _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y wireplumber" "Installing wireplumber..."; then
+                        _msg_red "Bluetooth" "Failed to install wireplumber."
+                    fi
+                fi
             fi
             ;;
         gnome)
@@ -56,7 +70,9 @@ _install_bluetooth_stack() {
             ;;
         xfce|other)
             if ! is_installed blueman; then
-                _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y blueman" "Installing blueman..."
+                if ! _run_cmd "Bluetooth" "sudo DEBIAN_FRONTEND=noninteractive apt install -y blueman" "Installing blueman..."; then
+                    _msg_red "Bluetooth" "Failed to install blueman."
+                fi
             fi
             ;;
     esac
@@ -68,5 +84,9 @@ _install_bluetooth_stack() {
         sudo systemctl start bluetooth 2>/dev/null || true
     fi
 
-    _msg "Bluetooth Setup" "Bluetooth stack installed.\n\nA session restart or reboot is\nrecommended to load the desktop\napplets and tray icons." 10 60
+    if $stack_failed; then
+        _msg_red "Bluetooth Setup" "Bluetooth setup finished with errors.\n\nThe stack may be incomplete.\nA session restart or reboot is\nrecommended to load the desktop\napplets and tray icons." 10 60
+    else
+        _msg "Bluetooth Setup" "Bluetooth stack installed.\n\nA session restart or reboot is\nrecommended to load the desktop\napplets and tray icons." 10 60
+    fi
 }

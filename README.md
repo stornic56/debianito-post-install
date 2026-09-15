@@ -87,6 +87,18 @@ The submenu offers the next categories:
 
 ---
 
+## Quick Start Guide
+
+For a streamlined post-installation setup (~15-20 minutes), refer to the [Quick Start Visual Guide](/docs/quickstart.md). It provides:
+
+- Step-by-step recommended order for running Debianito options (Steps 1–13)
+- What each option does and when to enable it
+- Screenshots of key dialogs (whiptail menus, confirmations, hardware detection)
+- Troubleshooting tips for common issues (WiFi after firmware install, NVIDIA + Wayland, GRUB boot menu hidden, etc.)
+
+**Tip:** If you're unsure where to start, follow Steps 1–5 from the Quick Start guide. They cover the essentials: system info, permissions, repositories, firmware, and graphics drivers.
+
+---
 ## File Structure
 
 | Directory/File | Description |
@@ -110,7 +122,7 @@ The submenu offers the next categories:
 │   ├── gaming.md
 │   ├── gpu.md
 │   ├── kernel.md
-│   ├── QUICKSTART.md
+│   ├── quickstart.md
 │   ├── repos_config.md
 │   ├── retroarch.md
 │   ├── swap.md
@@ -119,8 +131,25 @@ The submenu offers the next categories:
 │   ├── user_priv_feed.md
 │   └── zram.md
 ├── media
-│   └── gift
-│       └── script.gif
+│   ├── gift
+│   │   └── script.gif
+│   └── screenshots
+│       ├── 01-system-info.png
+│       ├── 02b-pwfeedback.png
+│       ├── 02-user-privileges.png
+│       ├── 03-system-prefs.png
+│       ├── 04b-backports.png
+│       ├── 04-repos.png
+│       ├── 05-firmware-plan.png
+│       ├── 06-gpu-choice.png
+│       ├── 07-kernel.png
+│       ├── 08-gaming.png
+│       ├── 09b-zram-status.png
+│       ├── 09-zram-algo.png
+│       ├── 10b-swap-status.png
+│       ├── 10-swap.png
+│       ├── 11b-essential-pack.png
+│       └── 11-programs.gif
 ├── modules
 │   ├── bluetooth.sh
 │   ├── bullseye

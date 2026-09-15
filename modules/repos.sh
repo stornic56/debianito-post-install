@@ -6,12 +6,18 @@ source "${MODULES_DIR}/repos/migrate.sh" 2>/dev/null || true
 REPO_BACKUP_DIR=""
 
 backup_current_repos() {
-    REPO_BACKUP_DIR=$(mktemp -d)
+    cleanup_repo_backup # never orphan a previous backup by overwriting the pointer
+    REPO_BACKUP_DIR=$(mktemp -d) || {
+        REPO_BACKUP_DIR=""
+        return 1
+    }
     for f in /etc/apt/sources.list /etc/apt/sources.list.d/debian.sources \
         /etc/apt/sources.list.d/debian-backports.list /etc/apt/sources.list.d/debian-backports.sources; do
         if [ -f "$f" ]; then
-            mkdir -p "$REPO_BACKUP_DIR/$(dirname "${f#/etc/apt/}")"
-            cp "$f" "$REPO_BACKUP_DIR/$(dirname "${f#/etc/apt/}")/$(basename "$f")"
+            local rel="${f#/etc/apt/}"
+            mkdir -p "$REPO_BACKUP_DIR/$(dirname "$rel")" || return 1
+            cp "$f" "$REPO_BACKUP_DIR/$rel" || return 1
+            touch "$REPO_BACKUP_DIR/.backed_up_$(basename "$rel")"
         fi
     done
 }
@@ -27,9 +33,19 @@ restore_previous_repos() {
         local rel="${f#/etc/apt/}"
         local backup_file="$REPO_BACKUP_DIR/$rel"
         if [ -f "$backup_file" ]; then
-            sudo cp "$backup_file" "$f" || true
-            found=true
-        elif [ -f "$f" ]; then
+            if sudo cp "$backup_file" "$f"; then
+                found=true
+            else
+                echo -e "${RED}Failed to restore $f${NC}"
+            fi
+        elif [ -f "$f" ] && [ ! -f "$REPO_BACKUP_DIR/.backed_up_$(basename "$f")" ]; then
+            # Only delete a live file if the manifest proves it did not exist
+            # when the backup was taken (protects against a failed cp).
+            # SECURITY: Verify file is not a symlink to prevent TOCTOU attack.
+            if [ -L "$f" ]; then
+                echo -e "${RED}[$f] is a symlink. Aborting to prevent TOCTOU attack.${NC}" >&2
+                continue
+            fi
             sudo rm -f "$f" || true
             found=true
         fi
@@ -346,10 +362,15 @@ _components_enabled() {
 
 _repos_offer_upgrade() {
     local upgradable
-    upgradable=$(apt list --upgradable 2>/dev/null | grep -c /)
+    upgradable=$(apt list --upgradable 2>/dev/null | grep -c / || true)
+    # BH-005: grep -c / returns rc=1 if apt list produces no output
+    # (0 upgradable packages or network failure). pipefail propagates rc=1.
+    upgradable=${upgradable:-0}
+    [[ "$upgradable" =~ ^[0-9]+$ ]] || upgradable=0
+    # Validate that the result is a positive integer.
+    # If apt list fails, upgradable stays as "0" and the upgrade is skipped.
     if [ "$upgradable" -gt 0 ]; then
         if _confirm "Upgrade System" "$upgradable packages can be upgraded. Upgrade now?"; then
-            sudo apt-mark hold tzdata 2>/dev/null || true
             _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading system..."
             sudo apt-mark unhold tzdata 2>/dev/null || true
             sudo apt autoremove -y

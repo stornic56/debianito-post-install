@@ -21,18 +21,20 @@ _enable_cuda_repo() {
         if dpkg -s cuda-keyring &>/dev/null; then
             return 0 # ya instalado → su .list ya existe
         fi
+        local tmp_deb
+        tmp_deb=$(mktemp "${TMPDIR:-/tmp}/cuda-keyring.XXXXXX.deb") || return 1
         if ! wget -q "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/cuda-keyring_1.1-1_all.deb" \
-            -O /tmp/cuda-keyring.deb; then
-            rm -f /tmp/cuda-keyring.deb
+            -O "$tmp_deb"; then
+            rm -f "$tmp_deb"
             _msg "CUDA Repo — Error" "Failed to download cuda-keyring.\n\nNo NVIDIA driver was installed." 10 60
             return 1
         fi
-        if ! sudo dpkg -i /tmp/cuda-keyring.deb; then
-            rm -f /tmp/cuda-keyring.deb
+        if ! sudo dpkg -i "$tmp_deb"; then
+            rm -f "$tmp_deb"
             _msg "CUDA Repo — Error" "Failed to install cuda-keyring.\n\nNo NVIDIA driver was installed." 10 60
             return 1
         fi
-        rm -f /tmp/cuda-keyring.deb
+        rm -f "$tmp_deb"
         return 0
     fi
 
