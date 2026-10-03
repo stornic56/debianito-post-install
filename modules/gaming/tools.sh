@@ -63,6 +63,9 @@ install_openrgb() {
         return 1
     fi
 
+    # Strict URL validation before interpolating into a shell command (_run_cmd uses bash -c)
+    [[ "$deb_url" =~ ^https://[A-Za-z0-9./_-]+\.deb$ ]] || { _msg "Error" "Invalid download URL: $deb_url"; return 1; }
+
     _run_cmd "OpenRGB" "curl -fsSL -o '${deb_path}' -A '${ua}' '${deb_url}'" "Downloading OpenRGB..."
 
     if [ -n "$sha256" ]; then

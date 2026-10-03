@@ -96,7 +96,12 @@ _cat_themes_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
     echo -e "${GREEN}Desktop themes installed.${NC}"
@@ -123,7 +128,12 @@ _cat_icons_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
     echo -e "${GREEN}Icon themes installed.${NC}"
@@ -145,7 +155,12 @@ _cat_cursors_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
     echo -e "${GREEN}Cursor themes installed.${NC}"
@@ -166,7 +181,12 @@ _cat_fonts_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
     echo -e "${GREEN}Fonts installed.${NC}"
@@ -206,7 +226,12 @@ _cat_download_bullseye() {
         return
     }
 
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else
@@ -238,7 +263,12 @@ _cat_internet_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         case $pkg in
         w3m)
             local need=()
@@ -273,7 +303,12 @@ _cat_players_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else
@@ -307,7 +342,12 @@ _cat_design_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else
@@ -337,7 +377,12 @@ _cat_programming_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else
@@ -372,7 +417,12 @@ _cat_dev_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         case $pkg in
         docker)
             local need=()
@@ -429,7 +479,12 @@ _cat_security_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         case $pkg in
         clamav)
             _install_clamav
@@ -479,7 +534,12 @@ _cat_general_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         case $pkg in
         compress)
             local need=()
@@ -571,7 +631,12 @@ _cat_fetch_bullseye() {
     [ -z "$choices" ] && return
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else

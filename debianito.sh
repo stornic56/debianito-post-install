@@ -17,6 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="${SCRIPT_DIR}/modules"
 
 source "${MODULES_DIR}/utils.sh"
+source "${MODULES_DIR}/hw_detect.sh"
 [ -f "${MODULES_DIR}/sysinfo.sh" ] && source "${MODULES_DIR}/sysinfo.sh"
 source "${MODULES_DIR}/sudo_config.sh"
 source "${MODULES_DIR}/repos/repo_detect.sh"
@@ -49,14 +50,10 @@ _on_interrupt() {
         restore_previous_repos 2>/dev/null || true
     fi
 
-    # Kill any lingering child processes (apt, dpkg) from interrupted runs
-    pkill -f "apt.*install" 2>/dev/null || true
-    pkill -f "dpkg.*configure" 2>/dev/null || true
-
     # Clean up temporary files created during execution
     rm -rf /tmp/debianito.* 2>/dev/null || true
 
-    echo -e "${YELLOW}[!] Child processes killed and temp files cleaned.${NC}"
+    echo -e "${YELLOW}[!] Temp files cleaned.${NC}"
 
     exit 130
 }

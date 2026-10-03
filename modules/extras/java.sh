@@ -28,7 +28,12 @@ install_minecraft_java() {
     _enable_temurin_repo
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for ver in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for ver in "${_pkgs[@]}"; do
         _run_cmd "Java" "sudo apt install -y temurin-${ver}-jre" \
             "Installing Temurin JRE ${ver}..."
     done

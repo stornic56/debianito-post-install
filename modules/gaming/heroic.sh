@@ -25,6 +25,9 @@ install_heroic() {
         return 1
     fi
 
+    # Strict URL validation before interpolating into a shell command (_run_cmd uses bash -c)
+    [[ "$deb_url" =~ ^https://[A-Za-z0-9./_-]+\.deb$ ]] || { _msg "Error" "Invalid download URL: $deb_url"; return 1; }
+
     _run_cmd "Heroic" "curl -fsSL -H 'User-Agent: $ua' -o '$heroic_deb' '$deb_url'" "Downloading Heroic..."
 
     if ! dpkg-deb --info "$heroic_deb" >/dev/null 2>&1; then
