@@ -20,10 +20,37 @@ check_bullseye_archive_phase() {
     fi
 
     if $BULLSEYE_USE_ARCHIVE; then
+        # Idempotency guard: skip when sources.list already points to the archive
+        grep -q 'archive.debian.org' /etc/apt/sources.list 2>/dev/null && return 0
+
         _msg "Debian 11 — Archive Phase" \
             "Bullseye LTS support ended on 31 Aug 2026.\n\n\
-The script will use archive.debian.org mirrors.\n\
+The script can switch APT sources to archive.debian.org.\n\
 No security updates will be available." 12 60
+
+        if ! _confirm "Debian 11 — Archive Phase" \
+            "Rewrite /etc/apt/sources.list to use archive.debian.org?\n\n\
+A timestamped backup will be created before the change." 12 60; then
+            echo "Archive phase: keeping the current repository configuration."
+            return 0
+        fi
+
+        # Timestamped backup before rewriting (same convention as firmware.sh / gpu.sh)
+        if [ -f /etc/apt/sources.list ]; then
+            sudo cp /etc/apt/sources.list "/etc/apt/sources.list.backup.$(date +%Y%m%d_%H%M%S)"
+        fi
+
+        echo "Writing archive.debian.org sources..."
+        sudo tee /etc/apt/sources.list >/dev/null <<'EOF'
+deb http://archive.debian.org/debian bullseye main contrib non-free
+#deb http://archive.debian.org/debian-security bullseye-security main contrib non-free
+# deb http://archive.debian.org/debian bullseye-updates main contrib non-free
+# deb http://archive.debian.org/debian bullseye-backports main contrib non-free
+EOF
+
+        # Refresh package lists; may fail on EOL archives (expired Release files)
+        echo "Running apt-get update (failures are expected on EOL archives)..."
+        sudo apt-get update || true
     fi
 }
 
@@ -128,7 +155,12 @@ install_gaming_bullseye() {
     cleaned=$(echo "$choices" | tr -d '"')
 
     local need_32bit=false
-    for p in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for p in "${_pkgs[@]}"; do
         case $p in steam | lutris) need_32bit=true ;; esac
     done
     echo "$cleaned" | grep -qw i386 && need_32bit=true
@@ -152,7 +184,12 @@ install_gaming_bullseye() {
         fi
     fi
 
-    for pkg in $install_list; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _install_pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _install_pkgs+=("$_pkg")
+    done < <(echo "$install_list" | tr ' ' '\n')
+    for pkg in "${_install_pkgs[@]}"; do
         case $pkg in
         steam)
             if ensure_contrib_repo; then

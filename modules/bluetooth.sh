@@ -20,6 +20,7 @@ _install_bluetooth_stack() {
     fi
 
     local stack_failed=false
+    local service_enable_only=false
     if is_installed bluez; then
         echo "  → Bluetooth stack already installed."
         service_enable_only=true

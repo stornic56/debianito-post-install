@@ -72,7 +72,12 @@ _cat_communication() {
 
     local cleaned
     cleaned=$(echo "$choices" | tr -d '"')
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         case $pkg in
         signal-desktop) _install_signal ;;
         telegram-desktop) _install_telegram ;;

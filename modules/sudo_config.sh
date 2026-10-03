@@ -88,7 +88,12 @@ Useful for automation but reduces security." 14 70; then
         cleaned=$(echo "$choices" | tr -d '"')
 
         local content=""
-        for cmd in $cleaned; do
+        # BH-004: Convert to array to avoid word splitting and injection.
+        local -a _pkgs=()
+        while IFS= read -r _pkg; do
+            [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+        done < <(echo "$cleaned" | tr ' ' '\n')
+        for cmd in "${_pkgs[@]}"; do
             case $cmd in
             apt)
                 content+="${TARGET_USER} ALL=(root) NOPASSWD: /usr/bin/apt, /usr/bin/apt-get, /bin/apt, /bin/apt-get\n"

@@ -33,7 +33,12 @@ _cat_terminals() {
     clear
     [ -z "$choices" ] && return
 
-    for pkg in $(echo "$choices" | tr -d '"'); do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$choices" | tr -d '"' | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
         else

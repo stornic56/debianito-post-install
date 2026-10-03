@@ -207,7 +207,12 @@ _cat_internet() {
     local has_firefox=false
     local has_firefox_esr=false
     local fchoice=""
-    for _p in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for _p in "${_pkgs[@]}"; do
         [ "$_p" = "firefox" ] && has_firefox=true
         [ "$_p" = "firefox-esr" ] && has_firefox_esr=true
     done
@@ -219,12 +224,17 @@ _cat_internet() {
             "both" "Keep both variants")
         [ -z "$fchoice" ] && return
         case "$fchoice" in
-        mozilla) cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox-esr" | tr '\n' ' ') ;;
-        esr) cleaned=$(printf '%s\n' $cleaned | grep -vx "firefox" | tr '\n' ' ') ;;
+        mozilla) cleaned=$(printf '%s\n' "${_pkgs[@]}" | grep -vx "firefox-esr" | tr '\n' ' ') ;;
+        esr) cleaned=$(printf '%s\n' "${_pkgs[@]}" | grep -vx "firefox" | tr '\n' ' ') ;;
         esac
     fi
 
-    for pkg in $cleaned; do
+    # BH-004: Convert to array to avoid word splitting and injection.
+    local -a _pkgs=()
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && _pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+    for pkg in "${_pkgs[@]}"; do
         case $pkg in
         firefox)
             install_firefox_mozilla "$fchoice"

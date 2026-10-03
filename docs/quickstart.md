@@ -316,16 +316,3 @@ After this, browse the other categories as needed:
 | **greetd installed but cannot log in** | This is expected — you must create `/etc/greetd/config.toml` manually. See `man greetd` and `man 5 greetd-sessions`. |
 | **Bluetooth tray icon missing** | Reboot or `systemctl restart bluetooth`. Ensure `bluez`, `bluedevil` (KDE) or `blueman` (XFCE) is installed. For PipeWire, check `systemctl --user status pipewire pipewire-pulse wireplumber`. |
 | **PipeWire crackling / no Bluetooth Hi-Res codec** | Re-run `3  System Preferences → Audio & Sound → PipeWire Audio Stack`. Verify `libldacbt-*`, `libopenaptx0`, `libfdk-aac2t64` are installed (`dpkg -l \| grep -E 'ldac\|aptx\|fdk'`). |
-
----
-
-## Taking Screenshots for This Guide
-
-Screenshots are taken from `whiptail` dialogs. To capture them:
-
-1. Run the script inside a terminal that supports image export (e.g., `gnome-terminal` + `gnome-screenshot`, or `asciinema`).
-2. For whiptail, press `PrintScreen` or use `import -window root screenshot.png` (ImageMagick).
-3. Save under `media/screenshots/` with the filenames referenced above (`01-system-info.png`, `04-repos.png`, etc.).
-4. Keep width ≈ 800px; the script uses fixed `TUI_ANCHO=78` and `TUI_ALTO=20` centered dialogs.
-
-> **Note:** Until real screenshots are added, the placeholders above describe the expected content of each image.
