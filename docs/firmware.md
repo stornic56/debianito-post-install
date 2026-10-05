@@ -43,7 +43,7 @@ The installation process follows a strict atomic pipeline defined in `install_fi
 
 Broadcom chipsets require proprietary handling because no open-source driver covers most `14e4:*` devices on modern kernels. The current implementation in `firmware.sh:_handle_wireless` uses a **single-path DKMS flow** (`broadcom-sta-dkms` + `wl` module) — not a 3-tier fallback:
 
-1. **Device detection** — Iterates `PCI_NET_DEVS` (parsed from `lspci -nn` at startup) and extracts the Broadcom ID `14e4:XXXX`. Non-Broadcom devices are skipped.
+1. **Device detection** — Iterates `PCI_NET_DEVS` (parsed from `lspci -nn` by the on-demand detection battery) and extracts the Broadcom ID `14e4:XXXX`. Non-Broadcom devices are skipped.
 2. **Dependency guard** — Verifies `linux-headers-amd64` and `dkms` are available via `apt-cache show`. If missing, shows: `"linux-headers-amd64 or dkms are not available in your repositories."`
 3. **User confirmation** — `whiptail --yesno "Install broadcom-sta-dkms, dkms, and wireless-tools?"`
 4. **Step-by-step install** (allows partial failure without aborting the whole module):

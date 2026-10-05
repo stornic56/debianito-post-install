@@ -28,6 +28,10 @@ _warn_nvidia_gnome_wayland() {
 }
 
 _install_amd_intel_stack() {
+    # Hardware state is detected on demand; GPU_TYPE and
+    # LSPCI_OUTPUT must be populated before planning.
+    _ensure_state_detected
+
     if [ "$GPU_TYPE" = "unknown" ] || [ -z "$GPU_TYPE" ]; then
         local mesa_pkgs=(mesa-vulkan-drivers libgl1-mesa-dri libglx-mesa0 libegl-mesa0 mesa-va-drivers)
         local ref_ver
@@ -174,6 +178,10 @@ _apply_amd_gcn_grub_fix() {
 }
 
 _install_nvidia_stack() {
+    # Hardware state is detected on demand; HAS_NVIDIA and
+    # LSPCI_OUTPUT must be populated before planning.
+    _ensure_state_detected
+
     if ! $HAS_NVIDIA; then
         _msg "NVIDIA Not Found" "No NVIDIA GPU was detected.\n\nPlease check your hardware and try again." 10 60
         return

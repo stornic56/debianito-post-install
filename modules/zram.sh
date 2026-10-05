@@ -2,6 +2,10 @@
 # zram.sh — ZRAM submenu: view, create/reconfigure, remove
 
 zram_menu() {
+    # Hardware state is detected on demand; RAM_KB
+    # and RAM_SUMMARY are populated by the battery.
+    _ensure_state_detected
+
     while true; do
         local choice
         choice=$(_menu "ZRAM Configuration" \

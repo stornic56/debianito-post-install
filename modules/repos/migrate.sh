@@ -13,7 +13,13 @@ _persistent_backup_repos() {
     [ -f /etc/apt/sources.list ] && files+=("/etc/apt/sources.list")
     [ -d /etc/apt/sources.list.d ] && files+=("/etc/apt/sources.list.d")
     [ ${#files[@]} -eq 0 ] && return 1
-    sudo tar czf "$_MIGRATE_BACKUP" "${files[@]}" 2>/dev/null
+    # The rollback promise depends on this archive:
+    # a failed backup must abort before anything is
+    # deleted or rewritten.
+    if ! sudo tar czf "$_MIGRATE_BACKUP" "${files[@]}" 2>/dev/null; then
+        rm -f "$_MIGRATE_BACKUP"
+        return 1
+    fi
     echo "Backup: $_MIGRATE_BACKUP"
 }
 
@@ -23,7 +29,13 @@ _restore_backup() {
         return 1
     fi
     echo -e "${YELLOW}Restoring repository backup...${NC}"
-    sudo tar xzf "$_MIGRATE_BACKUP" -C / 2>/dev/null
+    if ! sudo tar xzf "$_MIGRATE_BACKUP" -C / 2>/dev/null; then
+        _msg_red "Restore Failed" \
+            "Extraction of $_MIGRATE_BACKUP failed.\n\
+/etc/apt sources may be missing or inconsistent.\n\n\
+Restore manually:\n  sudo tar xzf $_MIGRATE_BACKUP -C /" 12 70
+        return 1
+    fi
     echo -e "${GREEN}Backup restored from $_MIGRATE_BACKUP${NC}"
 }
 
@@ -64,7 +76,14 @@ _write_deb822_branch() {
     fi
 
     sudo mkdir -p /etc/apt/sources.list.d
-    echo -e "$main_content" | sudo tee "$main_file" >/dev/null
+    # Stage to a temp file and move atomically: an
+    # interrupted write never leaves a partial sources.
+    if ! echo -e "$main_content" | sudo tee "${main_file}.tmp" >/dev/null; then
+        return 1
+    fi
+    if ! sudo mv "${main_file}.tmp" "$main_file"; then
+        return 1
+    fi
     echo "Wrote $main_file"
 }
 
@@ -80,7 +99,14 @@ _write_classic_branch() {
         main_content+="deb https://security.debian.org/debian-security ${target}-security main contrib non-free non-free-firmware\n"
     fi
 
-    echo -e "$main_content" | sudo tee "$main_file" >/dev/null
+    # Stage to a temp file and move atomically: an
+    # interrupted write never leaves a partial sources.
+    if ! echo -e "$main_content" | sudo tee "${main_file}.tmp" >/dev/null; then
+        return 1
+    fi
+    if ! sudo mv "${main_file}.tmp" "$main_file"; then
+        return 1
+    fi
     echo "Wrote $main_file"
 }
 
@@ -93,7 +119,8 @@ Risks include:\n\
   • NVIDIA / DKMS drivers may break\n\
   • System may fail to boot after reboot\n\
   • Some packages may be removed or replaced\n\
-  • SID (unstable) receives NO security updates\n\n\
+  • SID (unstable) has no release cycle; security\n\
+    fixes arrive via package uploads, not DSAs\n\n\
 A full persistent backup will be saved to /var/backups/\n\
 so you can restore if things go wrong." 16 70
 
@@ -154,15 +181,19 @@ so you can restore if things go wrong." 16 70
     [ -f /etc/apt/sources.list.d/debian-backports.sources ] && sudo rm -f /etc/apt/sources.list.d/debian-backports.sources
     [ -f /etc/apt/sources.list.d/debian-backports.list ] && sudo rm -f /etc/apt/sources.list.d/debian-backports.list
 
-    # 4c. Remove any old classic source files to avoid conflicts
-    [ -f /etc/apt/sources.list ] && sudo rm -f /etc/apt/sources.list
-
-    # 4d. Write new sources
+    # 4c. Write new sources
     if ! _write_branch_sources "$target"; then
         echo -e "${RED}[-]${NC} Failed to write new sources. Restoring backup..."
         _restore_backup || true
         return 1
     fi
+
+    # 4d. Remove the old classic file AFTER the new
+    # sources are live: an interrupt between steps
+    # leaves both files (recoverable), not none.
+    # Only needed on the deb822 path; the classic
+    # writer replaced sources.list atomically.
+    [ "$DEBIAN_VERSION" = "13" ] && [ -f /etc/apt/sources.list ] && sudo rm -f /etc/apt/sources.list
 
     # 4e. SID guardrails: install bug alerts before upgrade
     if [ "$target" = "sid" ]; then
@@ -175,19 +206,40 @@ so you can restore if things go wrong." 16 70
     echo -e "${YELLOW}Running apt update...${NC}"
     if ! sudo apt update; then
         echo -e "${RED}apt update failed. Restoring backup...${NC}"
-        _restore_backup
-        _msg_red "Migration Failed" \
-            "apt update failed. Backup has been restored from:\n\
+        if _restore_backup; then
+            _msg_red "Migration Failed" \
+                "apt update failed. Backup has been restored from:\n\
 $_MIGRATE_BACKUP\n\n\
 Your system should be back to its previous state.\n\
 Run 'sudo apt update' manually to verify." 12 70
-        return
+        else
+            _msg_red "Migration Failed" \
+                "apt update failed AND the backup could not be\n\
+restored from $_MIGRATE_BACKUP.\n\n\
+Restore it manually:\n  sudo tar xzf $_MIGRATE_BACKUP -C /\n\
+then run: sudo apt update" 12 70
+        fi
+        return 1
     fi
 
     # 4g. Full upgrade
-    _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading packages..."
-    _run_cmd "Full-Upgrade" "sudo apt full-upgrade -y" "Running full-upgrade..."
-    _run_cmd "Autoremove" "sudo apt autoremove -y" "Removing obsolete packages..."
+    # A failed upgrade leaves packages half-installed.
+    # Restoring only the sources would be worse (stable
+    # sources + testing packages), so stop with an
+    # honest report and manual-recovery instructions.
+    if ! _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading packages..."; then
+        _msg_red "Migration Incomplete" \
+            "Package upgrade failed. The system is partially\n\
+upgraded to ${target}. Do NOT reboot yet.\n\n\
+Repair with:\n  sudo apt --fix-broken install\n  sudo dpkg --configure -a\n\n\
+To roll back the branch manually, restore:\n  sudo tar xzf $_MIGRATE_BACKUP -C /" 14 70
+        return 1
+    fi
+    if ! _run_cmd "Full-Upgrade" "sudo apt full-upgrade -y" "Running full-upgrade..."; then
+        _msg_red "Migration Incomplete" "full-upgrade failed. Repair with:\n  sudo apt --fix-broken install\nBackup: $_MIGRATE_BACKUP" 10 70
+        return 1
+    fi
+    _run_cmd "Autoremove" "sudo apt autoremove -y" "Removing obsolete packages..." || true
 
     # 4h. Re-run detection to reflect new branch
     echo -e "${YELLOW}Re-running system detection for new branch...${NC}"

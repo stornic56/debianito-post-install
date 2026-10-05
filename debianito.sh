@@ -16,32 +16,34 @@ TUI_ALTO_LISTA=10
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="${SCRIPT_DIR}/modules"
 
+# Boot profiling: DEBIANITO_PROFILE=1 stamps each boot
+# step to stderr for before/after comparison.
+_boot_mark() {
+    [ "${DEBIANITO_PROFILE:-0}" = "1" ] || return 0
+    printf '[%s] %s\n' "$(date +%s%N)" "$*" >&2
+}
+
+_boot_mark "boot: start (before module sources)"
+
+# Eager core only: utils.sh holds every boot function
+# and TUI helper; hw_detect.sh declares the global
+# device arrays (PCI_NET_DEVS, ...) that lazily-loaded
+# modules read under `set -u`. All other modules are
+# sourced on demand via _load_module() in main_menu().
 source "${MODULES_DIR}/utils.sh"
 source "${MODULES_DIR}/hw_detect.sh"
-[ -f "${MODULES_DIR}/sysinfo.sh" ] && source "${MODULES_DIR}/sysinfo.sh"
-source "${MODULES_DIR}/sudo_config.sh"
-source "${MODULES_DIR}/repos/repo_detect.sh"
-source "${MODULES_DIR}/repos.sh"
-[ -f "${MODULES_DIR}/firmware.sh" ] && source "${MODULES_DIR}/firmware.sh"
-[ -f "${MODULES_DIR}/bluetooth.sh" ] && source "${MODULES_DIR}/bluetooth.sh"
-[ -f "${MODULES_DIR}/gpu.sh" ] && source "${MODULES_DIR}/gpu.sh"
-[ -f "${MODULES_DIR}/kernel.sh" ] && source "${MODULES_DIR}/kernel.sh"
-[ -f "${MODULES_DIR}/gaming.sh" ] && source "${MODULES_DIR}/gaming.sh"
-[ -f "${MODULES_DIR}/extras.sh" ] && source "${MODULES_DIR}/extras.sh"
-[ -f "${MODULES_DIR}/zram.sh" ] && source "${MODULES_DIR}/zram.sh"
-[ -f "${MODULES_DIR}/extras/java.sh" ] && source "${MODULES_DIR}/extras/java.sh"
-[ -f "${MODULES_DIR}/rescue.sh" ] && source "${MODULES_DIR}/rescue.sh"
-[ -f "${MODULES_DIR}/swap.sh" ] && source "${MODULES_DIR}/swap.sh"
-[ -f "${MODULES_DIR}/desktop_display.sh" ] && source "${MODULES_DIR}/desktop_display.sh"
-[ -f "${MODULES_DIR}/system/system_prefs.sh" ] && source "${MODULES_DIR}/system/system_prefs.sh"
-[ -f "${MODULES_DIR}/system/audio.sh" ] && source "${MODULES_DIR}/system/audio.sh"
 
 # ── Bullseye-specific modules (loaded only on Debian 11) ──
+# Eager-conditional: the menu dispatch branches on
+# `type install_*_bullseye`, so these must be defined
+# before main_menu() runs.
 if [ -d "${MODULES_DIR}/bullseye" ]; then
     [ -f "${MODULES_DIR}/bullseye/legacy.sh" ] && source "${MODULES_DIR}/bullseye/legacy.sh"
     [ -f "${MODULES_DIR}/bullseye/repos.sh" ] && source "${MODULES_DIR}/bullseye/repos.sh"
     [ -f "${MODULES_DIR}/bullseye/extras.sh" ] && source "${MODULES_DIR}/bullseye/extras.sh"
 fi
+
+_boot_mark "boot: core modules loaded"
 
 # ── Interrupt safety: restore repository state on Ctrl+C / TERM ──
 _on_interrupt() {
@@ -94,9 +96,16 @@ main_menu() {
         clear
 
         case "$choice" in
-        1) _show_sysinfo ;;
-        2) config_sudo || true ;;
+        1)
+            _load_module sysinfo || continue
+            _show_sysinfo
+            ;;
+        2)
+            _load_module sudo_config || continue
+            config_sudo || true
+            ;;
         3)
+            _load_module system_prefs || continue
             _system_preferences_menu
             STATE_REFRESHED=true
             ;;
@@ -104,19 +113,26 @@ main_menu() {
             if [ "$DEBIAN_VERSION" = "11" ] && type configure_repos_bullseye &>/dev/null; then
                 configure_repos_bullseye || true
             else
+                _load_module repos || continue
                 configure_repos || true
             fi
             STATE_REFRESHED=true
             ;;
         5)
             if [ "$DEBIAN_VERSION" = "11" ] && type install_firmware_bullseye &>/dev/null; then
+                # Bullseye flow calls _handle_wireless
+                # from firmware.sh: load the module
+                # (cascades repo_detect, bluetooth, repos).
+                _load_module firmware || continue
                 install_firmware_bullseye || true
             else
+                _load_module firmware || continue
                 install_firmware || true
             fi
             STATE_REFRESHED=true
             ;;
         6)
+            _load_module gpu || continue
             local gpu_sub
             gpu_sub=$(_menu "Graphics Drivers" "" 12 50 2 \
                 "1" "Radeon/Intel Mesa" \
@@ -130,38 +146,54 @@ main_menu() {
             STATE_REFRESHED=true
             ;;
         7)
+            _load_module kernel || continue
             show_kernel_menu || true
             STATE_REFRESHED=true
             ;;
         8)
             if [ "$DEBIAN_VERSION" = "11" ] && type install_gaming_bullseye &>/dev/null; then
+                # Bullseye flow calls the gaming bundle
+                # (ensure_contrib_repo, install_steam,
+                # install_mangohud, ...) and java.sh:
+                # load the bundle (cascades repo_detect,
+                # java, repos).
+                _load_module gaming || continue
                 install_gaming_bullseye || true
             else
+                _load_module gaming || continue
                 install_gaming || true
             fi
             STATE_REFRESHED=true
             ;;
         9)
+            _load_module zram || continue
             zram_menu || true
             STATE_REFRESHED=true
             ;;
         10)
+            _load_module swap || continue
             manage_swap || true
             STATE_REFRESHED=true
             ;;
         11)
             if [ "$DEBIAN_VERSION" = "11" ] && type install_extras_bullseye &>/dev/null; then
+                # Bullseye flow calls _install_dev_java
+                # from extras/java.sh: load it explicitly.
+                _load_module java || continue
                 install_extras_bullseye || true
             else
+                _load_module extras || continue
                 install_extras || true
             fi
             STATE_REFRESHED=true
             ;;
         12)
+            _load_module rescue || continue
             rescue_boot || true
             STATE_REFRESHED=true
             ;;
         13)
+            _load_module desktop_display || continue
             manage_desktop_display || true
             STATE_REFRESHED=true
             ;;
@@ -176,6 +208,7 @@ main_menu() {
     done
 }
 
+_boot_mark "boot: pre-flight checks"
 check_root
 check_sudo
 if ! command -v whiptail >/dev/null 2>&1; then
@@ -187,27 +220,12 @@ if ! command -v whiptail >/dev/null 2>&1; then
         echo -e "${RED}    The TUI menu requires it; install manually and re-run.${NC}" >&2
     fi
 fi
-if ! _check_network; then
-    echo -e "${YELLOW}──────────────────────────────────────────${NC}"
-    echo -e "${YELLOW} No internet connectivity detected.${NC}"
-    echo -e "${YELLOW} Package installation will fail without network.${NC}"
-    echo -e "${YELLOW} You can use: System Info, User Privileges, and${NC}"
-    echo -e "${YELLOW} other offline features.${NC}"
-    echo -e "${YELLOW}──────────────────────────────────────────${NC}"
-fi
-_ensure_time_synced
 
+# Hardware detection is deferred on demand via
+# _ensure_state_detected(); only the OS version is
+# eager because the menu dispatch branches on it.
+_boot_mark "boot: os detection"
 detect_debian_version
-detect_cpu_ram
-detect_kernel
-_init_lspci_cache
-detect_gpu
-detect_network
-detect_displayserver
-detect_storage
-detect_desktop_environment
-_configure_lightdm
-detect_audio_server
 
 # ── Bullseye-specific init (archive phase) ──
 if [ "$DEBIAN_VERSION" = "11" ] && type check_bullseye_archive_phase &>/dev/null; then
@@ -219,4 +237,5 @@ if ! command -v whiptail >/dev/null 2>&1; then
     exit 1
 fi
 
+_boot_mark "boot: entering main menu"
 main_menu

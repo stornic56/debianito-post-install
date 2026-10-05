@@ -154,6 +154,10 @@ _swap_set_swappiness() {
 # ── Entry point ──
 
 manage_swap() {
+    # Hardware state is detected on demand; RAM_GB
+    # drives the size recommendation.
+    _ensure_state_detected
+
     exec 9>"$SWAP_LOCK"
     flock -n 9 || {
         _msg "Busy" "Another swap operation is already running." 8 55

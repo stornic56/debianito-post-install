@@ -131,6 +131,10 @@ install_nvidia_bullseye() {
 # 32-bit Mesa/NVIDIA + gamemode + mangohud + goverlay + lutris
 # ---------------------------------------------------------------------------
 install_gaming_bullseye() {
+    # Hardware state is detected on demand; GPU_TYPE is
+    # consulted below for the 32-bit driver choice.
+    _ensure_state_detected
+
     echo -e "${YELLOW}Gaming setup (Bullseye)...${NC}"
 
     local choices

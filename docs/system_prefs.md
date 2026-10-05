@@ -47,7 +47,7 @@ Timezone: America/Santiago
    - Ensures `systemd-timesyncd` is installed, enabled and restarted
    - Waits 2 seconds and checks `timedatectl show --property=NTPSynchronized --value` for `yes`
 
-**Why it matters:** An incorrect clock breaks APT GPG verification (`Release file is not valid yet`) and TLS certificates. The script runs a similar check automatically at startup (`_ensure_time_synced` in `debianito.sh` line 108), but this menu allows the user to fix timezone manually without re-running the whole script.
+**Why it matters:** An incorrect clock breaks APT GPG verification (`Release file is not valid yet`) and TLS certificates. The script runs a similar check automatically before the first `apt update` (`_ensure_time_synced` is called from `_ensure_apt_updated` in `utils.sh`), but this menu allows the user to fix timezone manually without re-running the whole script.
 
 ---
 
@@ -191,7 +191,7 @@ Each package is installed via `_run_install <pkg>` which confirms the version vi
 - **Firmware (`firmware.sh`)** — Bluetooth firmware packages (`firmware-iwlwifi`, etc.) are separate from the Bluetooth *stack* (`bluez`). This menu complements firmware by ensuring the audio side of Bluetooth (PipeWire codecs) is ready.
 - **Desktop & Display (`desktop_display.sh`)** — XFCE/LXDE installations often need audio configured afterwards. Running System Preferences → Audio after a new desktop ensures the correct mixer is available.
 - **Gaming (`gaming.sh`)** — Many games require PipeWire/PulseAudio for voice chat. The gaming module assumes audio is already functional.
-- **Time sync (`utils.sh:_ensure_time_synced`)** — Also called automatically at script startup. This menu is the manual override.
+- **Time sync (`utils.sh:_ensure_time_synced`)** — Also called automatically before the first `apt update`. This menu is the manual override.
 
 ---
 

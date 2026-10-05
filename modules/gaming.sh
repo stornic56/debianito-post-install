@@ -69,6 +69,10 @@ ensure_contrib_repo() {
 }
 
 install_gaming() {
+    # Hardware state is detected on demand; GPU_TYPE is
+    # consulted below for the NVIDIA hints.
+    _ensure_state_detected
+
     echo -e "${YELLOW}Gaming setup...${NC}"
 
     # 1. Single checklist with ALL options (including i386 toggle)

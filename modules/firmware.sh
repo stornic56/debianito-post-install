@@ -346,6 +346,10 @@ _ensure_nonfree_repo() {
 
 # ── Main entry point ──
 install_firmware() {
+    # Hardware state is detected on demand; the device
+    # arrays and DESKTOP_ENV/AUDIO_SERVER are read below.
+    _ensure_state_detected
+
     echo -e "${YELLOW}Base firmware check...${NC}"
 
     if ! _ensure_nonfree_repo; then

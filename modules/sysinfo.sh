@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 _show_sysinfo() {
+    # Hardware state is detected on demand; populate it
+    # before reading any DETECT_* global.
+    _ensure_state_detected
+
     local msg=""
 
     # ── OS Block ──
