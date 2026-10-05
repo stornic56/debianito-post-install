@@ -112,7 +112,7 @@ Key details:
 | Mechanism | How It Works |
 | ----------- | -------------- |
 | **Pre-flight `is_backports_enabled`** | `utils.sh:is_backports_enabled` greps `/etc/apt/sources.list` and `/etc/apt/sources.list.d/*.sources` / `*.list` for `trixie-backports`. Prevents `apt -t` from failing with `E: Release not found`. |
-| **NVIDIA RT warning** | `utils.sh:GPU_TYPE` is set at startup by `detect_gpu` (lspci). RT kernels change scheduling semantics; some `nvidia.ko` builds reject `PREEMPT_RT`. |
+| **NVIDIA RT warning** | `utils.sh:GPU_TYPE` is set on demand by `detect_gpu` (lspci, via `_ensure_state_detected`). RT kernels change scheduling semantics; some `nvidia.ko` builds reject `PREEMPT_RT`. |
 | **Atomic image+headers** | Both packages in one `apt` call. If headers are missing, `dkms` will fail at boot — so they are never installed separately. |
 | **Fallback preservation** | `apt` never removes the running kernel. `/boot` retains `vmlinuz-*` and `initrd.img-*` for both. GRUB keeps both entries; if the new kernel panics, select the old one. |
 | **Version-aware messaging** | The confirmation dialog always shows the exact version string (`apt-cache madison` / `apt-cache show`) so users know they are not reinstalling the same package. |

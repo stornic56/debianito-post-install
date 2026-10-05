@@ -33,6 +33,10 @@ show_kernel_menu() {
 }
 
 _install_kernel_package() {
+    # Hardware state is detected on demand; GPU_TYPE drives
+    # the NVIDIA DKMS/RT warnings below.
+    _ensure_state_detected
+
     local pkg_base="$1"
     local flavor="$2"
     local bpo_flag="$3"

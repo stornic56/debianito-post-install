@@ -2,9 +2,9 @@
 
 ### 1. What Does This Component Do?
 
-This component serves as the **System Abstraction Layer** and diagnostic engine of the Debianito script. It is not merely a display utility; it acts as the foundational state initializer that runs prior to the main menu loop (`main_menu`). Its primary function is to perform pre-flight hardware enumeration, OS validation, and environment checks in "cold" mode (before any configuration changes are made).
+This component serves as the **System Abstraction Layer** and diagnostic engine of the Debianito script. It is not merely a display utility; it acts as the foundational state initializer for the other menu options. Its primary function is to perform pre-flight hardware enumeration, OS validation, and environment checks in "cold" mode (before any configuration changes are made).
 
-**Pre-flight initialization** (`debianito.sh` startup sequence):
+**Initialization** (boot checks in `debianito.sh`, hardware state on demand via `_ensure_state_detected`):
 
 1. **Dependency auto-install**: The script checks for `whiptail` and `lsb-release`, installing them automatically if missing — ensuring the TUI and version detection work on minimal systems.
 2. **`lspci` guard and cache**: `command -v lspci &>/dev/null` validates availability before execution. If present, the full `lspci -nn` output is captured once into the global variable `LSPCI_OUTPUT`. All subsequent GPU, Ethernet, and network detection reads from this cache — avoiding redundant `lspci` invocations and ensuring consistent data throughout the session.
@@ -22,7 +22,7 @@ The following table details the native Linux tools and file descriptors utilized
 | **OS Version** | `lsb_release -cs`, `/etc/os-release` | Parses `VERSION_CODENAME` to determine Debian release (Bullseye, Bookworm, Trixie). Critical for selecting correct repository backports. |
 | **CPU Info** | `/proc/cpuinfo` | Reads `model name` and counts cores/threads. Provides cosmetic summary without needing heavy tools like `lscpu`. |
 | **Memory** | `/proc/meminfo` | Extracts `MemTotal` to calculate RAM in GB. Used for compatibility warnings with specific software packages. |
-| **GPU Detection** | `command -v lspci` guard → cached `LSPCI_OUTPUT` | `lspci -nn` output is cached in the global variable `LSPCI_OUTPUT` at startup. All subsequent GPU detection (PCI/USB buses, Ethernet, network) reads from this cache instead of re-running `lspci`. Identifies VGA/3D controllers via PCI IDs (`10de` for NVIDIA). Checks driver versions via `dpkg` if `nvidia-smi` fails. |
+| **GPU Detection** | `command -v lspci` guard → cached `LSPCI_OUTPUT` | `lspci -nn` output is cached in the global variable `LSPCI_OUTPUT` on first hardware access (`_ensure_state_detected`). All subsequent GPU detection (PCI/USB buses, Ethernet, network) reads from this cache instead of re-running `lspci`. Identifies VGA/3D controllers via PCI IDs (`10de` for NVIDIA). Checks driver versions via `dpkg` if `nvidia-smi` fails. |
 | **Network (Eth)** | `ip -o link show` | Enumerates Ethernet interfaces, state (UP/DOWN), and IP addresses using the `iproute2` suite. |
 | **Network (Wi-Fi)** | `iwgetid`, `lspci` | Identifies wireless chipsets via PCI and retrieves SSID/Connection status for network diagnostics. |
 | **Storage** | `lsblk -d -o NAME,SIZE,ROTA` | Distinguishes between NVMe (`nvme`), SSD (RoT=0), and HDD (RoT=1) to provide storage topology summary. |

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 
 manage_desktop_display() {
+    # Hardware state is detected on demand; HAS_NVIDIA
+    # (GDM3 Wayland option) is populated by the battery.
+    _ensure_state_detected
+
     while true; do
         local choice
         choice=$(_menu "Desktop & Display" \

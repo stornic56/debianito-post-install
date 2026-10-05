@@ -38,12 +38,16 @@ install_openrgb() {
 
     local deb_path
     deb_path=$(mktemp "${TMPDIR:-/tmp}/openrgb-XXXXXX.deb") || return 1
+    # Remove the temp file on every exit path.
+    trap 'rm -f "$deb_path"' RETURN
     local ua="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
     _run_cmd "OpenRGB" "sudo apt install -y curl jq" "Installing dependencies..."
 
     local json=""
-    json=$(curl -s --connect-timeout 10 \
+    # -f: HTTP >= 400 must fail; --max-time bounds the
+    # whole transfer.
+    json=$(curl -fsS --connect-timeout 10 --max-time 30 \
         "https://codeberg.org/api/v1/repos/OpenRGB/OpenRGB/releases?limit=1") || {
         echo -e "${RED}Could not fetch OpenRGB releases from Codeberg API.${NC}"
         return 1
@@ -66,7 +70,7 @@ install_openrgb() {
     # Strict URL validation before interpolating into a shell command (_run_cmd uses bash -c)
     [[ "$deb_url" =~ ^https://[A-Za-z0-9./_-]+\.deb$ ]] || { _msg "Error" "Invalid download URL: $deb_url"; return 1; }
 
-    _run_cmd "OpenRGB" "curl -fsSL -o '${deb_path}' -A '${ua}' '${deb_url}'" "Downloading OpenRGB..."
+    _run_cmd "OpenRGB" "curl -fsSL --max-time 300 -o '${deb_path}' -A '${ua}' '${deb_url}'" "Downloading OpenRGB..."
 
     if [ -n "$sha256" ]; then
         if ! echo "$sha256  $deb_path" | sha256sum -c --strict; then
@@ -76,7 +80,11 @@ install_openrgb() {
         fi
         echo -e "${GREEN}SHA256 verified.${NC}"
     else
-        if ! dpkg-deb --info "$deb_path" >/dev/null 2>&1; then
+        # --contents also walks the data archive,
+        # catching deb files truncated after the
+        # control section.
+        if ! dpkg-deb --info "$deb_path" >/dev/null 2>&1 || \
+           ! dpkg-deb --contents "$deb_path" >/dev/null 2>&1; then
             echo -e "${RED}Downloaded .deb is corrupted. Removing.${NC}"
             rm -f "$deb_path"
             return 1
@@ -84,7 +92,14 @@ install_openrgb() {
         echo -e "${YELLOW}No SHA256 in API, validated via dpkg-deb.${NC}"
     fi
 
-    sudo apt install -y "$deb_path"
+    # The post-install steps (i2c group, udev rules)
+    # must only run if the package was actually
+    # installed; apt can fail on missing dependencies.
+    if ! sudo apt install -y "$deb_path"; then
+        rm -f "$deb_path"
+        echo -e "${RED}OpenRGB installation failed (dependency or dpkg error).${NC}"
+        return 1
+    fi
     rm -f "$deb_path"
 
     sudo modprobe i2c-dev

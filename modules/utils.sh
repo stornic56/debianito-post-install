@@ -28,6 +28,75 @@ APT_UPDATED=0
 # Cached output of `lspci -nn` for the whole session (populated once via _init_lspci_cache)
 LSPCI_OUTPUT=""
 
+# Deferred hardware state: the detection battery runs on
+# first need (_ensure_state_detected) instead of at boot.
+STATE_DETECTED=0
+
+# Network check result cache: 0 = online, 1 = offline,
+# empty = not checked yet (checked on first use).
+_NET_STATUS=""
+
+# Lazy module registry (presence of a key = loaded).
+# Populated by _load_module() so every module is
+# sourced at most once per session.
+declare -A _LOADED_MODULES=()
+
+# ── Lazy module loading ──────────────────────────
+# Sources a module on first use and remembers it in
+# _LOADED_MODULES. Call at the top of a main_menu()
+# case branch, before calling into the module:
+#   _load_module <name> || continue
+# Cross-module dependencies (functions called at
+# runtime that live in another module) are declared
+# in the deps case below, so a module never calls
+# an unloaded function.
+_load_module() {
+    # Defensive: an empty name would produce a bad
+    # array subscript under `set -u`.
+    local name="${1:-}"
+    [ -n "$name" ] || return 1
+
+    # Already loaded in this session?
+    [ -n "${_LOADED_MODULES[$name]+x}" ] && return 0
+
+    # Module file path. Most modules live directly in
+    # modules/; a few have a dedicated subdirectory.
+    local path
+    case "$name" in
+        system_prefs) path="${MODULES_DIR}/system/system_prefs.sh" ;;
+        audio)        path="${MODULES_DIR}/system/audio.sh" ;;
+        java)         path="${MODULES_DIR}/extras/java.sh" ;;
+        repo_detect)  path="${MODULES_DIR}/repos/repo_detect.sh" ;;
+        *)            path="${MODULES_DIR}/${name}.sh" ;;
+    esac
+
+    # Cross-module dependencies, loaded first.
+    local -a deps=()
+    case "$name" in
+        system_prefs)    deps=(audio) ;;
+        repos)           deps=(repo_detect) ;;
+        firmware)        deps=(repo_detect bluetooth repos) ;;
+        gaming)          deps=(repo_detect java repos) ;;
+        extras)          deps=(java) ;;
+        desktop_display) deps=(repos) ;;
+    esac
+
+    local dep
+    for dep in "${deps[@]}"; do
+        _load_module "$dep" || return 1
+    done
+
+    if [ ! -f "$path" ]; then
+        echo -e "${RED}[-] Module not found: ${path}${NC}" >&2
+        return 1
+    fi
+
+    # shellcheck disable=SC1090
+    source "$path"
+    _LOADED_MODULES["$name"]=1
+    return 0
+}
+
 # --------------------------
 # Pre-flight checks
 # --------------------------
@@ -487,21 +556,22 @@ is_backports_enabled() {
 
     local c_pattern="^[^#]*${codename}-backports[[:space:]]+"
     local d_pattern="Suites:.*${codename}-backports"
+    local apt_dir="${APT_DIR:-/etc/apt}"
 
     # Classic embedded (sources.list)
-    if [ -f /etc/apt/sources.list ] && grep -Eq "$c_pattern" /etc/apt/sources.list 2>/dev/null; then
+    if [ -f "$apt_dir/sources.list" ] && grep -Eq "$c_pattern" "$apt_dir/sources.list" 2>/dev/null; then
         echo true
         return
     fi
 
     # Classic standalone (any .list file in sources.list.d)
-    if [ -d /etc/apt/sources.list.d ] && grep -qrE "$c_pattern" /etc/apt/sources.list.d/*.list 2>/dev/null; then
+    if [ -d "$apt_dir/sources.list.d" ] && grep -qrE "$c_pattern" "$apt_dir/sources.list.d/"*.list 2>/dev/null; then
         echo true
         return
     fi
 
     # Deb822 any .sources file
-    if [ -d /etc/apt/sources.list.d ] && grep -qr "$d_pattern" /etc/apt/sources.list.d/*.sources 2>/dev/null; then
+    if [ -d "$apt_dir/sources.list.d" ] && grep -qr "$d_pattern" "$apt_dir/sources.list.d/"*.sources 2>/dev/null; then
         echo true
         return
     fi
@@ -738,19 +808,29 @@ _detect_lang_pkg() {
 _check_network() {
     local target="${1:-deb.debian.org}"
 
-    if command -v ping &>/dev/null; then
-        ping -c 1 -W 3 "$target" &>/dev/null && return 0
-    fi
+    # Single bounded probe (worst case 3 s; the old
+    # ping/wget/curl cascade could block up to 13 s).
+    [[ "$target" =~ ^[a-zA-Z0-9.-]+$ ]] || return 1
+    timeout 3 bash -c "</dev/tcp/${target}/80" &>/dev/null
+}
 
-    if command -v wget &>/dev/null; then
-        wget -q --timeout=5 --spider "http://${target}" &>/dev/null && return 0
+# ── On-demand network check (non-blocking boot) ──
+# The connectivity banner moved from boot to the first
+# apt operation. _NET_STATUS caches the result so the
+# probe runs at most once per session.
+_require_network() {
+    if [ -z "$_NET_STATUS" ]; then
+        if _check_network; then
+            _NET_STATUS=0
+        else
+            _NET_STATUS=1
+            echo -e "${YELLOW}──────────────────────────────────────────${NC}"
+            echo -e "${YELLOW} No internet connectivity detected.${NC}"
+            echo -e "${YELLOW} Package installation will fail without network.${NC}"
+            echo -e "${YELLOW}──────────────────────────────────────────${NC}"
+        fi
     fi
-
-    if command -v curl &>/dev/null; then
-        curl -s --connect-timeout 5 -o /dev/null "http://${target}" &>/dev/null && return 0
-    fi
-
-    return 1
+    return "$_NET_STATUS"
 }
 
 # ----------------------------------
@@ -763,6 +843,15 @@ _ensure_apt_updated() {
         echo -e "${GREEN}[+]${NC} APT package lists already refreshed this session."
         return 0
     fi
+
+    # Advisory: probe the network once (cached in
+    # _NET_STATUS) before attempting an apt operation.
+    _require_network || true
+
+    # A correct clock is required for HTTPS certificate
+    # validation; only runs when apt is actually used.
+    _ensure_time_synced
+
     echo -e "${GREEN}[+]${NC} Refreshing APT package lists..."
     if sudo apt-get update; then
         APT_UPDATED=1
@@ -772,41 +861,33 @@ _ensure_apt_updated() {
     return 1
 }
 
-# ----------------------------------
-# LightDM configuration
-# ----------------------------------
-_configure_lightdm() {
-    command -v lightdm &>/dev/null || return 0
-
-    if _confirm "LightDM" "Configure LightDM to show the user list on the login screen?\n\nThis disables greeter-hide-users."; then
-        if ! is_installed lightdm-gtk-greeter-settings; then
-            echo -e "${YELLOW}Installing lightdm-gtk-greeter-settings...${NC}"
-            if ! sudo DEBIAN_FRONTEND=noninteractive apt install -y lightdm-gtk-greeter-settings; then
-                echo -e "${YELLOW}lightdm-gtk-greeter-settings could not be installed — LightDM configuration skipped.${NC}"
-                return 0
-            fi
-        fi
-
-        local conf_dir="/etc/lightdm/lightdm.conf.d"
-        local conf_file="${conf_dir}/99-show-users.conf"
-
-        if [ -f "$conf_file" ] && grep -q '^greeter-hide-users=false' "$conf_file"; then
-            return
-        fi
-
-        sudo mkdir -p "$conf_dir"
-        printf '[Seat:*]\ngreeter-hide-users=false\n' | sudo tee "$conf_file" >/dev/null
-        echo -e "${GREEN}LightDM configured to show user list.${NC}"
-    fi
+# ── Deferred hardware state (lazy pre-flight) ──
+# The detection battery runs on first need instead of at
+# boot. Call _ensure_state_detected() before reading any
+# DETECT_* global (LSPCI_OUTPUT, GPU_*, ETH_NAMES,
+# DESKTOP_ENV, AUDIO_SERVER, ...).
+_run_detection_battery() {
+    _init_lspci_cache
+    detect_gpu
+    detect_network
+    detect_displayserver
+    detect_storage
+    detect_desktop_environment
+    detect_audio_server
+    detect_cpu_ram
+    detect_kernel
+}
+_ensure_state_detected() {
+    [ "$STATE_DETECTED" -eq 1 ] && return 0
+    _run_detection_battery
+    STATE_DETECTED=1
 }
 
 # ── Lazy system state refresh ──
 refresh_system_state() {
     detect_debian_version
-    detect_gpu
-    detect_cpu_ram
-    detect_network
-    detect_desktop_environment
-    detect_displayserver
-    detect_audio_server
+    # Forced re-run: a menu action may have changed the
+    # hardware or repo state since the first detection.
+    _run_detection_battery
+    STATE_DETECTED=1
 }
