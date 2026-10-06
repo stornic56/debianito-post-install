@@ -9,11 +9,11 @@ _quick_install() {
         fetch_pkg="neofetch"
     fi
 
-    local comp_pkgs
+    local -a comp_pkgs
     if [ "$DEBIAN_CODENAME" = "trixie" ]; then
-        comp_pkgs="7zip 7zip-rar"
+        comp_pkgs=(7zip 7zip-rar)
     else
-        comp_pkgs="p7zip-full p7zip-rar"
+        comp_pkgs=(p7zip-full p7zip-rar)
     fi
 
     _msg "Essential Pack" \
@@ -21,7 +21,7 @@ _quick_install() {
 
     local quick_pkgs=(
         zip unzip rar unrar
-        $comp_pkgs
+        "${comp_pkgs[@]}"
         "$fetch_pkg" htop inxi curl wget ufw
         ca-certificates gnupg lsb-release
     )

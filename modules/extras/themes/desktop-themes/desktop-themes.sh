@@ -41,6 +41,10 @@ _cat_themes() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Desktop Themes (GTK/KDE)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -48,6 +52,9 @@ _cat_themes() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Desktop themes installed.${NC}"
 }

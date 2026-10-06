@@ -2,16 +2,23 @@
 
 ### 1. What does this component do?
 
-This component manages both desktop environments and display managers. Desktop Environment installs XFCE/LXDE with polkit integration; Display Manager handles LightDM, GDM3, SDDM, and greetd (login screens). It handles autologin setup, user list visibility toggles, and a specific Wayland override for NVIDIA GPUs. Desktop Environment management supports **XFCE** (full / minimal / Wayland `labwc` on Trixie / custom) and **LXDE** (full / core), with polkit rules for suspend/backlight.
+This component manages both desktop environments and display managers. Desktop Environment installs **GNOME, KDE Plasma, XFCE, or LXDE**; Display Manager handles LightDM, GDM3, SDDM, and greetd (login screens). It handles autologin setup, user list visibility toggles, and a specific Wayland override for NVIDIA GPUs. Desktop Environment management supports **XFCE** (full / minimal / Wayland `labwc` on Trixie / custom), **LXDE** (full / core), **GNOME** (full / core) and **KDE Plasma** (full / minimal), with polkit rules for suspend/backlight where applicable.
+
+**Modular layout:** the menu, the shared helpers (`_existing_display_manager`, `_offer_pipewire_after_desktop`) and the display-manager configuration routines live in `modules/desktop_display.sh`; every desktop installer lives in its own module under `modules/desktops/` (`desktop_xfce.sh`, `desktop_lxde.sh`, `desktop_gnome.sh`, `desktop_kde.sh`), lazily loaded on demand via `_load_module`.
 
 ### 2. Logical Flow of Execution
 
 The execution logic is divided into five functional blocks:
 
-**Block 1 — Desktop & Display Menu**
+**Block 1 — Desktop Environment Selection & Installation**
 
 - The main menu (`manage_desktop_display` in `desktop_display.sh`) offers two primary options: `1  Desktop Environment` and `2  Display Manager` (plus `3  Back to main menu`).
-- **Desktop Environment** opens `desktop_environment_menu` — XFCE or LXDE.
+- **Desktop Environment** opens `desktop_environment_menu` with four environments:
+  1. **XFCE** — full / minimal / Wayland (`labwc`, Debian 13 only) / custom package checklist.
+  2. **LXDE** — full / core.
+  3. **GNOME** — full (`gnome`) / core (`gnome-core`), with GDM3.
+  4. **KDE Plasma** — full (`kde-standard`) / minimal (`kde-plasma-desktop`), with SDDM.
+- Each environment lives in its own module under `modules/desktops/` and is lazy-loaded from the menu dispatch with `_load_module xfce|lxde|gnome|kde` (dependencies: `desktop_display` + `audio`).
 - **Display Manager** opens `display_manager_menu` — LightDM, GDM3, SDDM, and greetd (12/13 only).
 - **Available Managers:**
   - LightDM (available on all Debian versions).
@@ -68,6 +75,10 @@ The component utilizes several intelligent automation features:
 - **greetd Backports:** On Bookworm, `tuigreet` is installed from backports (newer version) if not already enabled in the system.
 - **Manual Config Warning:** The script explicitly informs users that greetd requires manual configuration and points to man pages for further details.
 - **User Detection:** Uses `SUDO_USER` (the real user who ran sudo) instead of `$USER` (which is root during script execution). This ensures the correct user is set for automatic login across all display managers.
+- **Pre-apply Summary:** every desktop installer shows a confirmation list of the packages (`_confirm_install_list`) before any debconf or apt transaction starts; declining aborts safely.
+- **Existing DM Preservation:** the GNOME and KDE installers detect the current default display manager (`_existing_display_manager` reads `/etc/X11/default-display-manager`, falling back to an enabled DM systemd unit), preseed that manager instead of the new one, and skip `systemctl enable` so an already-configured login screen is never overwritten.
+- **PipeWire Offer:** after any desktop install (XFCE, LXDE, GNOME, KDE), `_offer_pipewire_after_desktop` checks for `pipewire-audio` (`pipewire` on Bullseye) and, when missing, asks once before running `_install_pipewire_standard`. Declining is a choice, not an error: the helper always returns 0.
+- **Stale-lists Guard:** `_ensure_apt_updated` runs before the GNOME/KDE `apt install` transactions, refreshing the package lists at most once per session.
 
 ### 4. Packages and Resources Managed
 
@@ -83,6 +94,18 @@ The component utilizes several intelligent automation features:
 | greetd + gtk-greet | greetd, gtk-greet | 13 only |
 | greetd + nwg-hello | greetd, nwg-hello | 13 only |
 | greetd + wlgreet | greetd, wlgreet | 13 only |
+
+**Desktop Environment Packages:**
+
+| Environment | Variant | Packages | Display Manager |
+| --- | --- | --- | --- |
+| XFCE | Full | xfce4, xfce4-goodies, xfce4-power-manager | not managed by the installer |
+| XFCE | Minimal | xfce4 | not managed by the installer |
+| XFCE | Wayland (13 only) | xfce4, labwc | not managed by the installer |
+| XFCE | Custom | user-selected checklist | not managed by the installer |
+| LXDE | Full / Core | lxde / lxde-core | lightdm (always) |
+| GNOME | Full / Core | gnome / gnome-core | gdm3 (installed; existing DM kept as default) |
+| KDE Plasma | Full / Minimal | kde-standard / kde-plasma-desktop | sddm (installed; existing DM kept as default) |
 
 **Configuration Files Modified:**
 

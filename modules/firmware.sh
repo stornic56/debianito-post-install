@@ -158,10 +158,9 @@ _handle_wireless() {
     fi
 
     for dev in "${PCI_NET_DEVS[@]}"; do
-        local bcm_id dev_id
+        local bcm_id
         bcm_id=$(echo "$dev" | grep -oP '14e4:[0-9a-fA-F]+' || true)
         [ -z "$bcm_id" ] && continue
-        dev_id=$(echo "$bcm_id" | cut -d: -f2 | tr '[:upper:]' '[:lower:]')
 
         # --- Dependencies verification ---
         if ! is_installed "linux-headers-amd64" || ! is_installed "dkms"; then
@@ -208,11 +207,11 @@ _handle_wireless() {
         fi
 
         # --- Post-DKMS verification (Fix 5, unchanged) ---
-        if ! ls /lib/modules/$(uname -r)/updates/dkms/wl.ko* 2>/dev/null | grep -q .; then
+        if ! compgen -G "/lib/modules/$(uname -r)/updates/dkms/wl.ko*" >/dev/null; then
             _msg "Broadcom DKMS Build Failed" "The wl module was not built by DKMS.\n\nPossible causes:\n- Missing build tools (build-essential, dkms)\n- Kernel update without headers\n- Incompatible kernel version\n\nTry: sudo dpkg-reconfigure broadcom-sta-dkms"
             if _confirm "Broadcom" "Rebuild the Broadcom driver now?"; then
                 _run_cmd "Broadcom" "sudo dpkg-reconfigure broadcom-sta-dkms" || true
-                if ls /lib/modules/$(uname -r)/updates/dkms/wl.ko* 2>/dev/null | grep -q .; then
+                if compgen -G "/lib/modules/$(uname -r)/updates/dkms/wl.ko*" >/dev/null; then
                     :
                 else
                     local dmesg_out
@@ -232,7 +231,7 @@ _handle_wireless() {
         sudo modprobe -r b43 b43legacy b44 bcma brcmsmac brcmfmac ssb wl 2>/dev/null || true
         sudo modprobe wl 2>/dev/null || true
 
-        # --- Verificación de carga ---
+        # --- Load verification ---
         if lsmod | grep -q '^wl '; then
             echo -e "${GREEN}[+] Broadcom WiFi activated (wl module loaded).${NC}"
             _pause

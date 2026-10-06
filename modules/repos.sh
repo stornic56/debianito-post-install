@@ -135,7 +135,7 @@ _write_deb822() {
     fi
 
     # On migration from classic, disable the old file
-    if [ "$action" = "migrate" ] && [ "$bp_location" = "embedded-classic" -o "$bp_location" = "standalone-classic" ]; then
+    if [ "$action" = "migrate" ] && { [ "$bp_location" = "embedded-classic" ] || [ "$bp_location" = "standalone-classic" ]; }; then
         if [ -f /etc/apt/sources.list ]; then
             if _confirm "Disable Classic" "Migrating to deb822. Disable /etc/apt/sources.list?"; then
                 sudo mv /etc/apt/sources.list /etc/apt/sources.list.disabled

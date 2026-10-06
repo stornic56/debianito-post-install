@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # software_centers.sh — Standalone Software Center + Flatpak installer
 
 _cat_software_centers() {
@@ -39,6 +40,10 @@ _cat_software_centers() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Software Center & Flatpak" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
             gnome-software)
@@ -100,6 +105,9 @@ and may look visually inconsistent with your current desktop environment."
                 ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Software center & Flatpak setup complete.${NC}"
 }

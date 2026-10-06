@@ -38,6 +38,10 @@ _cat_terminals() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$choices" | tr -d '"' | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Terminals" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -45,5 +49,8 @@ _cat_terminals() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Terminals installed.${NC}"
 }

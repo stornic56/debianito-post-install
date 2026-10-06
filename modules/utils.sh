@@ -4,23 +4,28 @@
 # ------------------
 # Global variables
 # ------------------
-CPU_SUMMARY=""
-RAM_SUMMARY=""
-GPU_TYPE=""
-GPU_DESC=""
-GPU_VERSION=""
-INTEL_GPU_DEVICE_ID=""
-NVIDIA_GPU_DEVICE_ID=""
-HAS_NVIDIA=false
-HAS_AMD=false
-HAS_INTEL=false
-HAS_AMD_LEGACY_GCN=false
-KERNEL_VERSION=""
-DISPLAY_SERVER="unknown"
-STORAGE_SUMMARY=""
-WIFI_CHIPSET=""
-DESKTOP_ENV=""
-AUDIO_SERVER=""
+# Session state shared with every lazily-loaded module:
+# exported so shellcheck sees the cross-file usage (SC2034).
+export CPU_SUMMARY=""
+export RAM_SUMMARY=""
+export GPU_TYPE=""
+export GPU_DESC=""
+export GPU_VERSION=""
+export INTEL_GPU_DEVICE_ID=""
+export NVIDIA_GPU_DEVICE_ID=""
+export HAS_NVIDIA=false
+export HAS_AMD=false
+export HAS_INTEL=false
+export HAS_AMD_LEGACY_GCN=false
+export KERNEL_VERSION=""
+export DISPLAY_SERVER="unknown"
+export STORAGE_SUMMARY=""
+export WIFI_CHIPSET=""
+export DESKTOP_ENV=""
+export AUDIO_SERVER=""
+# OS identity populated by detect_debian_version(); read by
+# every module (SC2034).
+export DEBIAN_VERSION=""
 
 # APT update deduplication flag (set to 1 after the first successful apt-get update)
 APT_UPDATED=0
@@ -35,6 +40,12 @@ STATE_DETECTED=0
 # Network check result cache: 0 = online, 1 = offline,
 # empty = not checked yet (checked on first use).
 _NET_STATUS=""
+
+# Pre-apply summary support: countdown of installs whose
+# per-package prompt was already confirmed by
+# _confirm_install_list. 0 = every _install_pkg asks
+# individually (the default, safe behavior).
+_SELECTION_CONFIRMED=0
 
 # Lazy module registry (presence of a key = loaded).
 # Populated by _load_module() so every module is
@@ -67,6 +78,10 @@ _load_module() {
         audio)        path="${MODULES_DIR}/system/audio.sh" ;;
         java)         path="${MODULES_DIR}/extras/java.sh" ;;
         repo_detect)  path="${MODULES_DIR}/repos/repo_detect.sh" ;;
+        gnome)        path="${MODULES_DIR}/desktops/desktop_gnome.sh" ;;
+        kde)          path="${MODULES_DIR}/desktops/desktop_kde.sh" ;;
+        xfce)         path="${MODULES_DIR}/desktops/desktop_xfce.sh" ;;
+        lxde)         path="${MODULES_DIR}/desktops/desktop_lxde.sh" ;;
         *)            path="${MODULES_DIR}/${name}.sh" ;;
     esac
 
@@ -78,7 +93,11 @@ _load_module() {
         firmware)        deps=(repo_detect bluetooth repos) ;;
         gaming)          deps=(repo_detect java repos) ;;
         extras)          deps=(java) ;;
-        desktop_display) deps=(repos) ;;
+        desktop_display) deps=(repos audio) ;;
+        gnome)           deps=(desktop_display audio) ;;
+        kde)             deps=(desktop_display audio) ;;
+        xfce)            deps=(desktop_display audio) ;;
+        lxde)            deps=(desktop_display audio) ;;
     esac
 
     local dep
@@ -120,10 +139,10 @@ check_sudo() {
 _ensure_time_synced() {
     command -v timedatectl &>/dev/null || return
 
-    # ── Paso 1: Forzar NTP activo ──
+    # ── Step 1: Force NTP active ──
     sudo timedatectl set-ntp true --no-ask-password 2>/dev/null || true
 
-    # ── Paso 2: Validar zona horaria ──
+    # ── Step 2: Validate timezone ──
     local tz
     tz=$(timedatectl show -p Timezone --value 2>/dev/null || echo "")
     if [ -z "$tz" ] || [ "$tz" = "n/a" ] || [ "$tz" = "Etc/UTC" ]; then
@@ -137,14 +156,14 @@ _ensure_time_synced() {
         fi
     fi
 
-    # ── Paso 3: Instalar/asegurar systemd-timesyncd ──
+    # ── Step 3: Install/ensure systemd-timesyncd ──
     if ! is_installed systemd-timesyncd; then
         sudo DEBIAN_FRONTEND=noninteractive apt install -y systemd-timesyncd || true
     fi
     sudo systemctl enable systemd-timesyncd 2>/dev/null || true
     sudo systemctl restart systemd-timesyncd 2>/dev/null || true
 
-    # ── Paso 4: Verificar resultado ──
+    # ── Step 4: Verify result ──
     sleep 2
     if timedatectl show --property=NTPSynchronized --value 2>/dev/null | grep -q yes; then
         echo -e "${GREEN}Time synchronized: $(date '+%Y-%m-%d %H:%M')${NC}"
@@ -421,7 +440,7 @@ detect_network() {
             ETH_IPS+=("${ip4:-}")
             ETH_DESCS+=("${ETH_DESC:-}")
             ;;
-        wl* | wlp* | wlo* | wlan*)
+        wl*)
             ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
             ssid=""
             [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
@@ -543,9 +562,9 @@ get_intel_generation() {
 
 # ----------------------------------------------------------------------
 # Check if backports repository is enabled (active line without #)
-# Nota: el flujo NVIDIA Debian 12 (Bookworm) ya NO usa esta función
-# (backports EOL 2026-08-09). Sigue activa para kernels, desktop/greetd,
-# gaming, audio, comunicación y Mesa (AMD/Intel).
+# Note: the Debian 12 (Bookworm) NVIDIA flow no longer uses this function
+# (backports EOL 2026-08-09). Still active for kernels, desktop/greetd,
+# gaming, audio, communication and Mesa (AMD/Intel).
 # ----------------------------------------------------------------------
 is_backports_enabled() {
     local codename="${DEBIAN_CODENAME:-}"
@@ -742,6 +761,42 @@ _run_install_batch() {
     fi
 }
 
+# Pre-apply summary: confirm a parsed selection before
+# any apt transaction starts. On success it arms
+# _SELECTION_CONFIRMED (a countdown) so _install_pkg
+# skips its per-package prompt; checklist flows reset
+# the counter to 0 after their install loop.
+_confirm_install_list() {
+    local title="$1"
+    shift
+    local -a items=("$@")
+    [ ${#items[@]} -eq 0 ] && return 1
+
+    local list=""
+    local shown=0
+    local max_show=15
+    local item
+    for item in "${items[@]}"; do
+        if [ "$shown" -lt "$max_show" ]; then
+            list+="  - ${item}\n"
+            shown=$((shown + 1))
+        fi
+    done
+    local hidden=$(( ${#items[@]} - shown ))
+    if [ "$hidden" -gt 0 ]; then
+        list+="\n  ... and ${hidden} more package(s)\n"
+    fi
+    list+="\nProceed with the installation?"
+
+    local height=$(( shown + 8 ))
+    [ "$height" -gt 24 ] && height=24
+    if _confirm "$title" "$list" "$height" 65; then
+        _SELECTION_CONFIRMED=${#items[@]}
+        return 0
+    fi
+    return 1
+}
+
 # Install a package with confirmation prompt.
 # Handles set -e: failures are caught and reported, not fatal.
 _install_pkg() {
@@ -749,9 +804,16 @@ _install_pkg() {
     local ver
     ver=$(_get_pkg_version "$pkg")
     [ -z "$ver" ] && ver="(version unknown)"
-    if _confirm "Install: ${pkg}" "Install ${pkg}\nVersion: ${ver}?"; then
-        _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
+    # Pre-apply summary support: when a checklist flow has
+    # confirmed its full selection (_confirm_install_list),
+    # the per-package prompt is already answered — the
+    # countdown expires after exactly N installs.
+    if [ "$_SELECTION_CONFIRMED" -gt 0 ]; then
+        _SELECTION_CONFIRMED=$((_SELECTION_CONFIRMED - 1))
+    elif ! _confirm "Install: ${pkg}" "Install ${pkg}\nVersion: ${ver}?"; then
+        return 0
     fi
+    _run_cmd "Install" "sudo DEBIAN_FRONTEND=noninteractive apt install -y $pkg" "Installing $pkg..."
 }
 
 # Install a package if not already installed.

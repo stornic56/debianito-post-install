@@ -77,6 +77,10 @@ _cat_communication() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Communication" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
         signal-desktop) _install_signal ;;
@@ -91,5 +95,8 @@ _cat_communication() {
             ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Communication tools installed.${NC}"
 }

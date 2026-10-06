@@ -2,11 +2,14 @@
 # Debianito — simple configurator script
 set -euo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-CYAN='\033[0;36m'
-NC='\033[0m'
+# Colour palette shared with every lazily-loaded module:
+# exported so shellcheck sees them as cross-file globals
+# (SC2034) instead of unused locals.
+export RED='\033[0;31m'
+export GREEN='\033[0;32m'
+export YELLOW='\033[1;33m'
+export CYAN='\033[0;36m'
+export NC='\033[0m'
 
 # TUI dimensions — fixed centered size for whiptail dialogs
 TUI_ALTO=20
@@ -15,6 +18,49 @@ TUI_ALTO_LISTA=10
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MODULES_DIR="${SCRIPT_DIR}/modules"
+
+# ── CLI flags (unattended mode) ──
+# --yes: auto-confirm every prompt. Menus still
+# display; only _confirm-style prompts auto-accept.
+# --allow-destructive: lift the safety gate on
+# destructive operations (e.g. branch migration).
+# CLI flags consumed by the TUI helpers in modules/utils.sh
+# (_confirm auto-accepts) and by destructive-operation gates.
+# Exported because they are cross-file globals (SC2034).
+export AUTO_YES=0
+export ALLOW_DESTRUCTIVE=0
+
+_usage() {
+    cat <<'EOF'
+Usage: debianito.sh [OPTIONS]
+
+Debian post-installation configurator (Debian 11/12/13).
+
+Options:
+  --yes                  Auto-confirm all prompts (unattended mode).
+                        Menus still require interaction.
+  --allow-destructive    Allow destructive operations (e.g. branch
+                        migration) without an extra safety gate.
+  --help                 Show this help and exit.
+
+Examples:
+  ./debianito.sh --yes
+  ./debianito.sh --yes --allow-destructive
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --yes) AUTO_YES=1 ;;
+        --allow-destructive) ALLOW_DESTRUCTIVE=1 ;;
+        --help|-h) _usage; exit 0 ;;
+        *)
+            echo "Unknown option: $1 (run with --help for usage)" >&2
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 # Boot profiling: DEBIANITO_PROFILE=1 stamps each boot
 # step to stderr for before/after comparison.
@@ -62,7 +108,7 @@ _on_interrupt() {
 trap _on_interrupt INT TERM
 
 DEBIAN_VERSION=""
-DEBIAN_CODENAME=""
+export DEBIAN_CODENAME=""
 
 main_menu() {
     # Auto-adjust TUI dimensions for small terminals
@@ -106,7 +152,7 @@ main_menu() {
             ;;
         3)
             _load_module system_prefs || continue
-            _system_preferences_menu
+            _system_preferences_menu || true
             STATE_REFRESHED=true
             ;;
         4)

@@ -2,8 +2,6 @@
 # dev.sh — Development & Servers (extrepo, zenmap, fail2ban, ufw moved out)
 
 _cat_dev() {
-    local headless=false
-    _is_headless && headless=true
     local -a items=()
     local apache_state;   apache_state=$(_state "apache2")
     local build_state;    build_state=$(_state "build-essential")
@@ -55,6 +53,10 @@ _cat_dev() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Development & Servers" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
             python3-pip)
@@ -93,6 +95,9 @@ _cat_dev() {
                 ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Development tools and servers installed.${NC}"
 }

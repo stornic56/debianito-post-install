@@ -4,22 +4,22 @@
 # CASE A : Trixie + backports kernel → Official NVIDIA CUDA Repo (Pinned v590)
 # CASE B : Kernel stable (any distro) → Debian stable
 #
-# Nota: Debian 12 (Bookworm) backports llegaron a EOL (2026-08-09);
-# el flujo NVIDIA solo usa el repositorio estable para Debian 12.
+# Note: Debian 12 (Bookworm) backports reached EOL (2026-08-09);
+# the NVIDIA flow only uses the stable repo for Debian 12.
 
 # -------------------------------------------------------------------
 # Shared helper: enable NVIDIA CUDA repo
-#   Debian 13 (Trixie): cuda-keyring (método oficial — extrepo roto)
-#   Debian 12 (Bookworm): extrepo nvidia-cuda (funciona)
+#   Debian 13 (Trixie): cuda-keyring (official method — broken extrepo)
+#   Debian 12 (Bookworm): extrepo nvidia-cuda (works)
 # -------------------------------------------------------------------
 _enable_cuda_repo() {
     _is_cuda_repo_ready && return 0
 
     if [ "$DEBIAN_VERSION" = "13" ]; then
-        # Método oficial NVIDIA: cuda-keyring (extrepo no configura
-        # correctamente el repo en Trixie)
+        # Official NVIDIA method: cuda-keyring (extrepo does not
+        # configure the repo correctly on Trixie)
         if dpkg -s cuda-keyring &>/dev/null; then
-            return 0 # ya instalado → su .list ya existe
+            return 0 # already installed → its .list already exists
         fi
         local tmp_deb
         tmp_deb=$(mktemp "${TMPDIR:-/tmp}/cuda-keyring.XXXXXX.deb") || return 1
@@ -65,10 +65,10 @@ _nvidia_secure_boot_enabled() {
     mokutil --sb-state 2>/dev/null | grep -q "SecureBoot enabled"
 }
 
-# Aviso no fatal: el módulo DKMS está compilado pero NO firmado.
-# El usuario avanzado puede firmarlo con MOK; el novato necesita saber
-# por qué verá pantalla negra tras reiniciar. Si mokutil falta, no se
-# muestra nada (mokutil no viene preinstalado en Debian).
+# Non-fatal notice: the DKMS module is compiled but NOT signed.
+# Advanced users can sign it with MOK; novices need to know why
+# they will see a black screen after reboot. If mokutil is missing,
+# nothing is shown (mokutil is not preinstalled on Debian).
 _warn_secure_boot() {
     if _nvidia_secure_boot_enabled; then
         echo -e "${RED}WARNING: Secure Boot is enabled. The NVIDIA DKMS module is compiled but NOT signed.${NC}"
@@ -164,13 +164,13 @@ _show_nvidia_version_menu() {
 # -------------------------------------------------------------------
 # NVIDIA Wayland/KMS base configuration (/etc/modprobe.d/nvidia-wayland.conf)
 # Applies on Debian 12/13, any driver version (535/550/590/595).
-# Arquitectura y detección híbrida son ORTOGONALES:
-#   - Arquitectura → afecta SOLO fbdev (kepler: el 470 no lo soporta)
-#     y el color/mensaje informativo.
-#   - Híbrida vs desktop → afecta NVreg (Preserve / kernel suspend
-#     notifier), INDEPENDIENTE de la arquitectura.
-# 590/595 añaden el kernel suspend notifier (complementa, nunca
-# reemplaza, NVreg_PreserveVideoMemoryAllocations).
+# Architecture and hybrid detection are ORTHOGONAL:
+#   - Architecture → affects ONLY fbdev (kepler: the 470 does not
+#     support it) and the color/info message.
+#   - Hybrid vs desktop → affects NVreg (Preserve / kernel suspend
+#     notifier), INDEPENDENT of architecture.
+# 590/595 add the kernel suspend notifier (complements, never
+# replaces, NVreg_PreserveVideoMemoryAllocations).
 # -------------------------------------------------------------------
 _configure_nvidia_wayland() {
     local ver="${1:-$NVIDIA_SELECTED_VERSION}"
@@ -181,7 +181,7 @@ _configure_nvidia_wayland() {
     local msg="Wayland config (desktop): KMS + video memory preservation enabled."
     arch=$(_get_nvidia_arch_family)
 
-    # ── Arquitectura: solo fbdev y mensaje de color ──
+    # ── Architecture: fbdev only and color message ──
     case "$arch" in
     kepler)
         color="${RED}"
@@ -193,7 +193,7 @@ _configure_nvidia_wayland() {
         ;;
     esac
 
-    # ── Híbrida vs desktop: NVreg independiente de la arquitectura ──
+    # ── Hybrid vs desktop: NVreg independent of architecture ──
     if _is_hybrid_laptop; then
         content="options nvidia-drm modeset=1"$'\n'
         [ "$arch" != "kepler" ] && content+="options nvidia-drm fbdev=1"$'\n'
@@ -236,8 +236,9 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 2: apt update explícito — sin índice actualizado el repo no
-    # se ve y apt resolvería el candidato Debian (v550) en vez de v${ver}.
+    # Step 2: explicit apt update — without an updated index the repo
+    # is invisible and apt would resolve the Debian candidate (v550)
+    # instead of v${ver}.
     if ! _run_cmd "CUDA Repo" "sudo apt update" \
         "Updating package lists after enabling CUDA repository..."; then
         NVIDIA_DRIVER_MODE=""
@@ -245,12 +246,12 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 3: Pinning oficial — transacción APT INDEPENDIENTE y
-    # obligatoria. APT lee /etc/apt/preferences.d/ al inicio de su
-    # ejecución, no durante la transacción: el pinning debe estar
-    # instalado ANTES de instalar el driver. Si el repo no lo publica,
-    # es un problema del repo de NVIDIA: abortar limpiamente en vez de
-    # instalar una versión que el usuario no eligió.
+    # Step 3: Official pinning — INDEPENDENT and mandatory APT
+    # transaction. APT reads /etc/apt/preferences.d/ at startup, not
+    # during the transaction: the pinning must be installed BEFORE
+    # installing the driver. If the repo does not publish it, it is
+    # an NVIDIA repo problem: abort cleanly instead of installing a
+    # version the user did not choose.
     if ! _run_cmd "NVIDIA Pinning" \
         "sudo apt install -y nvidia-driver-pinning-${ver}" \
         "Installing NVIDIA version pinning (${ver})..."; then
@@ -259,11 +260,11 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Step 4: Instalar el metapaquete (pinning ya activo). Si falla,
-    # el pinning queda instalado (solo config, no es problema).
-    # firmware-nvidia-gsp llega como dependencia transitiva obligatoria
+    # Step 4: Install the metapackage (pinning already active). If it
+    # fails, the pinning remains installed (config only, not a problem).
+    # firmware-nvidia-gsp arrives as a mandatory transitive dependency
     # (nvidia-open → nvidia-kernel-open-dkms → firmware-nvidia-gsp),
-    # alineado con la doc oficial: apt -V install nvidia-open.
+    # aligned with the official docs: apt -V install nvidia-open.
     if ! _run_cmd "NVIDIA CUDA" \
         "sudo apt install -y nvidia-open" \
         "Installing NVIDIA driver from CUDA repository..."; then
@@ -272,7 +273,7 @@ _install_nvidia_cuda_repo() {
         return 1
     fi
 
-    # Post-install: el módulo DKMS instalado debe coincidir con la rama ${ver}
+    # Post-install: the installed DKMS module must match the ${ver} branch
     local dkms_ver
     dkms_ver=$(dpkg -l nvidia-kernel-dkms nvidia-kernel-open-dkms 2>/dev/null | awk '$1=="ii" {print $3; exit}')
     if [[ "$dkms_ver" == ${ver}.* ]]; then
@@ -288,7 +289,7 @@ _install_nvidia_cuda_repo() {
 }
 
 # -------------------------------------------------------------------
-# Bookworm Kepler intercepción — fuerza nvidia-legacy-470xx-driver
+# Bookworm Kepler interception — forces nvidia-legacy-470xx-driver
 # -------------------------------------------------------------------
 _install_nvidia_bookworm_kepler() {
     local nv_pkg="nvidia-tesla-470-driver"
@@ -297,26 +298,26 @@ _install_nvidia_bookworm_kepler() {
 
     echo -e "${YELLOW}Kepler GPU detected — forcing ${nv_pkg}.${NC}"
 
-    local msg="Kepler GPU detectada (GKxxx).\n\n"
-    msg+="En Debian 12 Bookworm, Kepler requiere el driver legacy\n"
-    msg+="en lugar del moderno. Se usará el paquete:\n"
+    local msg="Kepler GPU detected (GKxxx).\n\n"
+    msg+="On Debian 12 Bookworm, Kepler requires the legacy\n"
+    msg+="driver instead of the modern one. Using package:\n"
     msg+="  ${nv_pkg}  ${nv_ver:-unknown}\n"
-    msg+="para evitar fallos de pantalla negra.\n\n"
+    msg+="to avoid black-screen failures.\n\n"
     msg+="  [USE]  ${nv_pkg}\n"
     msg+="  [+]   linux-headers-amd64\n"
     msg+="  [+]   firmware-misc-nonfree\n"
     msg+="  [+]   nvidia-settings\n\n"
-    msg+="Instalar driver legacy para Kepler?"
+    msg+="Install the legacy driver for Kepler?"
 
     if ! _confirm_custom "NVIDIA Kepler — Bookworm" "$msg" "Install" "Skip" 14 70; then
-        echo "Omitiendo driver Kepler."
+        echo "Skipping Kepler driver."
         NVIDIA_DRIVER_MODE=""
         return 0
     fi
 
     if ! _run_cmd "NVIDIA Kepler" \
         "sudo apt install -y linux-headers-amd64 $nv_pkg firmware-misc-nonfree nvidia-settings" \
-        "Instalando nvidia-legacy-470xx-driver..."; then
+        "Installing nvidia-legacy-470xx-driver..."; then
         NVIDIA_DRIVER_MODE=""
         _msg "NVIDIA Kepler — Error" "Kepler driver installation FAILED.\n\nNo NVIDIA driver was installed." 10 60
         return 1
@@ -332,10 +333,10 @@ _install_nvidia_bookworm_kepler() {
 # CASE B: Kernel stable (any distro) → Debian stable
 # -------------------------------------------------------------------
 _install_nvidia_standard() {
-    # --- 1. ARQUITECTURA → MÓDULO KERNEL ---
-    # Solo Turing+ (conocido) usa el módulo abierto. Arquitectura
-    # unknown/vacía o antigua (Kepler/Fermi/Maxwell/Pascal/Volta) →
-    # módulo cerrado como fallback seguro.
+    # --- 1. ARCHITECTURE → KERNEL MODULE ---
+    # Only Turing+ (known) uses the open module. Unknown/empty or
+    # old architecture (Kepler/Fermi/Maxwell/Pascal/Volta) →
+    # closed module as safe fallback.
     local fam
     fam=$(_get_nvidia_arch_family)
     local kernel_pkg="nvidia-kernel-dkms"
@@ -343,12 +344,12 @@ _install_nvidia_standard() {
     turing | ampere | ada | blackwell) kernel_pkg="nvidia-open-kernel-dkms" ;;
     esac
 
-    # --- 2. PAQUETES — UN SOLO apt install ---
+    # --- 2. PACKAGES — a single apt install ---
     local extra_pkgs="linux-headers-amd64 nvidia-driver firmware-nvidia-gsp nvidia-vaapi-driver"
     [ "$DEBIAN_VERSION" = "12" ] && extra_pkgs+=" mesa-vdpau-drivers"
     local install_pkgs="$kernel_pkg $extra_pkgs"
 
-    # --- 3. MENSAJE DE CONFIRMACIÓN ---
+    # --- 3. CONFIRMATION MESSAGE ---
     local kernel_ver msg
     kernel_ver=$(apt-cache policy "$kernel_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}') || true
 
@@ -364,7 +365,7 @@ _install_nvidia_standard() {
         return 0
     fi
 
-    # --- 4. EJECUCIÓN ---
+    # --- 4. EXECUTION ---
     if ! _run_cmd "NVIDIA" "sudo apt install -y $install_pkgs" \
         "Installing NVIDIA driver from stable..."; then
         NVIDIA_DRIVER_MODE=""
@@ -373,13 +374,13 @@ _install_nvidia_standard() {
     fi
     NVIDIA_DRIVER_MODE="stable"
 
-    # Fix obligatorio para Debian 12 con módulo abierto
+    # Mandatory fix for Debian 12 with the open module
     if [ "$DEBIAN_VERSION" = "12" ] && [[ "$kernel_pkg" == *"open"* ]]; then
         echo "options nvidia NVreg_OpenRmEnableUnsupportedGpus=1" | sudo tee /etc/modprobe.d/nvidia-open.conf >/dev/null
         echo "Applied required Open RM parameter for Debian 12."
     fi
 
-    # --- 5. VERIFICACIÓN DKMS POST-INSTALL ---
+    # --- 5. DKMS POST-INSTALL VERIFICATION ---
     echo -e "${GREEN}NVIDIA driver installed. Reboot required.${NC}"
     _verify_nvidia_dkms_build "$kernel_pkg" || true
 }

@@ -27,9 +27,9 @@ desktop_environment_menu() {
         local -a env_items=()
         env_items+=("1" "XFCE")
         env_items+=("2" "LXDE")
-        env_items+=("3" "Back")
-        # Future desktop environments: add "3" "GNOME", "4" "KDE", ... here
-        # and a matching case below calling its own menu (e.g. gnome_menu).
+        env_items+=("3" "GNOME")
+        env_items+=("4" "KDE Plasma")
+        env_items+=("5" "Back")
         local choice
         choice=$(_menu "Desktop Environment" \
             "Select a desktop environment:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
@@ -37,153 +37,25 @@ desktop_environment_menu() {
         [ -z "$choice" ] && break
         clear
         case "$choice" in
-        1) xfce_menu ;;
-        2) lxde_menu ;;
-        3) break ;;
-        esac
-    done
-}
-
-lxde_menu() {
-    local choice
-    choice=$(_radiolist "LXDE" \
-        "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "1" "LXDE (Escritorio completo)" OFF \
-        "2" "LXDE Core (Instalación mínima)" OFF)
-    [ -z "$choice" ] && return 0
-    clear
-    case "$(echo "$choice" | tr -d '"')" in
-    1) _install_lxde_full ;;
-    2) _install_lxde_core ;;
-    esac
-}
-
-_install_lxde_full() {
-    echo -e "${GREEN}Installing LXDE (Full) + LightDM...${NC}"
-    echo "lightdm shared/default-x-display-manager select lightdm" | sudo debconf-set-selections
-    _run_cmd "LXDE Full" "sudo apt install -y lxde lightdm" \
-        "Installing LXDE (Full Meta Package) + LightDM..."
-    sudo systemctl enable lightdm
-    echo -e "${GREEN}LXDE installed. LightDM enabled.${NC}"
-}
-
-_install_lxde_core() {
-    echo -e "${GREEN}Installing LXDE Core + LightDM...${NC}"
-    echo "lightdm shared/default-x-display-manager select lightdm" | sudo debconf-set-selections
-    _run_cmd "LXDE Core" "sudo apt install -y lxde-core lightdm" \
-        "Installing LXDE Core (Minimal) + LightDM..."
-    sudo systemctl enable lightdm
-    echo -e "${GREEN}LXDE Core installed. LightDM enabled.${NC}"
-}
-
-xfce_menu() {
-    while true; do
-        local -a xf_items=()
-        xf_items+=("1" "XFCE (Full Meta Package)")
-        xf_items+=("2" "XFCE (Minimal Core)")
-        [ "$DEBIAN_VERSION" = "13" ] && xf_items+=("3" "XFCE Wayland (Experimental — labwc)")
-        xf_items+=("4" "XFCE Custom (Choose packages)")
-        xf_items+=("5" "Back")
-        local choice
-        choice=$(_menu "XFCE" \
-            "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-            "${xf_items[@]}")
-        [ -z "$choice" ] && break
-        clear
-        case "$choice" in
-        1) _install_xfce_full ;;
-        2) _install_xfce_minimal ;;
-        3) _install_xfce_wayland ;;
-        4) _install_xfce_custom ;;
+        1)
+            _load_module xfce || continue
+            xfce_menu
+            ;;
+        2)
+            _load_module lxde || continue
+            lxde_menu
+            ;;
+        3)
+            _load_module gnome || continue
+            gnome_menu
+            ;;
+        4)
+            _load_module kde || continue
+            kde_menu
+            ;;
         5) break ;;
         esac
     done
-}
-
-_install_xfce_full() {
-    _run_cmd "XFCE Full" "sudo apt install -y xfce4 xfce4-goodies xfce4-power-manager" \
-        "Installing XFCE (Full Meta Package)..."
-    _xfce_polkit_rules
-}
-
-_install_xfce_minimal() {
-    _run_cmd "XFCE Minimal" "sudo apt install -y xfce4" \
-        "Installing XFCE (Minimal Core)..."
-    _xfce_polkit_rules
-}
-
-_install_xfce_wayland() {
-    _run_cmd "XFCE Wayland" "sudo apt install -y xfce4 labwc" \
-        "Installing XFCE + labwc (Wayland, experimental)..."
-    _msg "XFCE Wayland" "labwc is EXPERIMENTAL on XFCE 4.20.\n\nAfter reboot, select the Wayland session\nfrom the login screen." 12 65
-    _xfce_polkit_rules
-}
-
-_install_xfce_custom() {
-    local -a items=()
-    for pkg in thunar xfdesktop4 xfwm4 xfce4-panel xfce4-terminal \
-        xfce4-screenshooter ristretto mousepad xfce4-session \
-        xfce4-settings xfce4-power-manager; do
-        items+=("$pkg" "$pkg" "$(_state "$pkg")")
-    done
-    local choices
-    choices=$(_checklist "XFCE Custom" \
-        "Select the XFCE packages to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "${items[@]}")
-    [ -z "$choices" ] && return
-    local cleaned
-    cleaned=$(echo "$choices" | tr -d '"')
-    [ -z "$cleaned" ] && return
-
-    # BH-004: Convert to array to avoid word splitting and injection.
-    local -a xfce_pkgs=()
-    while IFS= read -r _pkg; do
-        [ -n "$_pkg" ] && xfce_pkgs+=("$_pkg")
-    done < <(echo "$cleaned" | tr ' ' '\n')
-
-    _run_cmd "XFCE Custom" "sudo apt install -y ${xfce_pkgs[*]}" \
-        "Installing selected XFCE packages..."
-    _xfce_polkit_rules
-}
-
-_xfce_polkit_rules() {
-    is_installed xfce4-power-manager || return 0
-
-    local rules_dir="/etc/polkit-1/rules.d"
-    sudo mkdir -p "$rules_dir"
-
-    cat <<'EOF' | sudo tee "$rules_dir/85-suspend.rules" >/dev/null
-polkit.addRule(function(action, subject) {
-    if (action.id == "org.freedesktop.login1.suspend" &&
-        subject.isInGroup("users")) {
-        return polkit.Result.YES;
-    }
-});
-EOF
-    cat <<'EOF' | sudo tee "$rules_dir/89-backlight.rules" >/dev/null
-polkit.addRule(function(action, subject) {
-    if (action.id == "org.freedesktop.upower.backlight" &&
-        subject.isInGroup("backlight")) {
-        return polkit.Result.YES;
-    }
-});
-EOF
-
-    if ! getent group backlight >/dev/null 2>&1; then
-        sudo groupadd --system backlight || true
-    fi
-    # SECURITY: Validate that the target user is a real login user, not root.
-    # If SUDO_USER is empty (script run directly as root), fall back to the
-    # first non-system user from /etc/passwd, never to root.
-    local de_user="${SUDO_USER:-}"
-    if [ -z "$de_user" ] || [ "$de_user" = "root" ]; then
-        de_user=$(awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | head -1)
-    fi
-    if [ -n "$de_user" ] && ! id -nG "$de_user" 2>/dev/null | grep -qw backlight; then
-        sudo usermod -aG backlight "$de_user" || true
-    fi
-    sudo systemctl restart polkit.service 2>/dev/null || true
-    echo -e "${GREEN}Polkit rules installed (suspend + backlight). User '${de_user}' added to 'backlight' group.${NC}"
 }
 
 display_manager_menu() {
@@ -475,4 +347,51 @@ EOF
         3) return ;;
         esac
     done
+}
+
+# ── SP2 shared helpers ────────────────────────────
+
+# Print the display manager already configured as the
+# X11 default (/etc/X11/default-display-manager), or an
+# enabled DM systemd unit; print nothing when none is
+# found. Desktop installers use this to avoid overwriting
+# an existing display manager setup.
+_existing_display_manager() {
+    local dm=""
+    local dm_path=""
+    # Config path is overridable for tests (same pattern as
+    # APT_DIR): the suite must never read the real system file.
+    local dm_file="${DM_FILE:-/etc/X11/default-display-manager}"
+    if [ -s "$dm_file" ]; then
+        dm_path=$(cat "$dm_file" 2>/dev/null) || dm_path=""
+        [ -n "$dm_path" ] && dm=$(basename "$dm_path")
+    fi
+    if [ -z "$dm" ]; then
+        local cand
+        for cand in gdm3 lightdm sddm greetd gdm; do
+            if systemctl is-enabled "$cand" 2>/dev/null | grep -q '^enabled$'; then
+                dm="$cand"
+                break
+            fi
+        done
+    fi
+    printf '%s\n' "$dm"
+}
+
+# Offer the standard PipeWire audio stack right after a
+# desktop install, when no PipeWire server is present
+# yet. _install_pipewire_standard gates itself internally,
+# so no pre-prompt is needed here. Declining is a choice,
+# not an error: always ends in return 0 so it is safe as
+# the last call of an installer.
+_offer_pipewire_after_desktop() {
+    local pkg_check="pipewire-audio"
+    [ "$DEBIAN_VERSION" = "11" ] && pkg_check="pipewire"
+    is_installed "$pkg_check" && return 0
+
+    if _confirm "PipeWire Audio" \
+        "No PipeWire audio server is installed.\n\nInstall the PipeWire audio stack (recommended)?"; then
+        _install_pipewire_standard
+    fi
+    return 0
 }
