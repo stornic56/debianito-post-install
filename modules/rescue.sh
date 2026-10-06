@@ -71,7 +71,8 @@ _set_grub_var() {
 _apply_grub_setting() {
     local timeout="$1" style="$2" recordfail="$3" os_prober="$4"
     local file="/etc/default/grub"
-    local backup="${file}.backup.$(date +%Y%m%d_%H%M%S)"
+    local backup
+    backup="${file}.backup.$(date +%Y%m%d_%H%M%S)"
     local override="/etc/default/grub.d/99_script_override.cfg"
 
     sudo cp "$file" "$backup"

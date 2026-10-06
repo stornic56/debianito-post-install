@@ -52,6 +52,10 @@ _prefs_audio_menu() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Audio & Sound" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
             pipewire-audio) _install_pipewire_standard ;;
@@ -85,6 +89,8 @@ _prefs_audio_menu() {
                 ;;
         esac
     done
+
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Audio & Sound setup complete.${NC}"
 }

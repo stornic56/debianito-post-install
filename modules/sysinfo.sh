@@ -142,7 +142,7 @@ _show_sysinfo() {
             *)
                 # Fallback: classify by interface name pattern
                 case "$iface" in
-                wl* | wlp* | wlo* | wlan*)
+                wl*)
                     has_wifi=true
                     desc="${wifi_descs[$wifi_idx]:-Unknown WiFi chipset}"
                     shown_wifi_descs+=("${wifi_descs[$wifi_idx]:-$desc}")

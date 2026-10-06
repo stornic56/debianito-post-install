@@ -43,10 +43,10 @@ main menu to install proprietary firmwares." 10 65
     fw_ver=$(apt-cache policy firmware-linux-nonfree 2>/dev/null | awk 'NR==3 {print $2; exit}')
 
     if _confirm "Firmware" \
-        "firmware-linux-nonfree proporciona drivers para:\n\
+        "firmware-linux-nonfree provides drivers for:\n\
   WiFi, Bluetooth, GPU, audio, webcams, etc.\n\n\
   Version: ${fw_ver:-unknown}\n\n\
-Instalar?"; then
+Install?"; then
         _run_cmd "Firmware" "sudo apt install -y firmware-linux-nonfree" \
             "Installing firmware-linux-nonfree..."
         echo -e "${GREEN}Firmware installed.${NC}"
@@ -101,9 +101,15 @@ _cat_themes_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Desktop Themes (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Desktop themes installed.${NC}"
 }
 
@@ -133,9 +139,15 @@ _cat_icons_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Icon Themes (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Icon themes installed.${NC}"
 }
 
@@ -160,9 +172,15 @@ _cat_cursors_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Cursor Themes (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Cursor themes installed.${NC}"
 }
 
@@ -186,9 +204,15 @@ _cat_fonts_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Fonts (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         ! is_installed "$pkg" && _run_install "$pkg" || echo "$pkg already installed."
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Fonts installed.${NC}"
 }
 
@@ -231,6 +255,9 @@ _cat_download_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Downloaders & Torrent Clients (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -238,6 +265,9 @@ _cat_download_bullseye() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Download & network tools installed.${NC}"
 }
 
@@ -268,6 +298,9 @@ _cat_internet_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Internet (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
         w3m)
@@ -287,6 +320,9 @@ _cat_internet_bullseye() {
             ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Internet tools installed.${NC}"
 }
 
@@ -308,6 +344,9 @@ _cat_players_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Media Players (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -315,6 +354,9 @@ _cat_players_bullseye() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Media players installed.${NC}"
 }
 
@@ -347,6 +389,9 @@ _cat_design_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Multimedia & Design (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -354,6 +399,9 @@ _cat_design_bullseye() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Multimedia & design tools installed.${NC}"
 }
 
@@ -382,6 +430,9 @@ _cat_programming_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Code Editors & IDEs (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -389,6 +440,9 @@ _cat_programming_bullseye() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Code editors & IDEs installed.${NC}"
 }
 
@@ -422,6 +476,9 @@ _cat_dev_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Servers & Dev Tools (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
         docker)
@@ -461,6 +518,9 @@ _cat_dev_bullseye() {
             ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Servers & dev tools installed.${NC}"
 }
 _cat_security_bullseye() {
@@ -484,6 +544,9 @@ _cat_security_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Security & Networking (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
         clamav)
@@ -498,6 +561,9 @@ _cat_security_bullseye() {
             ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Security & networking tools installed.${NC}"
 }
 
@@ -539,6 +605,9 @@ _cat_general_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "System Tools (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
         compress)
@@ -612,6 +681,9 @@ _cat_general_bullseye() {
             ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}System tools installed.${NC}"
     _pause
 }
@@ -636,6 +708,9 @@ _cat_fetch_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Fetch Tools (Bullseye)" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         if ! is_installed "$pkg"; then
             _run_install "$pkg"
@@ -643,6 +718,9 @@ _cat_fetch_bullseye() {
             echo "$pkg already installed."
         fi
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
     echo -e "${GREEN}Fetch tools installed.${NC}"
 }
 

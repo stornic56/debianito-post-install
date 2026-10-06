@@ -82,17 +82,17 @@ install_nvidia_bullseye() {
     msg+="Driver: ${gpu_gen} — ${nv_pkg} ${nv_ver:-unknown}\n"
     msg+="[+] firmware-misc-nonfree\n"
     msg+="[+] nvidia-settings\n\n"
-    msg+="Instalar driver NVIDIA?"
+    msg+="Install NVIDIA driver?"
 
     if ! _confirm "NVIDIA — Bullseye" "$msg" 14 70; then
-        echo "Omitiendo driver NVIDIA."
+        echo "Skipping NVIDIA driver."
         NVIDIA_DRIVER_MODE=""
         return 0
     fi
 
     _run_cmd "NVIDIA" \
         "sudo apt install -y $nv_pkg firmware-misc-nonfree nvidia-settings" \
-        "Instalando driver NVIDIA ${gpu_gen}..."
+        "Installing NVIDIA driver ${gpu_gen}..."
 
     local i386_active=false
     dpkg --print-foreign-architectures | grep -q i386 && i386_active=true
@@ -109,8 +109,8 @@ install_nvidia_bullseye() {
         fi
     fi
 
-    NVIDIA_DRIVER_MODE="stable"
-    echo -e "${GREEN}Driver NVIDIA ${nv_pkg} instalado. Requiere reinicio.${NC}"
+    export NVIDIA_DRIVER_MODE="stable"
+    echo -e "${GREEN}NVIDIA driver ${nv_pkg} installed. Reboot required.${NC}"
 
     echo ""
     echo "──────────────────────────────────────────────"
@@ -193,6 +193,13 @@ install_gaming_bullseye() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _install_pkgs+=("$_pkg")
     done < <(echo "$install_list" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection before the
+    # package installation starts. Skipped when only the
+    # i386 pseudo-entry was selected.
+    if [ ${#_install_pkgs[@]} -gt 0 ]; then
+        _confirm_install_list "Gaming Setup — Bullseye" "${_install_pkgs[@]}" || return
+    fi
     for pkg in "${_install_pkgs[@]}"; do
         case $pkg in
         steam)
@@ -211,6 +218,9 @@ install_gaming_bullseye() {
         *) _run_install "$pkg" ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Gaming setup complete.${NC}"
     _pause

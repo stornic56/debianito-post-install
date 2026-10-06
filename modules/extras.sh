@@ -9,6 +9,9 @@ _load_extras() {
     shopt -s nullglob
     for _mod in "${_EXTRAS_DIR}"/*/*.sh "${_EXTRAS_DIR}"/*/*/*.sh; do
         [ -f "$_mod" ] || continue
+        # Dynamic module discovery (glob): the concrete paths
+        # cannot be resolved statically.
+        # shellcheck disable=SC1090
         source "$_mod"
     done
     shopt -u nullglob

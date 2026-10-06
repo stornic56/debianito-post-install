@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# repos.sh — Bullseye: repos clásicos con archive phase
+# repos.sh — Bullseye: classic repos with archive phase
 # License GPL v3
 
 configure_repos_bullseye() {

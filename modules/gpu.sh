@@ -12,9 +12,9 @@ NVIDIA_DRIVER_MODE=""
 # Set by _show_nvidia_version_menu(): "470" | "535" | "550" | "590" | "595" | "auto"
 NVIDIA_SELECTED_VERSION=""
 
-# Aviso informativo post-instalación NVIDIA: Debian bug #1109409
-# (GDM3 + NVIDIA + Wayland → pantalla negra). Solo informa, nunca
-# cambia configuración de GDM3 ni aborta la instalación.
+# Informational post-install notice: NVIDIA Debian bug #1109409
+# (GDM3 + NVIDIA + Wayland → black screen). Only informs, never
+# changes GDM3 configuration nor aborts installation.
 _warn_nvidia_gnome_wayland() {
     command -v gdm3 &>/dev/null || return 0
     gnome-shell --version 2>/dev/null | grep -qi "shell 4[0-9]" || return 0
@@ -150,7 +150,8 @@ _install_amd_intel_stack() {
 
 _apply_amd_gcn_grub_fix() {
     local file="/etc/default/grub"
-    local backup="${file}.backup.gcn.$(date +%Y%m%d_%H%M%S)"
+    local backup
+    backup="${file}.backup.gcn.$(date +%Y%m%d_%H%M%S)"
     local params="radeon.si_support=0 radeon.cik_support=0 amdgpu.si_support=1 amdgpu.cik_support=1"
 
     if grep -q "amdgpu.si_support=1" "$file" 2>/dev/null; then

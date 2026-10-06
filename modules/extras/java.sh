@@ -33,10 +33,17 @@ install_minecraft_java() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Java Runtimes for Minecraft" "${_pkgs[@]}" || return
     for ver in "${_pkgs[@]}"; do
         _run_cmd "Java" "sudo apt install -y temurin-${ver}-jre" \
             "Installing Temurin JRE ${ver}..."
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 }
 
 _install_dev_java() {

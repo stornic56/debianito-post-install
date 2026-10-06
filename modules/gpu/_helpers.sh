@@ -2,12 +2,12 @@
 # Shared helpers for GPU submodules
 
 declare -A NVIDIA_FAMILY_MAP=(
-    # Fermi / Kepler (Legacy: el shim se encarga de separarlos)
+    # Fermi / Kepler (Legacy: the shim separates them)
     ["06"]="legacy" ["0D"]="legacy" ["0E"]="legacy"
     ["0F"]="legacy" ["10"]="legacy" ["11"]="legacy" ["12"]="legacy"
     # Maxwell
     ["13"]="maxwell" ["14"]="maxwell" ["16"]="maxwell" ["17"]="maxwell"
-    # Pascal + Volta (Misma política de driver clásico)
+    # Pascal + Volta (same classic driver policy)
     ["15"]="pascal" ["1B"]="pascal" ["1C"]="pascal" ["1D"]="pascal"
     # Turing
     ["1E"]="turing" ["1F"]="turing" ["21"]="turing"
@@ -43,8 +43,8 @@ _is_nvidia_kepler_id() {
     return 1
 }
 
-# Normaliza la familia de arquitectura NVIDIA desambiguando Kepler/Fermi
-# (detect_nvidia_arch los agrupa como "legacy" vía rango de device IDs)
+# Normalizes the NVIDIA architecture family, disambiguating Kepler/Fermi
+# (detect_nvidia_arch groups them as "legacy" via device-ID range)
 _get_nvidia_arch_family() {
     local fam
     fam=$(detect_nvidia_arch "$NVIDIA_GPU_DEVICE_ID")
@@ -109,8 +109,8 @@ _install_mesa_backports() {
         fi
     done
 
-    # Mesa >= 25.3.3 unificó VA-API dentro de mesa-libgallium.
-    # mesa-va-drivers desde backports rompe con la nueva mesa-libgallium.
+    # Mesa >= 25.3.3 unified VA-API into mesa-libgallium.
+    # mesa-va-drivers from backports breaks with the new mesa-libgallium.
     local _bpo_filtered=()
     for _p in "${bpo_pkgs[@]}"; do
         [ "$_p" != "mesa-va-drivers" ] && _bpo_filtered+=("$_p")
@@ -189,8 +189,8 @@ _is_hybrid_laptop() {
     gpu_count=$(echo "$LSPCI_OUTPUT" | grep -ciE "VGA compatible|3D controller") || true
     [ "$gpu_count" -lt 2 ] && return 1
 
-    # Defensa en profundidad: si TODAS las GPUs son NVIDIA (SLI o
-    # dual-GPU desktop), no hay iGPU Intel/AMD → no es híbrida.
+    # Defense in depth: if ALL GPUs are NVIDIA (SLI or dual-GPU
+    # desktop), there is no Intel/AMD iGPU → not hybrid.
     nvidia_count=$(echo "$LSPCI_OUTPUT" | grep -iE "VGA compatible|3D controller" | grep -c "10de:") || true
     [ "$nvidia_count" -ge "$gpu_count" ] && return 1
 
@@ -199,6 +199,6 @@ _is_hybrid_laptop() {
     8 | 9 | 10 | 11 | 14 | 30 | 31 | 32) return 0 ;;
     esac
 
-    ls /sys/class/power_supply/ 2>/dev/null | grep -q "^BAT" && return 0
+    compgen -G "/sys/class/power_supply/BAT*" >/dev/null && return 0
     return 1
 }

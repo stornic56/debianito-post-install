@@ -67,6 +67,10 @@ _cat_download() {
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && _pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Pre-apply summary: confirm the selection once,
+    # before any apt transaction starts.
+    _confirm_install_list "Downloaders & Torrent Clients" "${_pkgs[@]}" || return
     for pkg in "${_pkgs[@]}"; do
         case $pkg in
             yt-dlp)
@@ -87,6 +91,9 @@ _cat_download() {
                 ;;
         esac
     done
+
+    # Release the per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Download & network tools installed.${NC}"
 }

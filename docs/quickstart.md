@@ -281,7 +281,7 @@ After this, browse the other categories as needed:
 3  Back to main menu
 ```
 
-- **Desktop Environment** — XFCE (full / minimal / Wayland `labwc` on Trixie / custom checklist) or LXDE (full / core). Installs polkit rules (`85-suspend.rules`, `89-backlight.rules`) + `backlight` group.
+- **Desktop Environment** — pick one of **XFCE** (full / minimal / Wayland `labwc` on Trixie / custom checklist), **LXDE** (full / core), **GNOME** (full / core) or **KDE Plasma** (full / minimal). Each environment installs from its own module in `modules/desktops/` (lazy-loaded). XFCE installs polkit rules (`85-suspend.rules`, `89-backlight.rules`) + `backlight` group; GNOME/KDE preseed the display manager while keeping any already-configured one as default. After the install, the script offers the PipeWire audio stack if none is present.
 - **Display Manager** — LightDM (GTK greeter, user list, autologin), GDM3 (user list, autologin, NVIDIA Wayland override via `61-gdm.rules → /dev/null`), SDDM (autologin with session auto-detection `plasmawayland → lxqt-wayland → plasma → lxqt`), greetd (base / tuigreet / gtkgreet / nwg-hello / wlgreet — manual `/etc/greetd/config.toml` required).
 
 > See [Desktop & Display](desktops_display.md).

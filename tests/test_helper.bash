@@ -104,6 +104,7 @@ export MODULES_DIR="${TEST_PROJECT_ROOT}/modules"
 #   MOCK_SSID_OUTPUT                `iwgetid -r <iface>` output
 #   MOCK_TIMEZONE_OUTPUT            `timedatectl show -p Timezone --value`
 #   MOCK_NTP_SYNC_OUTPUT            `timedatectl show --property=NTPSynchronized --value`
+#   MOCK_SYSTEMCTL_ENABLED          space-separated units that report "enabled"
 #   MOCK_WHIPTAIL_OUTPUT / _RC      whiptail stdout / exit code
 #   MOCK_SUDO_DRY_RUN               1 = log-only sudo (see _mock_sudo)
 #   MOCK_SUDO_LOG                   log file for dry-run sudo
@@ -266,6 +267,28 @@ _mock_sudo() {
     env "$@"
 }
 
+# ── systemctl(8) ──────────────────────────────────────────────
+# Just enough for _existing_display_manager(): only the
+# `is-enabled <unit>` verb is exercised. Units listed in
+# $MOCK_SYSTEMCTL_ENABLED report "enabled" (exit 0); every
+# other unit reports "disabled" (exit 1), matching systemd.
+_mock_systemctl() {
+    case "${1:-}" in
+        is-enabled)
+            local unit="${2:-}" cand
+            for cand in ${MOCK_SYSTEMCTL_ENABLED:-}; do
+                if [ "$cand" = "$unit" ]; then
+                    printf 'enabled\n'
+                    return 0
+                fi
+            done
+            printf 'disabled\n'
+            return 1
+            ;;
+    esac
+    return 0
+}
+
 # ── whiptail(1) ───────────────────────────────────────────────
 # Prints $MOCK_WHIPTAIL_OUTPUT on stdout and exits with
 # $MOCK_WHIPTAIL_RC (default 0 = "Yes" for confirm
@@ -283,7 +306,7 @@ _mock_whiptail() {
 # PATH scripts are required.
 _install_mocks() {
     local name func
-    for name in dpkg apt-cache lspci lsusb ip iwgetid timedatectl sudo whiptail; do
+    for name in dpkg apt-cache lspci lsusb ip iwgetid timedatectl sudo whiptail systemctl; do
         func="_mock_${name//-/_}"    # apt-cache → _mock_apt_cache
         if ! declare -f "$func" >/dev/null; then
             echo "test_helper.bash: mock function ${func} is not defined" >&2
@@ -323,6 +346,7 @@ mock_reset() {
     # systemd
     export MOCK_TIMEZONE_OUTPUT="UTC"
     export MOCK_NTP_SYNC_OUTPUT="no"
+    export MOCK_SYSTEMCTL_ENABLED=""
 
     # dialogs
     export MOCK_WHIPTAIL_OUTPUT=""

@@ -119,6 +119,14 @@ install_gaming() {
         [ -n "$_pkg" ] && install_list+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
 
+    # Pre-apply summary: confirm the selection before any
+    # system mutation (i386 architecture, apt update,
+    # package installation). Skipped when only the i386
+    # pseudo-entry was selected.
+    if [ ${#install_list[@]} -gt 0 ]; then
+        _confirm_install_list "Gaming Setup" "${install_list[@]}" || return
+    fi
+
     # 3. Enable i386 architecture if needed
     if $need_32bit && ! dpkg --print-foreign-architectures 2>/dev/null | grep -q i386; then
         echo -e "${YELLOW}Enabling i386 architecture (required by selection)...${NC}"
@@ -163,6 +171,10 @@ install_gaming() {
         *) _run_install "$pkg" ;;
         esac
     done
+
+    # Selection confirmed once above; release the
+    # per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
 
     echo -e "${GREEN}Gaming setup complete.${NC}"
     _pause
