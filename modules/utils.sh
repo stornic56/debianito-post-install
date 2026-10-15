@@ -280,8 +280,12 @@ _init_lspci_cache() {
     [ -n "${LSPCI_OUTPUT:-}" ] && return
     LSPCI_OUTPUT=$(timeout 2 lspci -nn 2>/dev/null || true)
 }
+_lspci_desc() {
+    # Strip the "bus domain] device ID" and "(rev XX)" fields,
+    # keeping the human-readable device name.
+    echo "$1" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//'
+}
 
-# ----------------------------------
 # GPU detection
 # ----------------------------------
 detect_gpu() {
@@ -394,7 +398,7 @@ detect_network() {
     local eth_line
     eth_line=$(echo "$LSPCI_OUTPUT" | grep -i 'Ethernet controller' | head -n1) || true
     if [ -n "$eth_line" ]; then
-        ETH_DESC=$(echo "$eth_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
+        ETH_DESC=$(_lspci_desc "$eth_line")
     fi
 
     local wifi_line
@@ -410,7 +414,7 @@ detect_network() {
     fi
     if [ -n "$wifi_line" ]; then
         WIFI_CHIPSET="$wifi_line"
-        WIFI_DESC=$(echo "$wifi_line" | sed -E 's/^.*\]: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev [0-9a-fA-F]+\)//')
+        WIFI_DESC=$(_lspci_desc "$wifi_line")
     fi
     # Layer 4: USB WiFi adapter (no PCI device)
     if [ -z "$wifi_line" ] && command -v lsusb &>/dev/null; then
@@ -434,16 +438,16 @@ detect_network() {
         state=$(echo "$line" | awk '{print $9}')
         case "$iface" in
         eth* | enp* | ens* | enx* | eno*)
-            ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+            ip4=$(timeout 1 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
             ETH_NAMES+=("$iface")
             ETH_STATES+=("$state")
             ETH_IPS+=("${ip4:-}")
             ETH_DESCS+=("${ETH_DESC:-}")
             ;;
         wl*)
-            ip4=$(timeout 2 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
+            ip4=$(timeout 1 ip -4 -o addr show "$iface" 2>/dev/null | awk '{print $4}')
             ssid=""
-            [ "$state" = "UP" ] && ssid=$(timeout 2 iwgetid -r "$iface" 2>/dev/null || true)
+            [ "$state" = "UP" ] && ssid=$(timeout 1 iwgetid -r "$iface" 2>/dev/null || true)
             WIFI_NAMES+=("$iface")
             WIFI_STATES+=("$state")
             WIFI_IPS+=("${ip4:-}")
