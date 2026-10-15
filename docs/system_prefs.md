@@ -2,7 +2,7 @@
 
 ## 1. What Does This Component Do?
 
-The **System Preferences** module (`modules/system/system_prefs.sh` + `modules/system/audio.sh`) consolidates first-boot personalization into a single menu. It is the only place in Debianito where **locale, timezone, and audio** are configured together — settings that Debian's installer often leaves at generic defaults and that affect every subsequent module.
+The **System Preferences** module (`modules/system/system_prefs.sh` + `modules/system/audio.sh`) consolidates first-boot personalization into a single menu. It is the only place in Debianito where locale, timezone and audio are configured together, settings that Debian's installer often leaves at generic defaults and that affect every subsequent module.
 
 It groups three independent preference domains behind one entry point:
 
@@ -12,7 +12,7 @@ It groups three independent preference domains behind one entry point:
 | **Language, Locales & Keyboard** | `system_prefs.sh:_prefs_locale_keyboard` | `locales`, `keyboard-configuration` |
 | **Audio & Sound Stack** | `system/audio.sh:_prefs_audio_menu` | PipeWire, ALSA, pavucontrol, pulsemixer, playerctl |
 
-The menu itself is `_system_preferences_menu` in `system_prefs.sh` — a simple `while true` loop with `whiptail --menu`:
+The menu itself is `_system_preferences_menu` in `system_prefs.sh`, a simple `while true` loop with `whiptail --menu`:
 
 ```
 1  Date, Time & Timezone
@@ -40,7 +40,7 @@ Timezone: America/Santiago
 **What it does technically:**
 
 1. Prints the current date/time (`date '+%Y-%m-%d %H:%M'`) and timezone (`timedatectl show -p Timezone --value`).
-2. Prompts via `_confirm "Timezone"` to run `sudo dpkg-reconfigure tzdata` — the Debian-standard interactive timezone selector (ncurses).
+2. Prompts via `_confirm "Timezone"` to run `sudo dpkg-reconfigure tzdata`, the Debian-standard interactive timezone selector (ncurses).
 3. Calls `_ensure_time_synced` from `utils.sh` regardless of the answer:
    - Forces `timedatectl set-ntp true`
    - Validates the timezone is not `n/a` or `Etc/UTC`; if it is and a display is available, opens `tzdata` again
@@ -62,12 +62,12 @@ sudo dpkg-reconfigure keyboard-configuration
 
 **What it does technically:**
 
-- **`dpkg-reconfigure locales`** — Opens the Debian locales selector (e.g., `en_US.UTF-8`, `es_CL.UTF-8`). Generates the selected locales via `locale-gen` and updates `/etc/default/locale`. No reboot is required, but a re-login is needed for the new `LANG` to take effect.
-- **`dpkg-reconfigure keyboard-configuration`** — Configures `/etc/default/keyboard` (`XKBMODEL`, `XKBLAYOUT`, `XKBVARIANT`, `XKBOPTIONS`) and, on console, the keymap via `setupcon`. This affects both X11/Wayland and TTY.
+- **`dpkg-reconfigure locales`**: Opens the Debian locales selector (e.g., `en_US.UTF-8`, `es_CL.UTF-8`). Generates the selected locales via `locale-gen` and updates `/etc/default/locale`. No reboot is required, but a re-login is needed for the new `LANG` to take effect.
+- **`dpkg-reconfigure keyboard-configuration`**: Configures `/etc/default/keyboard` (`XKBMODEL`, `XKBLAYOUT`, `XKBVARIANT`, `XKBOPTIONS`) and, on console, the keymap via `setupcon`. This affects both X11/Wayland and TTY.
 
 Both commands are run with `env LC_ALL=C LANGUAGE=C` to guarantee the debconf dialogs render in English even when the current locale is broken.
 
-This option has **no detection logic** — it delegates entirely to Debian's standard tools. It is idempotent and safe to run repeatedly.
+This option has **no detection logic**: it delegates entirely to Debian's standard tools. It is idempotent and safe to run repeatedly.
 
 ---
 
@@ -91,7 +91,7 @@ items+=("playerctl"      "Multimedia key controller (playerctl)" $state)
 ```
 
 - **`_state <pkg>`** (in `utils.sh`) returns `ON` if `dpkg -l <pkg>` shows `^ii`, otherwise `OFF`.
-- **`_is_headless`** returns true when both `$DISPLAY` and `$WAYLAND_DISPLAY` are empty — in that case `pavucontrol` is hidden because it requires a GUI.
+- **`_is_headless`** returns true when both `$DISPLAY` and `$WAYLAND_DISPLAY` are empty; in that case `pavucontrol` is hidden because it requires a GUI.
 - Package name for PipeWire varies by Debian version:
   - Debian 11 Bullseye → `pipewire` (the `pipewire-audio` metapackage does not exist)
   - Debian 12/13 → `pipewire-audio`
@@ -100,7 +100,7 @@ The checklist is shown via `whiptail --checklist` with the title **"Audio & Soun
 
 #### 4.2 PipeWire Installation Logic: `_install_pipewire_standard`
 
-This function handles the **PipeWire Audio Stack with Bluetooth Hi-Res codecs** — the core of modern Linux audio.
+This function handles the **PipeWire Audio Stack with Bluetooth Hi-Res codecs**.
 
 **Codec package resolution:**
 
@@ -147,7 +147,7 @@ systemctl --user restart wireplumber pipewire pipewire-pulse
 | --------- | --------- | --------------- |
 | `alsa-utils` + `alsa-ucm-conf` | ALSA CLI tools (`aplay`, `amixer`, `alsamixer`) and UCM configs for modern sound cards | `is_installed alsa-utils` |
 | `pavucontrol` | GTK GUI volume control (PulseAudio/PipeWire compatible). Hidden in headless mode. | `is_installed pavucontrol` |
-| `pulsemixer` | Terminal (ncurses) mixer — works in TTY and headless | `is_installed pulsemixer` |
+| `pulsemixer` | Terminal (ncurses) mixer, works in TTY and headless | `is_installed pulsemixer` |
 | `playerctl` | MPRIS CLI to control media players via keyboard shortcuts | `is_installed playerctl` |
 
 Each package is installed via `_run_install <pkg>` which confirms the version via `apt-cache policy` before installing.
@@ -188,10 +188,10 @@ Each package is installed via `_run_install <pkg>` which confirms the version vi
 
 ## 6. Integration with Other Modules
 
-- **Firmware (`firmware.sh`)** — Bluetooth firmware packages (`firmware-iwlwifi`, etc.) are separate from the Bluetooth *stack* (`bluez`). This menu complements firmware by ensuring the audio side of Bluetooth (PipeWire codecs) is ready.
-- **Desktop & Display (`desktop_display.sh`)** — XFCE/LXDE installations often need audio configured afterwards. Running System Preferences → Audio after a new desktop ensures the correct mixer is available.
-- **Gaming (`gaming.sh`)** — Many games require PipeWire/PulseAudio for voice chat. The gaming module assumes audio is already functional.
-- **Time sync (`utils.sh:_ensure_time_synced`)** — Also called automatically before the first `apt update`. This menu is the manual override.
+- **Firmware (`firmware.sh`)**: Bluetooth firmware packages (`firmware-iwlwifi`, etc.) are separate from the Bluetooth *stack* (`bluez`). This menu complements firmware by ensuring the audio side of Bluetooth (PipeWire codecs) is ready.
+- **Desktop & Display (`desktop_display.sh`)**: New desktop installations (XFCE, LXDE, GNOME or KDE Plasma) often need audio configured afterwards. Running System Preferences → Audio after a new desktop ensures the correct mixer is available.
+- **Gaming (`gaming.sh`)**: Many games require PipeWire/PulseAudio for voice chat. The gaming module assumes audio is already functional.
+- **Time sync (`utils.sh:_ensure_time_synced`)**: Also called automatically before the first `apt update`. This menu is the manual override.
 
 ---
 
@@ -210,7 +210,7 @@ Each package is installed via `_run_install <pkg>` which confirms the version vi
 
 ## References
 
-- [Debian TimeZone Config — wiki.debian.org/TimeZoneChanges](https://wiki.debian.org/TimeZoneChanges)
-- [Debian Locales — wiki.debian.org/Locale](https://wiki.debian.org/Locale)
-- [PipeWire — wiki.debian.org/PipeWire](https://wiki.debian.org/PipeWire)
-- [PipeWire Bluetooth Codecs — GitLab PipeWire wiki](https://gitlab.freedesktop.org/pipewire/pipewire/-/wikis/FAQ#bluetooth)
+- [Debian TimeZone Config: wiki.debian.org/TimeZoneChanges](https://wiki.debian.org/TimeZoneChanges)
+- [Debian Locales: wiki.debian.org/Locale](https://wiki.debian.org/Locale)
+- [PipeWire: wiki.debian.org/PipeWire](https://wiki.debian.org/PipeWire)
+- [PipeWire Bluetooth Codecs: GitLab PipeWire wiki](https://gitlab.freedesktop.org/pipewire/pipewire/-/wikis/FAQ#bluetooth)

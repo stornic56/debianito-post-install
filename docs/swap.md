@@ -2,7 +2,7 @@
 
 ### 1. What does this component do?
 
-This module is responsible for the secure management of disk-based swap space within the `debianito` environment. Unlike standard Linux tools that might overwrite existing configurations or conflict with memory compression features (like ZRAM), this script operates as a **priority-aware, persistent swap manager**.
+This module manages disk-based swap space in the `debianito` environment. It leaves existing configuration alone and works alongside ZRAM instead of conflicting with it.
 
 Its primary functions include:
 
@@ -13,17 +13,17 @@ Its primary functions include:
 
 ### 2. How does it work?
 
-The script leverages several advanced Linux subsystems and safety protocols:
+The script uses several Linux subsystems and safety mechanisms:
 
-1. **File System Detection:** It identifies the filesystem type of the target partition (e.g., `ext4`, `btrfs`). For Btrfs, it applies specific flags (`chattr +C` for copy-on-write optimization) to prevent performance degradation during swap operations.
+1. **File System Detection:** It identifies the filesystem type of the target partition (e.g., `ext4`, `btrfs`). For Btrfs, it applies specific flags (`chattr +C` to disable copy-on-write) to avoid performance loss during swap operations.
 2. **Allocation Strategy:** It prefers `fallocate` for instant space reservation on supported filesystems, falling back to `dd if=/dev/zero` for compatibility or zeroing requirements (like Btrfs).
 3. **Fstab Validation:** Before writing changes to `/etc/fstab`, it creates a temporary file and validates the syntax using `findmnt --verify`. If validation fails, the script aborts and restores the original state.
-4. **Concurrency Control:** It utilizes `flock` on `/run/lock/debianito-swap.lock`. This ensures that if another process is modifying swap settings (e.g., a system update), this script will wait or exit gracefully to prevent filesystem corruption.
+4. **Concurrency Control:** It uses `flock` on `/run/lock/debianito-swap.lock`. If another process is modifying swap settings (e.g., a system update), this script waits or exits gracefully to prevent filesystem corruption.
 5. **Swappiness Tuning:** It configures `vm.swappiness` via both runtime (`sysctl -w`) and persistent (`/etc/sysctl.d/99-swappiness-debianito.conf`) mechanisms, defaulting to values that favor RAM usage over disk swapping (e.g., 10-20).
 
 ### 3. The Logical Decision Tree (Step by Step)
 
-The execution flow follows a strict logical tree designed for safety and idempotency:
+The execution flow runs in a fixed order and is safe to repeat:
 
 1. **Initialization & Locking:**
     * The `manage_swap()` function attempts to acquire an exclusive lock (`flock -n`). If the lock is held by another process, it immediately exits with a "Busy" message to prevent conflicts.
@@ -58,7 +58,7 @@ Each option in the swap management submenu serves a specific technical purpose:
 
 * **Option 1: Show current swap & swappiness**
   * **Technical Action:** Aggregates data from `/proc/swaps`, `/proc/sys/vm/swappiness`, and `/etc/fstab`.
-  * **Significance:** Provides an audit trail of the current memory management state. It verifies if ZRAM is active (implied by priority check) and how much disk swap is currently in use.
+  * **Significance:** Shows the current memory management state. It verifies if ZRAM is active (implied by priority check) and how much disk swap is currently in use.
 
 * **Option 2: Create / resize swapfile**
   * **Technical Action:** Allocates a new block device file (`/swapfile`) or expands an existing one. Sets the `pri=10` flag to ensure it acts as a secondary memory layer after ZRAM fills up.
@@ -70,7 +70,7 @@ Each option in the swap management submenu serves a specific technical purpose:
 
 * **Option 4: Change swappiness**
   * **Technical Action:** Modifies the kernel parameter `vm.swappiness`.
-  * **Significance:** Controls the "aggressiveness" of swapping. A lower value (e.g., 10) tells the kernel to keep data in RAM longer, only using swap as a last resort. This is critical for desktop performance and battery life on laptops.
+  * **Significance:** Controls the "aggressiveness" of swapping. A lower value (e.g., 10) tells the kernel to keep data in RAM longer, only using swap as a last resort. This matters for desktop performance and battery life on laptops.
 
 * **Option 5: Back to main menu**
   * **Technical Action:** Releases the file lock (`exec 9>&-`) and terminates the submenu loop.

@@ -144,3 +144,34 @@ wlan0 10.0.0.5/24"
     [ "${ETH_NAMES[0]}" = "eth0" ]
     [ "${WIFI_NAMES[0]}" = "wlan0" ]
 }
+
+# ── CLI flags: --yes / --allow-destructive ──────────────
+# debianito.sh (the parser) is never sourced in tests:
+# mock_reset seeds the flag globals and the readers under
+# test (_confirm, _branch_migration) are exercised directly.
+
+@test "_confirm auto-accepts when AUTO_YES=1 (no whiptail call)" {
+    export AUTO_YES=1
+    # Shadow the PATH mock to count invocations: the gate
+    # must return before whiptail is ever executed.
+    WHIPTAIL_CALLS=0
+    whiptail() { WHIPTAIL_CALLS=$((WHIPTAIL_CALLS + 1)); return 1; }
+    _confirm "Title" "text"
+    [ "$WHIPTAIL_CALLS" -eq 0 ]
+}
+
+@test "_confirm still prompts when AUTO_YES=0" {
+    export AUTO_YES=0
+    export MOCK_WHIPTAIL_RC=1 # user answers "No"
+    run _confirm "Title" "text"
+    [ "$status" -eq 1 ]
+}
+
+@test "_branch_migration refuses unattended mode without --allow-destructive" {
+    source "${TEST_PROJECT_ROOT}/modules/repos/migrate.sh"
+    export AUTO_YES=1
+    export ALLOW_DESTRUCTIVE=0
+    run _branch_migration
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"destructive"* ]]
+}

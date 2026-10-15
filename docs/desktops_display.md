@@ -10,16 +10,16 @@ This component manages both desktop environments and display managers. Desktop E
 
 The execution logic is divided into five functional blocks:
 
-**Block 1 — Desktop Environment Selection & Installation**
+**Block 1: Desktop Environment Selection & Installation**
 
 - The main menu (`manage_desktop_display` in `desktop_display.sh`) offers two primary options: `1  Desktop Environment` and `2  Display Manager` (plus `3  Back to main menu`).
 - **Desktop Environment** opens `desktop_environment_menu` with four environments:
-  1. **XFCE** — full / minimal / Wayland (`labwc`, Debian 13 only) / custom package checklist.
-  2. **LXDE** — full / core.
-  3. **GNOME** — full (`gnome`) / core (`gnome-core`), with GDM3.
-  4. **KDE Plasma** — full (`kde-standard`) / minimal (`kde-plasma-desktop`), with SDDM.
+  1. **XFCE**: full / minimal / Wayland (`labwc`, Debian 13 only) / custom package checklist.
+  2. **LXDE**: full / core.
+  3. **GNOME**: full (`gnome`) / core (`gnome-core`), with GDM3.
+  4. **KDE Plasma**: full (`kde-standard`) / minimal (`kde-plasma-desktop`), with SDDM.
 - Each environment lives in its own module under `modules/desktops/` and is lazy-loaded from the menu dispatch with `_load_module xfce|lxde|gnome|kde` (dependencies: `desktop_display` + `audio`).
-- **Display Manager** opens `display_manager_menu` — LightDM, GDM3, SDDM, and greetd (12/13 only).
+- **Display Manager** opens `display_manager_menu`: LightDM, GDM3, SDDM, and greetd (12/13 only).
 - **Available Managers:**
   - LightDM (available on all Debian versions).
   - GDM3 (available on all Debian versions).
@@ -27,7 +27,7 @@ The execution logic is divided into five functional blocks:
   - greetd (available only on Debian 12 and 13).
 - Each selected manager opens its own dedicated configuration submenu.
 
-**Block 2 — LightDM Configuration**
+**Block 2: LightDM Configuration**
 
 - A checklist menu presents three options:
   1. Install LightDM + GTK Greeter (auto-selects the display manager via debconf-set-selections).
@@ -35,7 +35,7 @@ The execution logic is divided into five functional blocks:
   3. Enable autologin for current user (uncomments `autologin-user` and sets timeout to 0 in the main config).
 - **Idempotency:** The script checks if `lightdm` and `lightdm-gtk-greeter-settings` are already installed before attempting installation, skipping redundant steps.
 
-**Block 3 — GDM3 Configuration**
+**Block 3: GDM3 Configuration**
 
 - A checklist menu presents up to four options:
   1. Install/Reinstall gdm3 (auto-selects via debconf).
@@ -47,7 +47,7 @@ The execution logic is divided into five functional blocks:
      - **Risk Warning:** Displays a warning that this may break graphics or cause instability.
      - **Toggle Behavior:** If the symlink exists, removing it reverts to default behavior; if not present, creating it enables the override.
 
-**Block 4 — SDDM Configuration**
+**Block 4: SDDM Configuration**
 
 - A submenu offers two options:
   1. Install SDDM (auto-selects via debconf).
@@ -56,7 +56,7 @@ The execution logic is divided into five functional blocks:
      - **Configuration:** Writes autologin settings to `/etc/sddm.conf.d/autologin.conf`.
      - **Fallback:** If no session is found, it enables autologin but warns that SDDM will use the default session.
 
-**Block 5 — greetd Configuration**
+**Block 5: greetd Configuration**
 
 - greetd is a minimal, modern display manager designed for Wayland environments.
 - Submenu options vary by Debian version:
@@ -65,9 +65,9 @@ The execution logic is divided into five functional blocks:
 - **Backports Handling:** On Bookworm, `tuigreet` is installed from backports if not enabled.
 - **Important Warning:** greetd is installed but NOT configured by the script. The user must manually create `/etc/greetd/config.toml` to be able to log in. The script displays a warning with references to man pages for configuration details.
 
-### 3. Smart Automations
+### 3. Automations
 
-The component utilizes several intelligent automation features:
+The component automates several steps:
 
 - **debconf-set-selections:** Pre-selects the display manager as default before `apt install`, preventing the interactive "Configuring shared/default-x-display-manager" dialog that would otherwise pause the script execution.
 - **Session Auto-Detection (SDDM):** Checks `.desktop` files in priority order (Wayland first, then X11) to set the correct session type for autologin configuration.

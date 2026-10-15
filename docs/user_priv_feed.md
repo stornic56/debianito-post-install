@@ -2,9 +2,9 @@
 
 ### 1. What does this component do?
 
-This component serves as a centralized utility suite designed to streamline administrative access, enhance usability during system maintenance, and correct common permission inconsistencies found in fresh Debian installations or environments where `sudo` usage has been mishandled. It acts as an automated "First-Time User" setup tool that bridges the gap between strict Linux security policies (where standard users cannot modify system files) and practical daily workflow needs (such as installing software without constant password prompts).
+This module prepares a normal user account for day-to-day administration on a fresh Debian installation, or on one where `sudo` usage has been mishandled. Debian gives a standard user no administrative rights by default, so routine work such as installing software would ask for a password each time; this menu closes that gap and fixes the ownership and feedback annoyances that come with fresh setups.
 
-At a high level, it manages four critical aspects of user privilege:
+It manages four aspects of user privileges:
 
 1. **Elevated Permissions:** Ensures the current user has membership in the `sudo` group.
 2. **Workflow Efficiency:** Configures specific commands to run without authentication (NOPASSWD) for maintenance tasks.
@@ -13,7 +13,7 @@ At a high level, it manages four critical aspects of user privilege:
 
 ### 2. What exactly does it do and why
 
-The script executes a sub-menu loop that allows the user to toggle between four distinct configurations. Each option addresses a specific pain point in Linux administration:
+The script executes a sub-menu loop that allows the user to toggle between four distinct configurations. Each option fixes a specific annoyance in Linux administration:
 
 * **Sudo Group Membership (Option 1):**
   * **Action:** Checks if the current username exists within the `/etc/group` file under the `sudo` group entry. If absent, it adds the user via `usermod -aG sudo`.
@@ -83,13 +83,13 @@ The execution flow is governed by `sudo_config.sh`, which acts as a state machin
     * *On Confirm:* Write `Defaults pwfeedback` to `/etc/sudoers.d/pwfeedback`.
 * **Step B:** Verify write permission. If successful, notify success; otherwise, log error and return status 1.
 
-### 4. Compatibility with all Debian
+### 4. Compatibility Across Debian Versions
 
-This module is designed for universal compatibility across the Debian family (Bullseye, Bookworm, Trixie, etc.) due to its reliance on standard POSIX-compliant tools and strict path handling.
+The module works across the Debian family (Bullseye, Bookworm, Trixie) because it only uses standard POSIX tools and handles paths strictly.
 
-* **Architecture Independence:** The script utilizes `usermod`, `chown`, and `grep` which are available on all x86_64, arm64, and i386 Debian architectures.
-* **Version Agnosticism (Debian 11+):**
+* **Architecture Independence:** The script uses `usermod`, `chown`, and `grep`, which are available on all x86_64, arm64, and i386 Debian architectures.
+* **Version Independence (Debian 11+):**
   * **Sudoers Syntax:** The script writes to `/etc/sudoers.d/`, a directory introduced in `sudo` version 1.9.0p5 (available since Debian 7). It avoids editing the master file (`/etc/sudoers`) directly, preventing lockfile issues and syntax errors regardless of the specific Debian version's sudo configuration style.
   * **Path Hardening:** The NOPASSWD logic explicitly includes both `/usr/bin` and `/bin` paths for commands like `apt`. This ensures that on older Debian versions (e.g., Bullseye) where binaries might reside in different locations or symlinks differ, the permissions remain valid.
 * **Security Best Practices:** By isolating configurations into separate files (`/etc/sudoers.d/`) and setting restrictive permissions (`0440`), it adheres to Debian's security guidelines for `sudo`. This ensures that even on older systems with stricter default policies, the configuration is accepted without requiring a full system reboot or sudo upgrade.
-* **Importance:** Consistent behavior across versions means users can migrate between Debian releases (e.g., from 11 to 12) without needing to manually reconfigure these specific privileges, ensuring a stable and secure environment regardless of the underlying OS version.
+* **Importance:** Users can move between Debian releases (e.g., from 11 to 12) without reconfiguring these privileges by hand.

@@ -1,10 +1,10 @@
 # Option 9: ZRAM Configuration & Memory Optimization
 
-## 1. The Science of ZRAM vs. Traditional Swap
+## 1. ZRAM vs. Traditional Swap
 
 ### Core Concept: CPU Cycles vs. Disk I/O
 
-Traditional swap storage operates on a fundamental latency gap that becomes critical under memory pressure:
+Traditional swap has a latency gap that matters under memory pressure:
 
 | Storage Medium | Latency Range | Write Amplification | SSD Wear Impact |
 | --------------- | --------------- | --------------------- | ----------------- |
@@ -27,19 +27,19 @@ ZRAM creates a compressed block device entirely within physical memory. When pag
 2. **Stored in RAM pool** at compressed size (typically 2:1 to 3:1 ratio)
 3. **Decompressed instantly** when needed (microseconds vs milliseconds)
 
-The trade-off is explicit: **CPU cycles for reduced I/O latency**. Modern CPUs can compress/decompress pages in microseconds, making this far cheaper than any disk operation.
+The trade is CPU cycles for less I/O latency. Modern CPUs compress and decompress pages in microseconds, which is far cheaper than any disk operation.
 
 ### Why Only LZ4 and ZSTD?
 
-The script offers only two algorithms because they represent the optimal balance points:
+The script offers only two algorithms because they hit the best balance of speed and ratio:
 
 | Algorithm | Compression Ratio | Speed | CPU Overhead | Best Use Case |
 |-----------|------------------|-------|--------------|---------------|
 | **LZ4**   | ~2:1–3:1         | Fastest | Lowest | Gaming, real-time workloads |
 | **ZSTD**  | ~3:1–5:1         | Medium | Moderate | General use, better memory savings |
 
-- **LZ4**: Prioritizes speed over compression ratio. Ideal for systems where CPU availability is limited or latency-sensitive (gaming servers).
-- **ZSTD**: Offers superior compression ratios with acceptable overhead. Best for systems prioritizing maximum effective RAM capacity.
+- **LZ4**: Prioritizes speed over compression ratio. Best when CPU is limited or latency matters (gaming servers).
+- **ZSTD**: Compresses more at acceptable overhead. Best when the goal is maximum effective RAM.
 
 The kernel supports additional algorithms (lzo-rle, deflate, lz4hc), but these are either deprecated, slower, or offer diminishing returns compared to LZ4/ZSTD in modern hardware.
 
@@ -49,7 +49,7 @@ By intercepting swap writes before they reach physical storage:
 
 - **Write Reduction**: Pages that would write to disk now compress in RAM
 - **TBW Conservation**: Each avoided write preserves P/E cycles on NAND flash cells
-- **System Longevity**: Critical for systems with limited SSD endurance ratings (e.g., 100 TBW consumer drives)
+- **System Longevity**: Matters for systems with limited SSD endurance (e.g., 100 TBW consumer drives)
 
 As the Linux kernel documentation states: *"Users with SSDs as swap devices can extend device lifespan by drastically reducing writes that shorten its life."*
 
@@ -59,7 +59,7 @@ As the Linux kernel documentation states: *"Users with SSDs as swap devices can 
 
 ### Pipeline Execution Sequence
 
-The script follows a deterministic flow to ensure safe, reproducible configuration:
+The script follows a fixed sequence:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -107,7 +107,7 @@ The script follows a deterministic flow to ensure safe, reproducible configurati
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### Mathematical Size Calculation
+### Size Formula
 
 The script uses this formula to determine ZRAM size:
 
@@ -126,7 +126,7 @@ fi
 - `/ 1024 / 1024`: Convert KB to GB
 - `+ 1`: Add rounding buffer for odd values
 - **≤8 GB**: Target 50% of total RAM (generous swap for low-memory systems)
-- **>8 GB**: Fixed 4096 MB — avoids excessive RAM reservation on high-memory machines while still providing meaningful swap space
+- **>8 GB**: Fixed 4096 MB, which avoids excessive RAM reservation on high-memory machines while still providing meaningful swap space
 
 **Examples:**
 
@@ -168,20 +168,20 @@ This prevents thrashing where pages bounce between slow disk swap and fast RAM-b
 
 ### How ZRAM Coexists with Disk Swap
 
-The script does **not** hardcode `vm.swappiness` or watermark tuning. Instead, it uses a **priority-based swap hierarchy** combined with an explicit swappiness control in the Swap module:
+The script does **not** hardcode `vm.swappiness` or watermark tuning. It uses a priority-based swap hierarchy combined with explicit swappiness control in the Swap module:
 
 | Swap Device | Priority | Config Location | When It Is Used |
 |-------------|----------|-----------------|-----------------|
-| **ZRAM** | `100` | `/etc/default/zramswap` (`PRIORITY=100`) | **First** — kernel prefers higher priority |
-| **Disk swapfile** (`/swapfile`) | `10` | `/etc/fstab` (`pri=10`) + `# debianito-managed-swap` tag | **Second** — only after ZRAM device is full |
+| **ZRAM** | `100` | `/etc/default/zramswap` (`PRIORITY=100`) | **First**: kernel prefers higher priority |
+| **Disk swapfile** (`/swapfile`) | `10` | `/etc/fstab` (`pri=10`) + `# debianito-managed-swap` tag | **Second**: only after ZRAM device is full |
 
 This is implemented in `zram.sh:_zram_create` (writes `PRIORITY=100`) and `swap.sh:_swap_create_file` (writes `pri=10`). Priority is the canonical Linux `swapon` mechanism: `swapon --show` lists `PRIO` and the kernel always fills the highest-priority device first.
 
 ### Swappiness Is Managed Separately
 
-Swappiness (`vm.swappiness`, 0–100, default 60 on Debian) controls **how eagerly the kernel swaps at all**, regardless of which device is preferred.
+Swappiness (`vm.swappiness`, 0–100, default 60 on Debian) controls how eagerly the kernel swaps at all, regardless of which device is preferred.
 
-- The ZRAM module **does not change swappiness**. Changing it would affect both ZRAM and disk swap in ways that are workload-specific.
+- The ZRAM module does not change swappiness. Changing it would affect both ZRAM and disk swap in ways that are workload-specific.
 - To tune it, use **Option 10 → Swap Management → 4. Change swappiness** (`swap.sh:_swap_set_swappiness`):
 
   ```bash
@@ -194,10 +194,10 @@ Swappiness (`vm.swappiness`, 0–100, default 60 on Debian) controls **how eager
 
 - Recommended starting points (not enforced by the script):
   - **General desktop**: `60` (Debian default)
-  - **Gaming / 8 GB or less**: `80–100` — allows ZRAM to be used earlier, trading CPU for reduced disk I/O
+  - **Gaming / 8 GB or less**: `80–100`, which allows ZRAM to be used earlier, trading CPU for reduced disk I/O
   - **ZRAM-only, no disk swap**: `100–150` is safe because swap *is* RAM (compressed); there is no SSD wear cost
 
-> **Previous documentation** recommended `vm.swappiness = 180` plus `watermark_*` and `page-cluster` tuning for ZRAM. Those values are **not written by the current script** and are omitted here to avoid drifting from the implemented behavior. If you need watermark tuning, add it manually to `/etc/sysctl.d/` and validate with your workload.
+> **Previous documentation** recommended `vm.swappiness = 180` plus `watermark_*` and `page-cluster` tuning for ZRAM. The current script does not write those values; they are omitted here so this document matches the implementation. If you need watermark tuning, add it manually to `/etc/sysctl.d/` and validate with your workload.
 
 ### Verifying the Hierarchy
 
@@ -280,7 +280,7 @@ watch -n 5 'free -h && zramctl'
 
 ### Permanent Configuration
 
-To ensure ZRAM persists across reboots, the script writes configuration to `/etc/default/zramswap`. This file is read by systemd's `zramswap.service` unit at boot time. Additionally, adding the following ensures the kernel module loads:
+To ensure ZRAM persists across reboots, the script writes configuration to `/etc/default/zramswap`. This file is read by systemd's `zramswap.service` unit at boot time. The following also loads the kernel module:
 
 ```bash
 echo "zram" | sudo tee /etc/modules-load.d/zram.conf

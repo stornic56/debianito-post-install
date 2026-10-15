@@ -2,23 +2,23 @@
 
 ### 1. What Does This Component Do?
 
-The repository configuration module is the foundational engine of Debianito that establishes and maintains a secure, up-to-date package management environment for your Debian system. It performs **idempotent, atomic operations** to configure APT sources with precision while protecting against corruption through automatic rollback mechanisms.
+The repository configuration module sets up and maintains the APT sources of your Debian system. Each change is written atomically, backed up beforehand and rolled back automatically if the following `apt update` fails.
 
-At its core, this component:
+It:
 
 - Detects your current repository format (Classic `.list` vs modern DEB822 `.sources`)
 - Backs up existing configurations before any modifications
-- Enables critical non-free components required for hardware drivers and proprietary software
+- Enables the non-free components required for hardware drivers and proprietary software
 - Integrates Debian Backports to access newer kernels and firmware packages
 - Validates changes through `apt update` with automatic restoration on failure
 
-This is not just about "adding repositories"—it's about **system integrity assurance** that enables all other configuration options (GPU drivers, kernel upgrades, gaming setup) to function correctly.
+Every other configuration option (GPU drivers, kernel upgrades, gaming setup) needs this module to work first.
 
 ---
 
 ### 2. Supported Injection Formats
 
-The script intelligently adapts to your Debian version and existing repository structure:
+The script adapts to your Debian version and existing repository structure:
 
 #### Classic Format (`/etc/apt/sources.list`)
 
@@ -33,7 +33,7 @@ deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmwa
 
 #### Modern DEB822 Format (`/etc/apt/sources.list.d/debian.sources`)
 
-- **Structure**: Declarative YAML-like format with `Types`, `URIs`, and `Suites` blocks
+- **Structure**: Declarative RFC-822 style format with `Types`, `URIs`, and `Suites` blocks
 - **Use Case**: Debian 13 (Trixie) default, future-proofing for newer releases
 - **Characteristics**: Machine-parseable, structured, supports complex repository hierarchies
 - **Example**:
@@ -50,7 +50,7 @@ Components: main contrib non-free non-free-firmware
 The script automatically detects your current format and offers migration options:
 
 - On Debian 13 (Trixie): Prompts to migrate TO DEB822 or stay with Classic
-- Format changes are atomic—backup is created before any modification
+- Format changes are atomic: a backup is created before any modification
 - Old files are renamed with `.disabled` extension rather than deleted
 
 ---
@@ -160,7 +160,7 @@ The script enables specific APT component branches that are essential for hardwa
 | **non-free** | Non-free firmware and proprietary software | NVIDIA GPU drivers, Wi-Fi firmware | Required for hardware support |
 | **non-free-firmware** | Firmware blobs (Wi-Fi, Bluetooth, etc.) | Wireless adapters, embedded chips | **Critical from Debian 12+** |
 
-#### Why `non-free-firmware` is Vital (Debian 12+)
+#### Why `non-free-firmware` Is Required (Debian 12+)
 
 Starting with Debian Bookworm (12.0), the `non-free-firmware` component was separated into its own repository branch:
 
@@ -174,10 +174,10 @@ deb https://deb.debian.org/debian bookworm main contrib non-free non-free-firmwa
 
 **Impact of Missing `non-free-firmware`:**
 
-- ❌ Wi-Fi adapters won't work without firmware blobs
-- ❌ Bluetooth devices may fail to initialize
-- ❌ Some GPU drivers require proprietary microcode
-- ❌ Embedded hardware (Raspberry Pi, etc.) becomes unusable
+- Wi-Fi adapters won't work without firmware blobs
+- Bluetooth devices may fail to initialize
+- Some GPU drivers require proprietary microcode
+- Embedded hardware (Raspberry Pi, etc.) becomes unusable
 
 The script ensures all four components are present because:
 
@@ -189,7 +189,7 @@ The script ensures all four components are present because:
 
 ### 5. Support for Debian Backports
 
-The backports integration is a sophisticated feature that enables access to newer, tested packages without compromising system stability:
+Backports give access to newer, tested packages without compromising system stability:
 
 #### Detection Logic (`detect_backports_status` & `detect_backports_location`)
 
@@ -243,7 +243,7 @@ The backports integration is a sophisticated feature that enables access to newe
 
 #### Why Enable Backports?
 
-The script includes a detailed explanation because backports enable critical features:
+The script explains this in its confirmation dialog because backports change what you get for three components:
 
 | Feature | Without Backports | With Backports |
 | --------- | ------------------- | ---------------- |

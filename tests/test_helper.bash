@@ -352,6 +352,11 @@ mock_reset() {
     export MOCK_WHIPTAIL_OUTPUT=""
     export MOCK_WHIPTAIL_RC="0"
 
+    # CLI flags (debianito.sh parser) — reset so unattended
+    # mode never leaks between tests.
+    export AUTO_YES=0
+    export ALLOW_DESTRUCTIVE=0
+
     # sudo(8)
     export MOCK_SUDO_DRY_RUN="0"
     export MOCK_SUDO_LOG="$(mktemp)"

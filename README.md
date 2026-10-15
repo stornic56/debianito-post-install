@@ -2,7 +2,7 @@
 
 <div align="center">
 
-Debianito is a user-friendly post-installation automation script for Debian 11 (Bullseye), Debian 12 (Bookworm) and Debian 13 (Trixie). It streamlines system configuration, driver installation (including NVIDIA drivers), repository setup with backports support, gaming tools integration, and more with an interactive menu-driven interface.
+Debianito is a post-installation automation script for Debian 11 (Bullseye), Debian 12 (Bookworm) and Debian 13 (Trixie). An interactive menu guides system configuration, driver installation (including NVIDIA drivers), repository setup with backports support and gaming tools.
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-red.svg?style=for-the-badge&logo=gnu&logoColor=white)](https://github.com/stornic56/debianito-post-install/blob/main/LICENSE)
 ![Script](media/gift/script.gif)
@@ -36,13 +36,37 @@ chmod +x debianito.sh && ./debianito.sh
 
 ---
 
+## Command-Line Usage
+
+Running `./debianito.sh` with no arguments starts the interactive menu. Three flags change that behavior:
+
+| Flag | Effect |
+| ---- | ------ |
+| `--yes` | Auto-confirms prompts (unattended mode). Menus still display and still require interaction. |
+| `--allow-destructive` | Allows destructive operations, such as branch migration, without the extra safety gate. |
+| `--help`, `-h` | Show usage and exit. |
+
+`--yes` alone still blocks branch migration, which is the one operation that can leave the system unbootable. When that happens the script stops and prints `Branch migration is destructive. Re-run with --allow-destructive, or drop --yes to confirm interactively.` to stderr. Combine both flags to run everything unattended:
+
+```bash
+./debianito.sh --yes --allow-destructive
+```
+
+An unknown option exits with status 2. For boot profiling, set `DEBIANITO_PROFILE=1` to stamp each boot step to stderr with a timestamp:
+
+```bash
+DEBIANITO_PROFILE=1 ./debianito.sh
+```
+
+---
+
 ## Usage
 
 After running the script:
 
 1. **Select Option:** Use arrow keys or type 1-14.
 2. **Navigation:** Use Arrow Keys (Up↑/Down↓) to move between list options and ENTER key to confirm selection.
-3. **Confirm Actions:** Installation prompts use whiptail for TUI confirmations.
+3. **Confirm Actions:** Installation prompts use whiptail for TUI confirmations. Before a batch of packages is applied, the script shows what it is about to install (up to 15 package names plus a count of the rest) and asks you to proceed.
 4. **Review System Info:** Header displays detected Debian version and hardware summary before each action.
 5. **Repeat as Needed:** Return to main menu at any time or exit when done.
 
@@ -60,12 +84,12 @@ After running the script:
 | **10** | [Swap Management](/docs/swap.md) | Manage swap file or partition size and enable/disable swap space for system stability |
 | **11** | Install Programs and Software | Browse and install packages by category (Development, Themes, System Tools, etc.) using APT |
 | **12** | [Boot Rescue + GRUB](/docs/boot.md) | Config and fix GRUB bootloader issues, chroot repair, or restore system boot configuration |
-| **13** | [Desktop & Display](/docs/desktops_display.md) | Install and configure desktops (XFCE, LXDE) and display managers (LightDM, GDM3, SDDM, greetd) |
+| **13** | [Desktop & Display](/docs/desktops_display.md) | Install and configure desktops (XFCE, LXDE, GNOME, KDE Plasma) and display managers (LightDM, GDM3, SDDM, greetd) |
 | **14** | Exit | Return to terminal |
 
 ### Install Programs and Software (Option 11)
 
-The submenu offers the next categories:
+The submenu offers these categories:
 
 | Option | Category Title | Description |
 | -------- | ------------------------------- | ------------- |
@@ -73,7 +97,7 @@ The submenu offers the next categories:
 | **1** | Customization System | Desktop themes, icon themes, cursor themes, and fonts |
 | **2** | Download & Network | Downloaders (aria2, ytdlp, FileZilla) + Torrent clients (qBittorrent, Deluge, Transmission) |
 | **3** | Internet (Browsers, Email Clients, VPN) | Web browsers (Firefox, LibreWolf, Floorp, Chromium, Tor), email client (Thunderbird), and VPN tools (RiseUp, Proton, Mullvad) |
-| **4** | Communication | Signal, Telegram, HexChat — chat and messaging clients (GUI only) |
+| **4** | Communication | Signal, Telegram, HexChat: chat and messaging clients (GUI only) |
 | **5** | Media Players | Multimedia playback with VLC media player and MPV for advanced video/audio support |
 | **6** | Multimedia & Design | Image editing (GIMP), video editing (Kdenlive, HandBrake), 3D modeling (Blender), audio recording (Audacity), and graphics design (Inkscape) |
 | **7** | Code Editors & IDEs | vim, vim-gtk3, Neovim, Helix, nano, Emacs, Kate, Mousepad, Gedit, Geany, GNOME Text Editor, and VSCodium (VS Code open-source) |
@@ -89,14 +113,14 @@ The submenu offers the next categories:
 
 ## Quick Start Guide
 
-For a streamlined post-installation setup (~15-20 minutes), refer to the [Quick Start Visual Guide](/docs/quickstart.md). It provides:
+For a full setup in ~15-20 minutes, refer to the [Quick Start Visual Guide](/docs/quickstart.md). It provides:
 
 - Step-by-step recommended order for running Debianito options (Steps 1–13)
 - What each option does and when to enable it
 - Screenshots of key dialogs (whiptail menus, confirmations, hardware detection)
 - Troubleshooting tips for common issues (WiFi after firmware install, NVIDIA + Wayland, GRUB boot menu hidden, etc.)
 
-**Tip:** If you're unsure where to start, follow Steps 1–5 from the Quick Start guide. They cover the essentials: system info, permissions, repositories, firmware, and graphics drivers.
+**Tip:** If you're unsure where to start, follow Steps 1–6 from the Quick Start guide. They cover the essentials: system info, permissions, repositories, firmware, and graphics drivers.
 
 ---
 ## File Structure
@@ -111,9 +135,17 @@ For a streamlined post-installation setup (~15-20 minutes), refer to the [Quick 
 | `modules/extras/` | Software installer sub-modules split by category (themes, downloaders, internet, dev tools, etc.). |
 | `modules/gaming/` | Gaming launcher and optimization scripts: Steam, Heroic, Lutris, performance tools. |
 | `modules/gpu/` | GPU driver installation scripts for AMD and NVIDIA with architecture detection. |
+| `modules/desktops/` | Desktop environment installers: `desktop_xfce.sh`, `desktop_lxde.sh`, `desktop_gnome.sh`, `desktop_kde.sh`. |
+| `modules/hw_detect.sh` | Shared hardware detection (PCI/USB network, WiFi and Bluetooth devices); sourced early by `debianito.sh` and consumed by firmware and Bluetooth modules. |
 | `modules/repos/` | Repository management scripts: migration tool (`migrate.sh`) and format detection (`repo_detect.sh`). |
+| `tests/` | Offline BATS suite: `utils.bats`, `repo_detect.bats`, `desktops.bats` plus shared setup in `test_helper.bash`. |
+| `.github/workflows/ci.yml` | CI pipeline: ShellCheck at warning severity and the BATS suite. |
 
 ```bash
+├── .github
+│   └── workflows
+│       └── ci.yml
+├── .gitignore
 ├── debianito.sh
 ├── docs
 │   ├── boot.md
@@ -156,8 +188,13 @@ For a streamlined post-installation setup (~15-20 minutes), refer to the [Quick 
 │   │   ├── extras.sh
 │   │   ├── legacy.sh
 │   │   └── repos.sh
-│   ├── desktop_display.sh
-│   ├── extras
+│   ├── desktop_display.sh
+│   ├── desktops
+│   │   ├── desktop_gnome.sh
+│   │   ├── desktop_kde.sh
+│   │   ├── desktop_lxde.sh
+│   │   └── desktop_xfce.sh
+│   ├── extras
 │   │   ├── audio
 │   │   ├── communication
 │   │   │   └── communication.sh
@@ -212,8 +249,9 @@ For a streamlined post-installation setup (~15-20 minutes), refer to the [Quick 
 │   │   ├── _helpers.sh
 │   │   ├── nvidia_manage.sh
 │   │   └── nvidia.sh
-│   ├── gpu.sh
-│   ├── kernel.sh
+│   ├── gpu.sh
+│   ├── hw_detect.sh
+│   ├── kernel.sh
 │   ├── repos
 │   │   ├── migrate.sh
 │   │   └── repo_detect.sh
@@ -225,8 +263,13 @@ For a streamlined post-installation setup (~15-20 minutes), refer to the [Quick 
 │   ├── system
 │   │   ├── audio.sh
 │   │   └── system_prefs.sh
-│   ├── utils.sh
-│   └── zram.sh
+│   ├── utils.sh
+│   └── zram.sh
+├── tests
+│   ├── desktops.bats
+│   ├── repo_detect.bats
+│   ├── test_helper.bash
+│   └── utils.bats
 └── README.md
 ```
 

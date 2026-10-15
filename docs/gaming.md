@@ -2,9 +2,9 @@
 
 ### 1. Philosophy of the Gaming Environment in Debian
 
-The Debianito gaming module transforms a server-grade Debian installation into a dedicated gaming station by carefully isolating dependencies and configuring compatibility layers without compromising system stability. The core philosophy follows three principles:
+The Debianito gaming module turns a plain Debian installation into a gaming station. It isolates the gaming dependencies from the base system and configures the compatibility layers without putting system stability at risk. The design follows three principles:
 
-**Dependency Isolation:** All gaming-specific packages (Steam, Heroic, Mesa 32-bit libraries) are installed in user-space where possible, preventing conflicts with base system packages. The `steam-installer` package from Debian's contrib section is used as the bootstrap mechanism rather than Valve's official repository for stability reasons—this ensures compatibility with Debian's package management and reduces update complexity.
+**Dependency Isolation:** All gaming-specific packages (Steam, Heroic, Mesa 32-bit libraries) are installed in user-space where possible, preventing conflicts with base system packages. The `steam-installer` package from Debian's contrib section is used as the bootstrap mechanism rather than Valve's official repository for stability reasons. This ensures compatibility with Debian's package management and reduces update complexity.
 
 **Compatibility Layer Configuration:** Proton/Wine support is enabled through automatic installation of required 32-bit libraries (`libgl1-mesa-dri:i386`, `mesa-vulkan-drivers:i386`) that are mandatory for running Windows-only games on Linux. The module detects GPU architecture and installs appropriate drivers (NVIDIA proprietary, AMD open-source, Intel built-in) before attempting any launcher installation.
 
@@ -16,7 +16,7 @@ The module architecture separates concerns into distinct scripts (`steam.sh`, `h
 
 ### 2. Launchers and Compatibility Layers (Steam & Heroic)
 
-**Steam Installation Logic:** The `install_steam()` function in `steam.sh` leverages Debian's native package management through the `apt install -y steam-installer` command. This approach differs from Valve's official repository for several reasons:
+**Steam Installation Logic:** The `install_steam()` function in `steam.sh` uses Debian's native package management through the `apt install -y steam-installer` command. This approach differs from Valve's official repository for several reasons:
 
 1. **32-bit Architecture Requirement:** Steam requires 32-bit libraries to run modern Windows games via Proton. The script explicitly prompts users to enable Multi-Arch support (`dpkg --add-architecture i386`) and install the complete Mesa stack for both amd64 and i386 architectures:
 
@@ -25,7 +25,7 @@ The module architecture separates concerns into distinct scripts (`steam.sh`, `h
               libgl1-mesa-dri:i386 libegl-mesa0:i386 mesa-va-drivers:i386
    ```
 
-2. **Runtime Dependency Chain:** The `steam-installer` package depends on several critical components:
+2. **Runtime Dependency Chain:** The `steam-installer` package depends on several components:
    - `debconf` and `cdebconf` for configuration management
    - `default-dbus-session-bus` for inter-process communication
    - `lsof` for file listing utilities
@@ -52,7 +52,7 @@ This approach ensures users always get the latest stable release while maintaini
 
 ### 3. Optimization Engine and Telemetry (GameMode & MangoHud)
 
-**Feral GameMode Daemon:** When a game launches with `gamemoderun`, the Feral GameMode daemon performs several critical optimizations at the kernel level:
+**Feral GameMode Daemon:** When a game launches with `gamemoderun`, the Feral GameMode daemon performs several optimizations at the kernel level:
 
 1. **CPU Scheduler Priority:** Adjusts scheduling policies to prioritize gaming processes over background tasks, reducing latency spikes during gameplay
 2. **I/O Priority Management:** Increases I/O priority for game processes while deprioritizing non-essential system operations (updates, backups)
@@ -83,7 +83,7 @@ if dpkg --print-foreign-architectures | grep -q i386; then
 fi
 ```
 
-The `goverlay` component extends this functionality by integrating with Wayland compositors for smoother overlay behavior on modern desktop environments. Both tools work together to provide comprehensive performance visibility without requiring game-specific configuration.
+The `goverlay` component extends this functionality by integrating with Wayland compositors for smoother overlay behavior on modern desktop environments. The two tools need no game-specific configuration.
 
 ---
 
@@ -121,19 +121,19 @@ This approach eliminates the security risk of running OpenRGB as root while main
 | **Temurin 21** | Latest game engines, cutting-edge mods | Provides best performance for modern Java applications |
 | **Temurin 25** | Minecraft 26+ and latest game engines | Best performance for the newest Java applications |
 
-**Repository Management via extrepo:** The script leverages the `extrepo` utility to manage external repositories cleanly rather than manually injecting repository URLs into system files. This approach offers several advantages:
+**Repository Management via extrepo:** The script uses the `extrepo` utility to manage external repositories instead of injecting repository URLs into system files by hand. This approach offers several advantages:
 
 1. **Automated Keyring Handling:** `extrepo` manages GPG keys and source file configurations automatically, eliminating manual intervention with `/etc/apt/sources.list.d/`.
 2. **Dependency Resolution:** The utility checks for its own installation and handles the enabling of the Adoptium Temurin repository before proceeding with package installation.
 3. **Maintenance Safety:** Updates to the upstream repository are reflected through `extrepo` without requiring direct edits to system configuration files, reducing the risk of breakage during OS updates.
 
-**Version Selection Logic:** Users can choose which Temurin version to install based on their specific game requirements via a TUI menu (`install_minecraft_java()`). The module justifies offering all four versions because:
+**Version Selection Logic:** Users can choose which Temurin version to install based on their specific game requirements via a TUI menu (`install_minecraft_java()`). The module offers all four versions because:
 
 1. **Backward Compatibility:** Java 8 remains in use by many Minecraft mods and older game clients that haven't been updated for newer JVMs
 2. **Performance Optimization:** Java 21 provides the best performance characteristics for modern games with heavy multithreading requirements
 3. **Security Updates:** All Temurin versions receive regular security patches from the Eclipse Foundation community
 
-The installation process ensures clean repository management without polluting the system with multiple conflicting JRE installations, maintaining Debian's package integrity while providing flexibility for different gaming scenarios. It automatically installs `extrepo` if not present and enables the Adoptium source before proceeding with version-specific packages (e.g., `temurin-8-jre`, `temurin-17-jre`, `temurin-25-jre`).
+The install avoids multiple conflicting JRE installations. It installs `extrepo` if it is missing, enables the Adoptium source and then installs the chosen packages (e.g., `temurin-8-jre`, `temurin-17-jre`, `temurin-25-jre`).
 
 ### References
 
@@ -147,4 +147,4 @@ The installation process ensures clean repository management without polluting t
 - [https://github.com/flightlessmango/Mangohud](https://github.com/flightlessmango/Mangohud)
 - [https://github.com/feralinteractive/gamemode](https://github.com/feralinteractive/gamemode)
 - [https://gitlab.com/CalcProgrammer1/OpenRGB](https://gitlab.com/CalcProgrammer1/OpenRGB)
-- [https://adoptium.net/es/installation/linux](https://adoptium.net/es/installation/linux)
+- [https://adoptium.net/en/installation/linux](https://adoptium.net/en/installation/linux)

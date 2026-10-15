@@ -2,19 +2,19 @@
 
 ### 1. Philosophy of the Graphics Stack (Open-Source vs. Proprietary)
 
-The `debianito` script adopts a **hybrid-first architecture philosophy**. It prioritizes the stability and security of the Linux kernel's native open-source drivers while maintaining the capability to inject proprietary solutions where necessary for performance or legacy support. This approach is implemented through three distinct layers:
+The `debianito` script prefers the open-source drivers that ship with the Linux kernel and injects proprietary ones only where performance or legacy support requires it. The work is split across three layers:
 
 1. **DRM/KMS & Mesa (Open-Source Core)**: For Intel and AMD hardware, the script relies on the `i915`/`amdgpu` kernel drivers (KMS) paired with the `Mesa` user-space stack. This ensures that graphics acceleration is handled by the mainline Linux kernel without requiring third-party blobs or external repositories for basic functionality. The script explicitly installs the necessary Gallium3D drivers (`radeonsi`, `iris`) and Vulkan implementations (`RADV`).
 2. **Proprietary Injection (NVIDIA)**: For NVIDIA hardware, the open-source Nouveau driver is often insufficient for gaming or compute workloads. The script manages the installation of proprietary `.run` or DKMS modules via official NVIDIA repositories. This requires careful handling to ensure compatibility with the running kernel version, especially when using backports kernels.
-3. **Firmware & Microcode**: A critical prerequisite layer handled by `firmware.sh`. Before any driver can load, the correct firmware blobs (e.g., `iwlwifi`, `amdgpu`, `nvidia`) must be present in `/lib/firmware`. The script scans hardware via `lspci` and `lsusb` to populate a dynamic installation plan for these non-free components.
+3. **Firmware & Microcode**: A prerequisite layer handled by `firmware.sh`. Before any driver can load, the correct firmware blobs (e.g., `iwlwifi`, `amdgpu`, `nvidia`) must be present in `/lib/firmware`. The script scans hardware via `lspci` and `lsusb` to populate a dynamic installation plan for these non-free components.
 
-This philosophy ensures that users on standard Debian Stable releases get maximum compatibility, while advanced users can opt into backports kernels or enterprise NVIDIA repositories without breaking the base system integrity.
+Users on Debian Stable get compatibility by default, while advanced users can opt into backports kernels or the NVIDIA enterprise repository without breaking the base system.
 
 ---
 
 ### 2. The Automatic GPU Detection Pipeline
 
-The script utilizes a robust pre-flight detection sequence defined in `utils.sh` and executed within `gpu.sh`. This pipeline minimizes user interaction by automatically categorizing hardware before presenting installation options.
+The script runs a pre-flight detection sequence defined in `utils.sh` and executed in `gpu.sh`. It categorizes the hardware before showing installation options, so the user answers fewer questions.
 
 **Detection Flow:**
 
@@ -40,7 +40,7 @@ The script utilizes a robust pre-flight detection sequence defined in `utils.sh`
     * Install Intel firmware/drivers first to ensure the base display server works.
     * Install NVIDIA drivers second, configuring them for PRIME offloading if detected.
 
-This "detect-then-deploy" model prevents users from installing unnecessary drivers (e.g., `i965` on an RTX 4090) and ensures that critical firmware is present before the driver installation phase begins.
+This detect-then-deploy order keeps users from installing unnecessary drivers (e.g., `i965` on an RTX 4090) and puts the firmware in place before drivers are installed.
 
 ---
 
@@ -123,14 +123,14 @@ fi
 
 The guard checks both `grep -q` (read-only) and `sudo grep -q` (with elevated permissions) to handle systems where `/etc/default/grub` requires root access. If the parameters are already present, the function exits early with a message rather than duplicating the entry.
 
-#### Additional notes & carifications
+#### Additional notes & clarifications
 
 1. **Regarding GCN Nomenclature**: Names like "GCN 1.0", "1.1", "1.2" were created by the press as a convenient abbreviation, since AMD only started officially numbering their GCN revisions (gen 1 to 4) later. The table now uses more standard terminology.
 2. **Relationship Between Drivers and Architectures**:
     * The `radeonsi` driver (OpenGL) and `RADV` (Vulkan) are siblings within the Mesa 3D project. Both depend on the [`amdgpu` kernel](https://docs.kernel.org/gpu/amdgpu/index.html).
     * The old [`radeon`](https://wiki.freedesktop.org/xorg/radeon/) driver (for TeraScale) is incompatible with modern Mesa drivers (`radeonsi`/`RADV`).
     * **Important milestone**: Starting from Linux kernel 6.19, the `amdgpu` driver will include support for older generations of [AMD GPUs](https://wiki.gentoo.org/wiki/AMDGPU) (such as TeraScale and early GCN) that were previously only supported by the `radeon` driver, unifying support.
-3. **Vulkan Support in RADV**: Mesa documentation indicates that [RADV supports Vulkan 1.4 for all GFX8 GPUs (GCN 3 onwards) and newer](https://docs.mesa3d.org/drivers/radv.html#supported-hardware). This includes RDNA 3 and RDNA 3.5 architectures, not just RDNA 4.
+3. **Vulkan Support in RADV**: Mesa documentation indicates that [RADV supports Vulkan 1.4 for all GFX8 GPUs (GCN 3 onwards) and newer](https://docs.mesa3d.org/drivers/radv.html#supported-hardware). This covers RDNA 4 as well as RDNA 3 and RDNA 3.5 architectures.
 4. **RDNA 3.5 Status**: It is an intermediate update that shares the architectural base of RDNA 3 (gfx11). The identifiers `gfx1150` and `gfx1151` correspond to this generation. Support in Mesa drivers and the kernel has been integrated progressively.
 
 ---
@@ -161,7 +161,7 @@ Starting with Turing, NVIDIA introduced the **open kernel module**. From driver 
 | **Ada Lovelace**<br>*(AD100/102/103/104)* | 525.xx to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (Vulkan 1.3) | **CUDA 12.8+** | NVK added full Ada support recently. Proprietary driver still required if hardware Ray Tracing or DLSS 3 (Frame Generation) is needed, as NVK does not yet implement these proprietary extensions. |
 | **Blackwell**<br>*(GB100/102/202)* | [570.xx](https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-570-211-01/index.html) to 610+ | `nvidia` (**Open Module**) | **Vulkan 1.3** | **Yes** (In development) | **CUDA 12.8+** | Latest generation architecture (RTX 5090/5080). NVK support is landing in the most recent kernel versions (6.12+) and Mesa (24.3+). Requires very updated `linux-firmware`. |
 
-#### 💡 Quick context glossary for documentation
+#### Quick context glossary
 
 * **Open Module:** Starting with driver 515, [NVIDIA releases code that interacts directly with the Linux kernel under MIT/GPL license](https://developer.nvidia.com/blog/nvidia-releases-open-source-gpu-kernel-modules/). However, the GPU still requires loading a proprietary closed microcode called **GSP (GPU System Processor)** to boot.
 * **NVK:** It is the open-source Vulkan driver developed by Red Hat and the community, integrated into the [Mesa project](https://docs.mesa3d.org/drivers/nvk.html). It's the 100% free alternative to `libGLX_nvidia.so`. Does not require NVIDIA proprietary driver installed to function (only kernel firmware).
@@ -187,14 +187,14 @@ When the script detects Intel or AMD hardware, it triggers a specific installati
 | **Intel Gen 8+** | `i915` | `iris` / `anv` | Installs [`intel-media-va-driver-non-free`](https://github.com/intel/media-driver). Modern, preferred backend for Broadwell+. |
 | **AMD GCN/RDNA** | `amdgpu` | `radeonsi` (GL) + `RADV` (VK) | Uses standard `va-driver-all`. Requires kernel param tuning for older GCN. |
 
-**Critical Consistency Check:**
+**Consistency Check:**
 The script enforces the installation of 32-bit Mesa libraries (`libgl1-mesa-dri:i386`) alongside the 64-bit packages. This is a mandatory requirement for running Proton (Steam) and Wine applications, which often rely on 32-bit OpenGL contexts even when running on a 64-bit OS.
 
 ---
 
 ### 7.**NVIDIA Driver Management & Kernel Compatibility**
 
-The NVIDIA driver installation process is inherently complex due to proprietary components, kernel version constraints, and DKMS (Dynamic Kernel Module Support) module compilation. This section outlines how the script navigates these challenges by distinguishing between stable and backports kernels, handling Blackwell architecture GPUs via the CUDA repository (production branches v590 / v595), and providing appropriate warnings for potential compatibility issues.
+The NVIDIA driver installation involves proprietary components, kernel version constraints, and DKMS (Dynamic Kernel Module Support) compilation. This section covers the choice between stable and backports kernels, Blackwell GPUs via the CUDA repository (production branches v590 / v595), and the warnings the script shows for compatibility issues.
 
 #### **Kernel Compatibility**
 
@@ -203,19 +203,19 @@ The NVIDIA driver installation process is inherently complex due to proprietary 
 
 #### **Blackwell Architecture & CUDA v590/v595 (Production Branches)**
 
-* **Detection**: `_helpers.sh` function `is_nvidia_blackwell()` identifies GPUs via PCI IDs `10de:24xx`, `0x2900–0x29BF`, and `0x2B80–0x31FF`. The same check gates both CUDA branches — Blackwell is unsupported by Debian stable regardless of the selected CUDA version.
+* **Detection**: `_helpers.sh` function `is_nvidia_blackwell()` identifies GPUs via PCI IDs `10de:24xx`, `0x2900–0x29BF`, and `0x2B80–0x31FF`. The same check gates both CUDA branches: Blackwell is unsupported by Debian stable regardless of the selected CUDA version.
 * **Reason for v590/v595**: Debian 13 (Trixie) stable drivers only support up to v550, which lacks Blackwell (GB20x) architecture. The NVIDIA CUDA repository provides two production branches with unified driver packages: **v590**(current long-lived production, [590.48.01](https://download.nvidia.com/XFree86/Linux-x86_64/590.48.01/README/supportedchips.html)) and **v595** ([595.91.07](https://download.nvidia.com/XFree86/Linux-x86_64/595.91.07/README/supportedchips.html)newer production branch, same GB20x support with more recent fixes/features). Both branches expose the same unified metapackage and replace the need for a distro-packaged driver on Blackwell hardware.
-* **CUDA Repository Enablement**: On Debian 13 (Trixie) — the only release that exposes `590` and `595` (`_show_nvidia_version_menu` gates them behind `DEBIAN_VERSION == 13`) — the script enables the `nvidia-cuda` repository via `extrepo` (`sudo apt install -y extrepo` if missing, then `sudo extrepo enable nvidia-cuda`). After enabling, the script always runs an explicit `apt update`, then installs `nvidia-driver-pinning-<ver>` if available (official NVIDIA pinning, optional and version-specific for 590 vs 595), and finally installs the unified metapackage `nvidia-open` plus `firmware-nvidia-gsp` (pulled as a transitive dependency). No manual pinning file is written; if `apt install` fails, the real `apt` error is shown and the installation aborts.
+* **CUDA Repository Enablement**: On Debian 13 (Trixie), the only release that exposes `590` and `595` (`_show_nvidia_version_menu` gates them behind `DEBIAN_VERSION == 13`), the script enables the `nvidia-cuda` repository via `extrepo` (`sudo apt install -y extrepo` if missing, then `sudo extrepo enable nvidia-cuda`). After enabling, the script always runs an explicit `apt update`, then installs `nvidia-driver-pinning-<ver>` if available (official NVIDIA pinning, optional and version-specific for 590 vs 595), and finally installs the unified metapackage `nvidia-open` plus `firmware-nvidia-gsp` (pulled as a transitive dependency). No manual pinning file is written; if `apt install` fails, the real `apt` error is shown and the installation aborts.
 
 #### **Installation Flow**
 
 The NVIDIA flow is driven by `_install_nvidia_stack` (dispatcher in `modules/gpu.sh`):
 
-1. **Plan** — `_msg` with detected GPUs, then `_pause`.
+1. **Plan**: `_msg` with detected GPUs, then `_pause`.
 2. **Manage menu** (`_nvidia_manage_menu`): "Install / Change NVIDIA Driver Version" or "Remove NVIDIA Driver and Restore Nouveau".
 3. **Version menu** (`_show_nvidia_version_menu`): Debian 12 → v535 (Recommended) / v470 (Kepler); Debian 13 → v550 (Recommended) / v590 / v595 (NVIDIA CUDA Repo).
 4. **Dispatch by hardware**: Kepler → `nvidia-tesla-470-driver`; Fermi → veto with message; Turing+ → `_install_nvidia_standard` (Debian stable); Blackwell on Trixie → CUDA repo v590.
-5. **CUDA repo (590/595)**: two separate APT transactions — `nvidia-driver-pinning-<ver>` (version lock, mandatory) then `nvidia-open` (driver + open kernel modules, firmware via transitive dependency).
+5. **CUDA repo (590/595)**: two separate APT transactions: `nvidia-driver-pinning-<ver>` (version lock, mandatory) then `nvidia-open` (driver + open kernel modules, firmware via transitive dependency).
 6. **Secure Boot warning**: If Secure Boot is active (`mokutil --sb-state` reports `SecureBoot enabled`), the script displays a warning that the NVIDIA DKMS module is compiled but **NOT signed**. The user must sign the module with MOK or disable Secure Boot in BIOS before rebooting:
 
    ```
@@ -223,7 +223,7 @@ The NVIDIA flow is driven by `_install_nvidia_stack` (dispatcher in `modules/gpu
    You MUST sign the module with MOK or disable Secure Boot in BIOS before rebooting.
    ```
 
-   Installation continues — Secure Boot does not block DKMS compilation, but the module will fail to load until signed.
+   Installation continues: Secure Boot does not block DKMS compilation, but the module will fail to load until signed.
 7. **Post-install**: `/etc/modprobe.d/nvidia-wayland.conf` (written with `|| return 1` protection) + DKMS verification.
 
 > Note: Debian 12 (Bookworm) backports reached EOL (2026-08-09); the NVIDIA flow on Bookworm only uses the stable repository.
@@ -231,7 +231,7 @@ The NVIDIA flow is driven by `_install_nvidia_stack` (dispatcher in `modules/gpu
 
 ### 9.**NVIDIA Driver Compatibility Matrix**
 
-Depending on your GPU generation and your Debian ecosystem, you must select the appropriate legacy or current driver series. The following table details the verified compatibility matrix across different Debian versions and hardware architectures:
+Depending on your GPU generation and your Debian ecosystem, you must select the appropriate legacy or current driver series. The table below lists the verified compatibility across Debian versions and GPU generations:
 
 | Driver NVIDIA | Debian Version | Supported Architectures (Generations) | Notes |
 | :--- | :--- | :--- | :--- |
@@ -240,7 +240,7 @@ Depending on your GPU generation and your Debian ecosystem, you must select the 
 | **[535.247.01](https://us.download.nvidia.com/XFree86/Linux-x86_64/535.247.01/README/supportedchips.html)** | **Debian 12** (Bookworm) | Maxwell to Ada Lovelace | Kepler support dropped completely. Standard for RTX 3000/4000 series. |
 | **[550.163.01](https://us.download.nvidia.com/XFree86/Linux-x86_64/550.163.01/README/supportedchips.html)** | **Debian 13** (Trixie) | Maxwell to Ada Lovelace | Current stable standard. Blackwell not officially supported yet. |
 
-#### **Critical Hardware Notes:**
+#### **Hardware Notes:**
 
 * **Kepler (GeForce vs. Quadro)**: The last driver supporting true Kepler architecture is version **470**. If a user has a GTX 680 or similar, they must stay on Debian 11 or use the 470 driver branch in Bookworm/Trixie manually.
 * **Fermi (GTX 400/500)**: Support ended with driver 390. These GPUs are incompatible with modern kernels and drivers beyond Debian 11.
@@ -262,7 +262,7 @@ fi
 
 ### 10. Performance Monitoring & Telemetry Tools
 
-To ensure the graphics stack is functioning correctly, `gpu.sh` offers an optional installation of telemetry tools. These allow users to verify GPU utilization, memory usage, and codec support post-installation.
+To check that the graphics stack works, `gpu.sh` offers an optional installation of telemetry tools. These allow users to verify GPU utilization, memory usage, and codec support post-installation.
 
 * **Universal ([`nvtop`](https://github.com/Syllo/nvtop))**:
   * A cross-platform tool that displays real-time metrics for NVIDIA, AMD, and Intel GPUs in a terminal interface (similar to `htop`).
@@ -272,7 +272,7 @@ To ensure the graphics stack is functioning correctly, `gpu.sh` offers an option
 * **Intel Specific ([`intel-gpu-tools`](https://github.com/ChrisCummins/intel-gpu-tools))**:
   * Only installed if the detected Intel hardware supports it (Gen 6+). Provides information on GPU usage via `inotify` or `/sys/class/drm`.
 * **Codec Verification ([`vainfo`](https://github.com/intel/libva-utils))**:
-  * The script runs `vainfo` to verify that VAAPI is correctly configured. This confirms whether the system can utilize hardware acceleration for video decoding (e.g., H.264, HEVC) via Intel QuickSync or AMD Video Core Plus.
+  * The script runs `vainfo` to verify that VAAPI is correctly configured. This confirms whether the system can use hardware acceleration for video decoding (e.g., H.264, HEVC) via Intel QuickSync or AMD Video Core Plus.
 
 **Installation Command Logic:**
 
@@ -287,4 +287,4 @@ if _confirm "Install Telemetry Tools"; then
 fi
 ```
 
-This modular approach ensures that users can verify their installation immediately after running `debianito`, providing confidence in the performance of their graphics stack.
+Users can run these tools right after `debianito` to confirm that the graphics stack works.

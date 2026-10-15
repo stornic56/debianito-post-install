@@ -111,6 +111,15 @@ _write_classic_branch() {
 }
 
 _branch_migration() {
+    # Unattended guard: branch migration is the one operation
+    # that can leave the system unbootable, so --yes alone is
+    # not enough — it also requires --allow-destructive even
+    # when every other prompt auto-accepts.
+    if [ "${AUTO_YES:-0}" = "1" ] && [ "${ALLOW_DESTRUCTIVE:-0}" != "1" ]; then
+        echo "Branch migration is destructive. Re-run with --allow-destructive, or drop --yes to confirm interactively." >&2
+        return 1
+    fi
+
     # ── Screen 1: Risk warning ──
     _msg_red "WARNING: Branch Migration" \
         "Migrating from Debian Stable to Testing or SID is a\n\

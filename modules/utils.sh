@@ -647,6 +647,9 @@ install_backports_or_stable() {
 # ----------------------------------------------------------------------
 
 _confirm() {
+    # --yes (unattended mode): auto-accept without
+    # invoking whiptail; the prompt gate is the flag itself.
+    [ "${AUTO_YES:-0}" = "1" ] && return 0
     whiptail --title "$1" --yes-button "Yes" --no-button "No" \
         --yesno "$2" "${3:-10}" "${4:-65}"
 }
@@ -711,6 +714,7 @@ _validate_sudoers() {
     rm -f "$tmpfile"
 }
 
+# shellcheck disable=SC2120  # Optional prompt arg used by GPU modules.
 _pause() {
     local msg="${1:-Press Enter to continue...}"
     echo -e "$msg"
@@ -867,6 +871,7 @@ _detect_lang_pkg() {
 # ----------------------------------
 # Network connectivity check
 # ----------------------------------
+# shellcheck disable=SC2120  # Optional probe target (default: deb.debian.org).
 _check_network() {
     local target="${1:-deb.debian.org}"
 
