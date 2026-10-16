@@ -5,17 +5,23 @@
 # License GPL v3
 
 lxde_menu() {
-    local choice
-    choice=$(_radiolist "LXDE" \
-        "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "1" "LXDE (Full Desktop)" OFF \
-        "2" "LXDE Core (Minimal Install)" OFF)
-    [ -z "$choice" ] && return 0
-    clear
-    case "$(echo "$choice" | tr -d '"')" in
-    1) _install_lxde_full ;;
-    2) _install_lxde_core ;;
-    esac
+    while true; do
+        local -a lx_items=()
+        lx_items+=("1" "LXDE (Full Desktop)")
+        lx_items+=("2" "LXDE Core (Minimal Install)")
+        lx_items+=("3" "Back")
+        local choice
+        choice=$(_menu "LXDE" \
+            "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "${lx_items[@]}")
+        [ -z "$choice" ] && break
+        clear
+        case "$choice" in
+        1) _install_lxde_full ;;
+        2) _install_lxde_core ;;
+        3) break ;;
+        esac
+    done
 }
 
 _install_lxde_full() {

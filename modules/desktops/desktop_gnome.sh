@@ -5,19 +5,23 @@
 # License GPL v3
 
 gnome_menu() {
-    local choice
-    choice=$(_radiolist "GNOME" \
-        "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "1" "GNOME (Full Desktop)" OFF \
-        "2" "GNOME Core (Minimal Install)" OFF \
-        "3" "Back" OFF)
-    [ -z "$choice" ] && return 0
-    clear
-    case "$(echo "$choice" | tr -d '"')" in
-    1) _install_gnome_full ;;
-    2) _install_gnome_core ;;
-    3) return 0 ;;
-    esac
+    while true; do
+        local -a gn_items=()
+        gn_items+=("1" "GNOME (Full Desktop)")
+        gn_items+=("2" "GNOME Core (Minimal Install)")
+        gn_items+=("3" "Back")
+        local choice
+        choice=$(_menu "GNOME" \
+            "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "${gn_items[@]}")
+        [ -z "$choice" ] && break
+        clear
+        case "$choice" in
+        1) _install_gnome_full ;;
+        2) _install_gnome_core ;;
+        3) break ;;
+        esac
+    done
 }
 
 _install_gnome_full() {

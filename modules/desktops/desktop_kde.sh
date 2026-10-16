@@ -6,19 +6,23 @@
 # License GPL v3
 
 kde_menu() {
-    local choice
-    choice=$(_radiolist "KDE Plasma" \
-        "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "1" "KDE Plasma (Full Desktop)" OFF \
-        "2" "KDE Plasma Desktop (Minimal)" OFF \
-        "3" "Back" OFF)
-    [ -z "$choice" ] && return 0
-    clear
-    case "$(echo "$choice" | tr -d '"')" in
-    1) _install_kde_full ;;
-    2) _install_kde_minimal ;;
-    3) return 0 ;;
-    esac
+    while true; do
+        local -a kd_items=()
+        kd_items+=("1" "KDE Plasma (Full Desktop)")
+        kd_items+=("2" "KDE Plasma Desktop (Minimal)")
+        kd_items+=("3" "Back")
+        local choice
+        choice=$(_menu "KDE Plasma" \
+            "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
+            "${kd_items[@]}")
+        [ -z "$choice" ] && break
+        clear
+        case "$choice" in
+        1) _install_kde_full ;;
+        2) _install_kde_minimal ;;
+        3) break ;;
+        esac
+    done
 }
 
 _install_kde_full() {
