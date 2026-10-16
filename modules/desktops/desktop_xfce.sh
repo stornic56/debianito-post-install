@@ -51,27 +51,28 @@ _install_xfce_wayland() {
 }
 
 _install_xfce_custom() {
-    local -a items=()
-    for pkg in thunar xfdesktop4 xfwm4 xfce4-panel xfce4-terminal \
-        xfce4-screenshooter ristretto mousepad xfce4-session \
-        xfce4-settings xfce4-power-manager; do
-        items+=("$pkg" "$pkg" "$(_state "$pkg")")
-    done
-    local choices
-    choices=$(_checklist "XFCE Custom" \
-        "Select the XFCE packages to install:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
-        "${items[@]}")
-    [ -z "$choices" ] && return
+    # BH-004: helper returns a space-separated selection;
+    # reparsed into an array to avoid word splitting and injection.
     local cleaned
-    cleaned=$(echo "$choices" | tr -d '"')
+    cleaned=$(_select_packages_checklist "XFCE Custom" \
+        "Select the XFCE packages to install:" \
+        "thunar|File manager" \
+        "xfdesktop4|Desktop manager" \
+        "xfwm4|Window manager" \
+        "xfce4-panel|Panel" \
+        "xfce4-terminal|Terminal emulator" \
+        "xfce4-screenshooter|Screenshot tool" \
+        "ristretto|Image viewer" \
+        "mousepad|Text editor" \
+        "xfce4-session|Session manager" \
+        "xfce4-settings|Settings manager" \
+        "xfce4-power-manager|Power manager")
     [ -z "$cleaned" ] && return
-
-    # BH-004: Convert to array to avoid word splitting and injection.
     local -a xfce_pkgs=()
+    local _pkg
     while IFS= read -r _pkg; do
         [ -n "$_pkg" ] && xfce_pkgs+=("$_pkg")
     done < <(echo "$cleaned" | tr ' ' '\n')
-
     # Pre-apply summary: confirm the selection before
     # the batch apt transaction starts.
     _confirm_install_list "XFCE Custom" "${xfce_pkgs[@]}" || return

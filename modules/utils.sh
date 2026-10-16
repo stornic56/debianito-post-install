@@ -805,6 +805,28 @@ _confirm_install_list() {
     return 1
 }
 
+# Show a multi-select checklist of packages and return the
+# selection as a space-separated string ("" on cancel/Esc).
+# Args: title prompt "pkg|description" [pkg|description ...]
+# Already-installed packages are pre-checked via _state.
+_select_packages_checklist() {
+    local title="$1" prompt="$2"
+    shift 2
+    local -a items=() entry
+    for entry in "$@"; do
+        local pkg="${entry%%|*}"
+        items+=("$pkg" "${entry#*|}" "$(_state "$pkg")")
+    done
+    local choices
+    # _checklist swallows whiptail's cancel (Esc) exit code
+    # via `|| true`, so a cancelled dialog looks like an empty
+    # selection here; an empty result means "nothing to install".
+    choices=$(_checklist "$title" "$prompt" \
+        $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA "${items[@]}")
+    choices=$(echo "$choices" | tr -d '"')
+    echo "$choices"
+}
+
 # Install a package with confirmation prompt.
 # Handles set -e: failures are caught and reported, not fatal.
 _install_pkg() {
