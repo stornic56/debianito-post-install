@@ -4,6 +4,23 @@
 # Debian ships GNOME 48 (13), 43 (12) and 3.38 (11).
 # License GPL v3
 
+# Pick the terminal emulator for this release. gnome-core
+# declares the OR-dependency "gnome-terminal (>= 3.56) or
+# gnome-console (>= 46) or ptyxis (>= 47)" (packages.debian.org
+# /trixie/gnome-core, verified 2026-10-16) and apt resolves an
+# unset OR-dep with the FIRST alternative, so gnome-core alone
+# would pull gnome-terminal. Listing ptyxis in the same apt
+# transaction satisfies the OR-dep with ptyxis instead. ptyxis
+# (GTK4) exists in trixie (48.5-1~deb13u1) but NOT in bookworm
+# (packages.debian.org/bookworm/ptyxis → no such package), hence
+# the trixie-only gate. An already-installed gnome-terminal is
+# left alone: both can coexist; no purge is ever attempted.
+_gnome_terminal_pkg() {
+    case "${DEBIAN_CODENAME:-}" in
+    trixie) printf '%s\n' "ptyxis" ;;
+    *)      printf '%s\n' "gnome-terminal" ;;
+    esac
+}
 gnome_menu() {
     while true; do
         local -a gn_items=()
@@ -26,8 +43,12 @@ gnome_menu() {
 
 _install_gnome_full() {
     # Pre-apply summary: confirm the selection before any
-    # debconf or apt transaction starts.
-    _confirm_install_list "GNOME Full Desktop" gnome gdm3 || return
+    # debconf or apt transaction starts. The terminal package
+    # is resolved once (ptyxis on trixie, gnome-terminal
+    # elsewhere) so the summary lists what apt will install.
+    local terminal_pkg
+    terminal_pkg=$(_gnome_terminal_pkg)
+    _confirm_install_list "GNOME Full Desktop" gnome gdm3 "$terminal_pkg" || return
 
     echo -e "${GREEN}Installing GNOME (Full Desktop)...${NC}"
 
@@ -41,7 +62,7 @@ _install_gnome_full() {
     fi
     echo "${target_dm} shared/default-x-display-manager select ${target_dm}" | sudo debconf-set-selections
     _ensure_apt_updated
-    _run_cmd "GNOME Full" "sudo apt install -y gnome gdm3" \
+    _run_cmd "GNOME Full" "sudo apt install -y gnome gdm3 $terminal_pkg" \
         "Installing GNOME (Full Meta Package) + GDM3..."
     if [ "$target_dm" = "gdm3" ]; then
         sudo systemctl enable gdm3
@@ -55,8 +76,12 @@ _install_gnome_full() {
 
 _install_gnome_core() {
     # Pre-apply summary: confirm the selection before any
-    # debconf or apt transaction starts.
-    _confirm_install_list "GNOME Core" gnome-core gdm3 || return
+    # debconf or apt transaction starts. The terminal package
+    # is resolved once (ptyxis on trixie, gnome-terminal
+    # elsewhere) so the summary lists what apt will install.
+    local terminal_pkg
+    terminal_pkg=$(_gnome_terminal_pkg)
+    _confirm_install_list "GNOME Core" gnome-core gdm3 "$terminal_pkg" || return
 
     echo -e "${GREEN}Installing GNOME Core (Minimal)...${NC}"
 
@@ -70,7 +95,7 @@ _install_gnome_core() {
     fi
     echo "${target_dm} shared/default-x-display-manager select ${target_dm}" | sudo debconf-set-selections
     _ensure_apt_updated
-    _run_cmd "GNOME Core" "sudo apt install -y gnome-core gdm3" \
+    _run_cmd "GNOME Core" "sudo apt install -y gnome-core gdm3 $terminal_pkg" \
         "Installing GNOME Core (Minimal) + GDM3..."
     if [ "$target_dm" = "gdm3" ]; then
         sudo systemctl enable gdm3

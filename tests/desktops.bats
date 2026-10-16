@@ -35,8 +35,12 @@ setup() {
     declare -gA _LOADED_MODULES=()
 
     # Only function definitions at the top level: safe to source.
+    # Only function definitions at the top level: safe to source.
     source "${TEST_PROJECT_ROOT}/modules/desktop_display.sh"
-
+    # The GNOME installers are pure function definitions too;
+    # desktop_display.sh (their DM/pipewire collaborators) is
+    # already sourced above.
+    source "${TEST_PROJECT_ROOT}/modules/desktops/desktop_gnome.sh"
     # Fixture redirect for /etc/X11/default-display-manager:
     # the file exists but is empty, so `-s` fails and the
     # systemctl fallback is exercised deterministically.
@@ -187,4 +191,66 @@ _load_module_with_deps_marked() {
 @test "_load_module returns 1 for an unknown module" {
     run _load_module no_such_module
     [ "$status" -eq 1 ]
+}
+
+# ── terminal selection: ptyxis on trixie ──────────────
+# gnome-core declares the OR-dep "gnome-terminal or
+# gnome-console or ptyxis"; apt resolves an unset OR-dep
+# with the first alternative, so listing the terminal
+# explicitly in the same apt transaction is what steers
+# the resolver. These tests assert the exact package
+# that lands in the apt command.
+#
+# _gnome_capture_apt_cmd runs one installer with every
+# external effect stubbed: _run_cmd is replaced so the
+# apt command is captured instead of executed, and the
+# PATH sudo mock stays in dry-run mode so debconf and
+# systemctl invocations are logged, not executed.
+_gnome_capture_apt_cmd() {
+    local installer="$1"
+    GNOME_APT_CMD=""
+    _confirm_install_list() { return 0; }
+    _ensure_apt_updated() { :; }
+    _run_cmd() { GNOME_APT_CMD="$2"; }
+    "$installer"
+    printf '%s\n' "$GNOME_APT_CMD"
+}
+
+@test "GNOME Full installs ptyxis on trixie" {
+    export DEBIAN_CODENAME="trixie"
+    export MOCK_SUDO_DRY_RUN=1
+    run _gnome_capture_apt_cmd _install_gnome_full
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y gnome gdm3 ptyxis"* ]]
+    [[ "$output" != *gnome-terminal* ]]
+}
+
+@test "GNOME Core installs ptyxis on trixie" {
+    export DEBIAN_CODENAME="trixie"
+    export MOCK_SUDO_DRY_RUN=1
+    run _gnome_capture_apt_cmd _install_gnome_core
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y gnome-core gdm3 ptyxis"* ]]
+    [[ "$output" != *gnome-terminal* ]]
+}
+
+@test "GNOME Full falls back to gnome-terminal off trixie" {
+    export DEBIAN_CODENAME="bookworm"
+    export MOCK_SUDO_DRY_RUN=1
+    run _gnome_capture_apt_cmd _install_gnome_full
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y gnome gdm3 gnome-terminal"* ]]
+    [[ "$output" != *ptyxis* ]]
+}
+
+@test "GNOME falls back to gnome-terminal when the codename is empty" {
+    # /etc/os-release missing or without VERSION_CODENAME
+    # leaves DEBIAN_CODENAME unset: the safe default is the
+    # historical behaviour.
+    export DEBIAN_CODENAME=""
+    export MOCK_SUDO_DRY_RUN=1
+    run _gnome_capture_apt_cmd _install_gnome_full
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y gnome gdm3 gnome-terminal"* ]]
+    [[ "$output" != *ptyxis* ]]
 }
