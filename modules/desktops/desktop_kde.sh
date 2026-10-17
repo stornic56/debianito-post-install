@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # desktop_kde.sh — KDE Plasma desktop installer (SP2)
 # Full: kde-standard + sddm | Minimal: kde-plasma-desktop + sddm
+# Custom: kde-plasma-desktop + sddm + konsole + extras elegidos
 # bookworm: Plasma 5.27.5 / KF5 / Qt5; SDDM defaults to
 # X11 (plasma.desktop in xsessions); Wayland is optional
 # via plasma-workspace-wayland (plasmawayland.desktop).
@@ -32,7 +33,8 @@ kde_menu() {
         local -a kd_items=()
         kd_items+=("1" "KDE Plasma (Full Desktop)")
         kd_items+=("2" "KDE Plasma Desktop (Minimal)")
-        kd_items+=("3" "Back")
+        kd_items+=("3" "KDE Custom (Choose packages)")
+        kd_items+=("4" "Back")
         local choice
         choice=$(_menu "KDE Plasma" \
             "Select an option:" $TUI_ALTO $TUI_ANCHO $TUI_ALTO_LISTA \
@@ -42,7 +44,8 @@ kde_menu() {
         case "$choice" in
         1) _install_kde_full ;;
         2) _install_kde_minimal ;;
-        3) break ;;
+        3) _install_kde_custom ;;
+        4) break ;;
         esac
     done
 }
@@ -116,5 +119,76 @@ _install_kde_minimal() {
     # per-package prompt suppression.
     _SELECTION_CONFIRMED=0
     echo -e "${GREEN}KDE Plasma Desktop installed. Default display manager: ${target_dm}.${NC}"
+    _offer_pipewire_after_desktop
+}
+
+_install_kde_custom() {
+    # Fixed base (not selectable); extras chosen from the
+    # checklist. konsole is pinned because it is only a
+    # Recommends of kde-baseapps on trixie. All 17 extra
+    # names are identical on bookworm and trixie
+    # (packages.debian.org), so no per-release handling is
+    # needed beyond the shared Wayland gate. knotes is gone
+    # on trixie and konqueror/kwrite are legacy: excluded.
+    local cleaned
+    cleaned=$(_select_packages_checklist "KDE Custom" \
+        "Select the extra KDE packages to install:" \
+        "kate|advanced text editor" \
+        "ark|archive manager" \
+        "gwenview|image viewer" \
+        "okular|document viewer" \
+        "kcalc|calculator" \
+        "kde-spectacle|screenshot capture" \
+        "khelpcenter|documentation center" \
+        "sweeper|history cleaner" \
+        "print-manager|printer management" \
+        "kwalletmanager|password manager" \
+        "plasma-nm|network applet (needs NetworkManager)" \
+        "juk|music player" \
+        "dragonplayer|video player" \
+        "kmail|email client" \
+        "korganizer|calendar and tasks" \
+        "kaddressbook|contacts address book" \
+        "akregator|RSS feed reader")
+    [ -z "$cleaned" ] && return
+    # BH-004: reparse the space-separated selection into an array.
+    local -a kde_pkgs=()
+    local _pkg
+    while IFS= read -r _pkg; do
+        [ -n "$_pkg" ] && kde_pkgs+=("$_pkg")
+    done < <(echo "$cleaned" | tr ' ' '\n')
+
+    # Fixed base: kde-plasma-desktop + sddm + konsole, plus
+    # the Wayland session package on bookworm only.
+    local wayland_pkg
+    wayland_pkg=$(_kde_wayland_pkg)
+    local -a base_pkgs=(kde-plasma-desktop sddm konsole)
+    [ -n "$wayland_pkg" ] && base_pkgs+=("$wayland_pkg")
+
+    # Pre-apply summary: confirm base + selection before any
+    # debconf or apt transaction starts.
+    _confirm_install_list "KDE Custom" "${base_pkgs[@]}" "${kde_pkgs[@]}" || return
+
+    echo -e "${GREEN}Installing KDE Plasma (Custom)...${NC}"
+
+    # Keep an already-configured display manager intact.
+    local target_dm="sddm"
+    local keep_dm
+    keep_dm=$(_existing_display_manager)
+    if [ -n "$keep_dm" ] && [ "$keep_dm" != "sddm" ]; then
+        echo -e "${YELLOW}Display manager '${keep_dm}' is already configured — keeping it as default.${NC}"
+        target_dm="$keep_dm"
+    fi
+    echo "${target_dm} shared/default-x-display-manager select ${target_dm}" | sudo debconf-set-selections
+    _ensure_apt_updated
+    _run_cmd "KDE Custom" "sudo apt install -y ${base_pkgs[*]} ${kde_pkgs[*]}" \
+        "Installing KDE Plasma (Custom) + SDDM..."
+    if [ "$target_dm" = "sddm" ]; then
+        sudo systemctl enable sddm
+    fi
+    # Selection confirmed once above; release the
+    # per-package prompt suppression.
+    _SELECTION_CONFIRMED=0
+    echo -e "${GREEN}KDE Plasma installed. Default display manager: ${target_dm}.${NC}"
     _offer_pipewire_after_desktop
 }
