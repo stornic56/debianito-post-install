@@ -1,10 +1,32 @@
 #!/usr/bin/env bash
 # desktop_kde.sh — KDE Plasma desktop installer (SP2)
 # Full: kde-standard + sddm | Minimal: kde-plasma-desktop + sddm
-# Bookworm ships Plasma 5.27.5; Wayland is the default
-# session since Debian 12.
+# bookworm: Plasma 5.27.5 / KF5 / Qt5; SDDM defaults to
+# X11 (plasma.desktop in xsessions); Wayland is optional
+# via plasma-workspace-wayland (plasmawayland.desktop).
+# trixie: Plasma 6.3.6 / KF6 / Qt6; Wayland is the
+# primary session (plasma.desktop in wayland-sessions),
+# X11 the alternative (plasmax11.desktop). sddm is only
+# Recommends in the meta-kde chain, so the explicit sddm
+# in both routes is what guarantees the DM (and
+# xserver-xorg/xauth, hard deps of sddm in both releases).
 # License GPL v3
 
+# plasma-workspace-wayland exists only on bookworm:
+# bookworm's plasma-workspace ships the X11 session only,
+# and the Wayland session (plasmawayland.desktop) lives
+# in this separate package (a Recommends of plasma-desktop,
+# listed explicitly for the same determinism as the
+# explicit sddm). trixie integrates Wayland into
+# plasma-workspace itself and the package does not exist
+# there (packages.debian.org/trixie/plasma-workspace-wayland),
+# so naming it off-bookworm would fail the apt transaction.
+_kde_wayland_pkg() {
+    case "${DEBIAN_CODENAME:-}" in
+    bookworm) printf '%s\n' "plasma-workspace-wayland" ;;
+    *)        printf '%s\n' "" ;;
+    esac
+}
 kde_menu() {
     while true; do
         local -a kd_items=()
@@ -27,8 +49,15 @@ kde_menu() {
 
 _install_kde_full() {
     # Pre-apply summary: confirm the selection before any
-    # debconf or apt transaction starts.
-    _confirm_install_list "KDE Plasma Full" kde-standard sddm || return
+    # debconf or apt transaction starts. The Wayland
+    # session package is resolved once (bookworm only;
+    # the package does not exist on trixie) so the
+    # summary lists exactly what apt will install.
+    local wayland_pkg
+    wayland_pkg=$(_kde_wayland_pkg)
+    local -a pkgs=(kde-standard sddm)
+    [ -n "$wayland_pkg" ] && pkgs+=("$wayland_pkg")
+    _confirm_install_list "KDE Plasma Full" "${pkgs[@]}" || return
 
     echo -e "${GREEN}Installing KDE Plasma (Full)...${NC}"
 
@@ -42,7 +71,7 @@ _install_kde_full() {
     fi
     echo "${target_dm} shared/default-x-display-manager select ${target_dm}" | sudo debconf-set-selections
     _ensure_apt_updated
-    _run_cmd "KDE Full" "sudo apt install -y kde-standard sddm" \
+    _run_cmd "KDE Full" "sudo apt install -y ${pkgs[*]}" \
         "Installing KDE Plasma (Full Meta Package) + SDDM..."
     if [ "$target_dm" = "sddm" ]; then
         sudo systemctl enable sddm
@@ -56,8 +85,15 @@ _install_kde_full() {
 
 _install_kde_minimal() {
     # Pre-apply summary: confirm the selection before any
-    # debconf or apt transaction starts.
-    _confirm_install_list "KDE Plasma Minimal" kde-plasma-desktop sddm || return
+    # debconf or apt transaction starts. The Wayland
+    # session package is resolved once (bookworm only;
+    # the package does not exist on trixie) so the
+    # summary lists exactly what apt will install.
+    local wayland_pkg
+    wayland_pkg=$(_kde_wayland_pkg)
+    local -a pkgs=(kde-plasma-desktop sddm)
+    [ -n "$wayland_pkg" ] && pkgs+=("$wayland_pkg")
+    _confirm_install_list "KDE Plasma Minimal" "${pkgs[@]}" || return
 
     echo -e "${GREEN}Installing KDE Plasma Desktop (Minimal)...${NC}"
 
@@ -71,7 +107,7 @@ _install_kde_minimal() {
     fi
     echo "${target_dm} shared/default-x-display-manager select ${target_dm}" | sudo debconf-set-selections
     _ensure_apt_updated
-    _run_cmd "KDE Minimal" "sudo apt install -y kde-plasma-desktop sddm" \
+    _run_cmd "KDE Minimal" "sudo apt install -y ${pkgs[*]}" \
         "Installing KDE Plasma Desktop (Minimal) + SDDM..."
     if [ "$target_dm" = "sddm" ]; then
         sudo systemctl enable sddm

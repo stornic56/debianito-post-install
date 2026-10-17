@@ -60,6 +60,10 @@ teardown() {
     if [ -n "${MOCK_APT_ROOT:-}" ]; then
         rm -rf "$MOCK_APT_ROOT"
     fi
+    if [ -n "${SESSION_FIXTURE:-}" ]; then
+        rm -rf "$SESSION_FIXTURE"
+    fi
+    unset SESSION_DIR_WAYLAND SESSION_DIR_X11
 }
 
 # ── _existing_display_manager ────────────────────────
@@ -253,4 +257,173 @@ _gnome_capture_apt_cmd() {
     [ "$status" -eq 0 ]
     [[ "$output" == *"apt install -y gnome gdm3 gnome-terminal"* ]]
     [[ "$output" != *ptyxis* ]]
+}
+
+# ── KDE Plasma: bookworm Wayland gate ─────────────
+# plasma-workspace-wayland exists only on bookworm:
+# bookworm's plasma-workspace ships the X11 session
+# only, so the explicit listing keeps the Wayland
+# session in the transaction deterministically; off
+# bookworm the package does not exist and nothing is
+# named in the apt command.
+
+# _kde_capture_apt_cmd runs one KDE installer with
+# every external effect stubbed (same shape as the
+# GNOME capture helper): the apt command is captured
+# instead of executed, and the PATH sudo mock stays
+# in dry-run mode so debconf and systemctl invocations
+# are logged, not executed.
+_kde_capture_apt_cmd() {
+    local installer="$1"
+    _load_module_with_deps_marked kde
+    KDE_APT_CMD=""
+    _confirm_install_list() { return 0; }
+    _ensure_apt_updated() { :; }
+    _run_cmd() { KDE_APT_CMD="$2"; }
+    "$installer"
+    printf '%s\n' "$KDE_APT_CMD"
+}
+
+# _kde_capture_confirm runs one KDE installer with the
+# pre-apply summary captured instead of shown: _confirm
+# records the list _confirm_install_list builds, so the
+# summary content (never an empty package line) can be
+# asserted directly. The pipewire follow-up offer is
+# stubbed so the recorded list is the package summary.
+_kde_capture_confirm() {
+    local installer="$1"
+    _load_module_with_deps_marked kde
+    KDE_CONFIRM_LIST=""
+    _confirm() { KDE_CONFIRM_LIST="$2"; return 0; }
+    _ensure_apt_updated() { :; }
+    _run_cmd() { :; }
+    _offer_pipewire_after_desktop() { :; }
+    "$installer"
+    printf '%s\n' "$KDE_CONFIRM_LIST"
+}
+
+@test "_kde_wayland_pkg prints plasma-workspace-wayland on bookworm" {
+    export DEBIAN_CODENAME="bookworm"
+    _load_module_with_deps_marked kde
+    run _kde_wayland_pkg
+    [ "$status" -eq 0 ]
+    [ "$output" = "plasma-workspace-wayland" ]
+}
+
+@test "_kde_wayland_pkg prints nothing off bookworm" {
+    export DEBIAN_CODENAME="trixie"
+    _load_module_with_deps_marked kde
+    run _kde_wayland_pkg
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+}
+
+@test "KDE Full installs the Wayland session package on bookworm" {
+    export DEBIAN_CODENAME="bookworm"
+    export MOCK_SUDO_DRY_RUN=1
+    run _kde_capture_apt_cmd _install_kde_full
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y kde-standard sddm plasma-workspace-wayland"* ]]
+}
+
+@test "KDE Full omits the Wayland session package off bookworm" {
+    export DEBIAN_CODENAME="trixie"
+    export MOCK_SUDO_DRY_RUN=1
+    run _kde_capture_apt_cmd _install_kde_full
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y kde-standard sddm"* ]]
+    [[ "$output" != *"plasma-workspace-wayland"* ]]
+}
+
+@test "KDE Minimal installs the Wayland session package on bookworm" {
+    export DEBIAN_CODENAME="bookworm"
+    export MOCK_SUDO_DRY_RUN=1
+    run _kde_capture_apt_cmd _install_kde_minimal
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y kde-plasma-desktop sddm plasma-workspace-wayland"* ]]
+}
+
+@test "KDE Minimal omits the Wayland session package off bookworm" {
+    export DEBIAN_CODENAME="trixie"
+    export MOCK_SUDO_DRY_RUN=1
+    run _kde_capture_apt_cmd _install_kde_minimal
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"apt install -y kde-plasma-desktop sddm"* ]]
+    [[ "$output" != *"plasma-workspace-wayland"* ]]
+}
+
+@test "KDE Minimal summary lists the Wayland session package on bookworm" {
+    export DEBIAN_CODENAME="bookworm"
+    export MOCK_SUDO_DRY_RUN=1
+    run _kde_capture_confirm _install_kde_minimal
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"plasma-workspace-wayland"* ]]
+}
+
+@test "KDE Minimal summary shows no empty package line off bookworm" {
+    export DEBIAN_CODENAME="trixie"
+    export MOCK_SUDO_DRY_RUN=1
+    run _kde_capture_confirm _install_kde_minimal
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"kde-plasma-desktop"* ]]
+    [[ "$output" == *"sddm"* ]]
+    [[ "$output" != *"plasma-workspace-wayland"* ]]
+    [[ "$output" != *"- "$'\n'* ]]
+}
+
+# ── _sddm_session_candidates: ordered session probe ──
+# Existence decides (no codename gates) and Wayland is
+# preferred. The roots are redirected to a per-test
+# fixture tree through SESSION_DIR_WAYLAND /
+# SESSION_DIR_X11 (same spirit as the DM_FILE fixture),
+# so the probe never touches the real /usr/share tree.
+
+_sddm_session_fixture() {
+    SESSION_FIXTURE="$(mktemp -d)"
+    mkdir -p "$SESSION_FIXTURE/wayland" "$SESSION_FIXTURE/x11"
+    SESSION_DIR_WAYLAND="$SESSION_FIXTURE/wayland"
+    SESSION_DIR_X11="$SESSION_FIXTURE/x11"
+    export SESSION_DIR_WAYLAND SESSION_DIR_X11
+}
+
+@test "SDDM session probe prefers bookworm Wayland (plasmawayland)" {
+    _sddm_session_fixture
+    : >"$SESSION_DIR_WAYLAND/plasmawayland.desktop"
+    : >"$SESSION_DIR_X11/plasma.desktop"
+    run _sddm_session_candidates
+    [ "$status" -eq 0 ]
+    [ "$output" = "plasmawayland" ]
+}
+
+@test "SDDM session probe picks trixie Wayland (plasma.desktop)" {
+    _sddm_session_fixture
+    : >"$SESSION_DIR_WAYLAND/plasma.desktop"
+    : >"$SESSION_DIR_X11/plasmax11.desktop"
+    run _sddm_session_candidates
+    [ "$status" -eq 0 ]
+    [ "$output" = "plasma" ]
+}
+
+@test "SDDM session probe falls back to trixie X11 (plasmax11)" {
+    _sddm_session_fixture
+    : >"$SESSION_DIR_X11/plasmax11.desktop"
+    run _sddm_session_candidates
+    [ "$status" -eq 0 ]
+    [ "$output" = "plasmax11" ]
+}
+
+@test "SDDM session probe keeps LXQt last when no KDE session exists" {
+    _sddm_session_fixture
+    : >"$SESSION_DIR_WAYLAND/lxqt-wayland.desktop"
+    : >"$SESSION_DIR_X11/lxqt.desktop"
+    run _sddm_session_candidates
+    [ "$status" -eq 0 ]
+    [ "$output" = "lxqt-wayland" ]
+}
+
+@test "SDDM session probe returns empty when no session file exists" {
+    _sddm_session_fixture
+    run _sddm_session_candidates
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
 }

@@ -299,6 +299,29 @@ configure_gdm3() {
     done
 }
 
+# Ordered session candidates for SDDM autologin:
+# Wayland first, then X11, per release. Existence
+# decides (no codename gates). The LXQt sessions
+# stay last for when the module starts offering LXQt.
+_sddm_session_candidates() {
+    local wayland_dir="${SESSION_DIR_WAYLAND:-/usr/share/wayland-sessions}"
+    local x11_dir="${SESSION_DIR_X11:-/usr/share/xsessions}"
+    local candidate
+    for candidate in \
+        "$wayland_dir/plasmawayland.desktop" \
+        "$wayland_dir/plasma.desktop" \
+        "$x11_dir/plasma.desktop" \
+        "$x11_dir/plasmax11.desktop" \
+        "$wayland_dir/lxqt-wayland.desktop" \
+        "$x11_dir/lxqt.desktop"; do
+        if [ -f "$candidate" ]; then
+            basename "$candidate" .desktop
+            return 0
+        fi
+    done
+    return 0
+}
+
 configure_sddm() {
     while true; do
         local choice
@@ -317,18 +340,10 @@ configure_sddm() {
             ;;
         2)
             local sddm_session=""
+            sddm_session=$(_sddm_session_candidates)
             local sddm_user="${SUDO_USER:-}"
             if [ -z "$sddm_user" ] || [ "$sddm_user" = "root" ]; then
                 sddm_user=$(awk -F: '$3>=1000 && $3<65534 {print $1}' /etc/passwd | head -1)
-            fi
-            if [ -f /usr/share/wayland-sessions/plasmawayland.desktop ]; then
-                sddm_session="plasmawayland"
-            elif [ -f /usr/share/wayland-sessions/lxqt-wayland.desktop ]; then
-                sddm_session="lxqt-wayland"
-            elif [ -f /usr/share/xsessions/plasma.desktop ]; then
-                sddm_session="plasma"
-            elif [ -f /usr/share/xsessions/lxqt.desktop ]; then
-                sddm_session="lxqt"
             fi
             sudo mkdir -p /etc/sddm.conf.d
             cat <<EOF | sudo tee /etc/sddm.conf.d/autologin.conf >/dev/null
