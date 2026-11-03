@@ -892,9 +892,9 @@ _detect_lang_pkg() {
     hyphenated_full=$(echo "$full" | tr '[:upper:]' '[:lower:]' | tr '_' '-')
     local pkg
 
-    pkg=$(apt-cache search "^${base}-${hyphenated_full}$" 2>/dev/null | awk 'NR==1{print $1}')
-    [ -z "$pkg" ] && pkg=$(apt-cache search "^${base}-${lang2}$" 2>/dev/null | awk 'NR==1{print $1}')
-    [ -z "$pkg" ] && pkg=$(apt-cache search "^${base}-all$" 2>/dev/null | awk 'NR==1{print $1}')
+    pkg=$(apt-cache search "^${base}-${hyphenated_full}$" 2>/dev/null | awk 'NR==1{print $1}' || true)
+    [ -z "$pkg" ] && pkg=$(apt-cache search "^${base}-${lang2}$" 2>/dev/null | awk 'NR==1{print $1}' || true)
+    [ -z "$pkg" ] && pkg=$(apt-cache search "^${base}-all$" 2>/dev/null | awk 'NR==1{print $1}' || true)
 
     echo "$pkg"
 }
