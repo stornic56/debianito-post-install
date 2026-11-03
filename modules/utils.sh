@@ -302,6 +302,7 @@ detect_gpu() {
     fi
 
     local has_nvidia=false has_amd=false has_intel=false
+    HAS_AMD_LEGACY_GCN=false
     local desc_lines="" nvidia_dev_id="" intel_dev_id=""
 
     while IFS= read -r line || [[ -n "$line" ]]; do
@@ -311,15 +312,15 @@ detect_gpu() {
         [ -n "$desc_lines" ] && desc_lines+=" + "
         desc_lines+="$desc"
 
-        if echo "$line" | grep -qi "nvidia"; then
+        if echo "$line" | grep -qiE '\[10de:'; then
             has_nvidia=true
-            [ -z "$nvidia_dev_id" ] && nvidia_dev_id=$(echo "$line" | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1)
-        elif echo "$line" | grep -qi "amd"; then
+            [ -z "$nvidia_dev_id" ] && nvidia_dev_id=$(echo "$line" | grep -oP '10de:\K[0-9a-fA-F]+' | head -n1 || true)
+        elif echo "$line" | grep -qiE '\[1002:'; then
             has_amd=true
             HAS_AMD_LEGACY_GCN=$(is_amd_legacy_gcn)
-        elif echo "$line" | grep -qi "intel"; then
+        elif echo "$line" | grep -qiE '\[8086:'; then
             has_intel=true
-            [ -z "$intel_dev_id" ] && intel_dev_id=$(echo "$line" | grep -oP '8086:\K[0-9a-fA-F]+' | head -n1)
+            [ -z "$intel_dev_id" ] && intel_dev_id=$(echo "$line" | grep -oP '8086:\K[0-9a-fA-F]+' | head -n1 || true)
         fi
     done <<<"$gpu_lines"
 
@@ -353,7 +354,7 @@ detect_gpu() {
 
     if [ -z "$GPU_VERSION" ]; then
         local mesa_ver
-        mesa_ver=$(_get_installed_version "libgl1-mesa-dri" | sed 's/-.*//')
+        mesa_ver=$(_get_installed_version "libgl1-mesa-dri" | sed 's/-.*//' || true)
         [ -n "$mesa_ver" ] && GPU_VERSION="Mesa $mesa_ver"
     fi
 }
