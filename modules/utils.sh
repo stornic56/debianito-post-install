@@ -26,6 +26,10 @@ export AUDIO_SERVER=""
 # OS identity populated by detect_debian_version(); read by
 # every module (SC2034).
 export DEBIAN_VERSION=""
+# GPU helpers (is_amd_legacy_gcn, is_nvidia_*, detect_nvidia_arch, ...)
+# sourced at boot so detect_gpu() in this file can call is_amd_legacy_gcn
+# without waiting for the gpu module to be loaded on demand.
+source "${MODULES_DIR}/gpu/_helpers.sh"
 
 # APT update deduplication flag (set to 1 after the first successful apt-get update)
 APT_UPDATED=0
