@@ -16,23 +16,22 @@ _detect_firmware_needs() {
     dev_list=("${PCI_NET_DEVS[@]}" "${USB_WIFI_DEVS[@]}")
 
     for dev in "${dev_list[@]}"; do
-        local raw_desc vendor_lc pkg
+        local raw_desc dev_vendor pkg
         raw_desc=$(echo "$dev" | sed -E 's/^[^ ]+ [^:]+: //; s/ \[[0-9a-fA-F]{4}:[0-9a-fA-F]{4}\]//; s/ \(rev.*\)//')
-        vendor_lc=$(echo "$dev" | sed -n 's/^.*]: //p' | awk '{print $1}' | tr '[:upper:]' '[:lower:]')
+        dev_vendor=$(echo "$dev" | grep -oP '\[[0-9a-fA-F]{4}:' | head -n1 || true)
+        [ -z "$dev_vendor" ] && continue
 
-        [[ "$vendor_lc" != *intel* && "$vendor_lc" != *realtek* && "$vendor_lc" != *atheros* && "$vendor_lc" != *qualcomm* && "$vendor_lc" != *mediatek* ]] && continue
-
-        case "$vendor_lc" in
-        *intel*)
+        case "$dev_vendor" in
+        [8086:)
             if echo "$dev" | grep -qiE 'wireless|wi-fi|wlan|802\.11'; then
                 pkg="firmware-iwlwifi"
             else
                 pkg="firmware-intel-misc"
             fi
             ;;
-        *realtek*) pkg="firmware-realtek" ;;
-        *atheros* | *qualcomm*) pkg="firmware-atheros" ;;
-        *mediatek*) pkg="firmware-mediatek" ;;
+        [10ec:) pkg="firmware-realtek" ;;
+        [168c:) pkg="firmware-atheros" ;;
+        [14c5:) pkg="firmware-mediatek" ;;
         esac
 
         local short_dev
@@ -84,17 +83,8 @@ _build_firmware_plan() {
         plan+="${line}\n"
     done
 
-    local has_bt=false
-    [ ${#PCI_BT_DEVS[@]} -gt 0 ] && has_bt=true
-    [ ${#USB_BT_DEVS[@]} -gt 0 ] && has_bt=true
-    if ! $has_bt; then
-        for dev in "${USB_WIFI_DEVS[@]}"; do
-            if echo "$dev" | grep -qi 'bluetooth'; then
-                has_bt=true
-                break
-            fi
-        done
-    fi
+local has_bt
+    has_bt=$(_has_bluetooth_hardware && echo true || echo false)
 
     plan+="\nBluetooth:\n"
     if $has_bt; then

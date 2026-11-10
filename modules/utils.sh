@@ -669,7 +669,7 @@ _confirm_custom() {
     local height="${1:-20}"
     local width="${2:-78}"
     whiptail --title "$title" --yes-button "$yes_btn" --no-button "$no_btn" \
-        --yesno "$text" "$height" "$width"
+        --yesno "$text" "$height" "$width" || true
 }
 
 _msg() {

@@ -4,16 +4,8 @@
 # Requires: modules/utils.sh (globals + helpers), modules/firmware.sh (PCI_BT_DEVS, USB_BT_DEVS, USB_WIFI_DEVS)
 
 _install_bluetooth_stack() {
-    local has_bt=false
-    [ ${#PCI_BT_DEVS[@]} -gt 0 ] && has_bt=true
-    [ ${#USB_BT_DEVS[@]} -gt 0 ] && has_bt=true
-    if ! $has_bt; then
-        for dev in "${USB_WIFI_DEVS[@]}"; do
-            if echo "$dev" | grep -qi 'bluetooth'; then
-                has_bt=true; break
-            fi
-        done
-    fi
+local has_bt
+    has_bt=$(_has_bluetooth_hardware && echo true || echo false)
     if ! $has_bt; then
         echo "  → No Bluetooth hardware detected, skipping."
         return

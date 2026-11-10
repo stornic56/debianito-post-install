@@ -187,8 +187,8 @@ so you can restore if things go wrong." 16 70
 
     # 4b. Clean backports
     echo "Removing backports configuration..."
-    [ -f /etc/apt/sources.list.d/debian-backports.sources ] && sudo rm -f /etc/apt/sources.list.d/debian-backports.sources
-    [ -f /etc/apt/sources.list.d/debian-backports.list ] && sudo rm -f /etc/apt/sources.list.d/debian-backports.list
+    [ -f /etc/apt/sources.list.d/debian-backports.sources ] && sudo rm -f /etc/apt/sources.list.d/debian-backports.sources || true
+    [ -f /etc/apt/sources.list.d/debian-backports.list ] && sudo rm -f /etc/apt/sources.list.d/debian-backports.list || true
 
     # 4c. Write new sources
     if ! _write_branch_sources "$target"; then

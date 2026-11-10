@@ -72,3 +72,11 @@ _detect_all_network_devices() {
         _FW_PLAN_HW_LINES+=("  \xe2\x97\x8f ${desc} (Bluetooth USB)")
     done
 }
+
+# Shared Bluetooth detection used by firmware.sh and bluetooth.sh.
+# Returns 0 if any Bluetooth controller is present, 1 otherwise.
+_has_bluetooth_hardware() {
+    [ ${#PCI_BT_DEVS[@]} -gt 0 ] && return 0
+    [ ${#USB_BT_DEVS[@]} -gt 0 ] && return 0
+    return 1
+}

@@ -373,8 +373,8 @@ _repos_offer_upgrade() {
         if _confirm "Upgrade System" "$upgradable packages can be upgraded. Upgrade now?"; then
             _run_cmd "Upgrade" "sudo apt upgrade -y" "Upgrading system..."
             sudo apt-mark unhold tzdata 2>/dev/null || true
-            sudo apt autoremove -y
-            sudo apt autoclean
+            sudo apt autoremove -y || true
+            sudo apt autoclean || true
             echo -e "${GREEN}System upgraded.${NC}"
         else
             echo "Skipping upgrade."
@@ -506,8 +506,8 @@ popular software (like gaming platforms and proprietary tools)." 12 60; then
         fi
         _repos_offer_upgrade
         echo -e "${GREEN}Cleaning old packages...${NC}"
-        sudo apt autoremove -y
-        sudo apt autoclean
+        sudo apt autoremove -y || true
+        sudo apt autoclean || true
         echo -e "${GREEN}System packages cleaned.${NC}"
         _pause
         return
@@ -544,8 +544,8 @@ Writing debian.sources may duplicate your configuration. Continue?" 10 65; then
         echo -e "${GREEN}Repository components configured.${NC}"
         _repos_offer_upgrade
         echo -e "${GREEN}Cleaning old packages...${NC}"
-        sudo apt autoremove -y
-        sudo apt autoclean
+        sudo apt autoremove -y || true
+        sudo apt autoclean || true
         echo -e "${GREEN}System packages cleaned.${NC}"
     else
         restore_previous_repos

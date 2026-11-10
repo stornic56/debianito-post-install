@@ -47,10 +47,16 @@ detect_active_components() {
         fi
     fi
     if [ -f "$apt_dir/sources.list" ]; then
-        local comps
-        comps=$(grep "^[^#]*deb .* main" "$apt_dir/sources.list" 2>/dev/null | head -1 | sed 's/.*main\s*//')
-        if [ -n "$comps" ]; then
-            echo "main $comps"
+        local line
+        line=$(grep "^[^#]*deb .* main" "$apt_dir/sources.list" 2>/dev/null | head -1)
+        if [ -n "$line" ]; then
+            local comps
+            comps=$(echo "$line" | sed 's/.*main\s*//')
+            if [ -n "$comps" ]; then
+                echo "main $comps"
+            else
+                echo "main"
+            fi
             return
         fi
     fi
@@ -128,7 +134,7 @@ content_differs() {
     local current
     current=$(cat "$file")
     local generated
-    generated=$(echo -e "$content")
+    generated=$(printf '%b' "$content")
     if [ "$current" = "$generated" ]; then
         return 1
     fi
