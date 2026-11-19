@@ -869,6 +869,21 @@ _run_install() {
     _install_pkg "$@"
 }
 
+# Add the Flathub remote system-wide and verify it. Explicit --system keeps
+# the target deterministic whether the script runs as the user or via sudo.
+# The XDG_DATA_DIRS prefix prevents flatpak's localized "exports folders not
+# in search path" notice in non-login shells (SSH, minimal TUI contexts).
+# Returns 0 if the remote is active afterwards, 1 otherwise.
+_add_flathub_remote() {
+    local xdg_data_dirs
+    xdg_data_dirs="/var/lib/flatpak/exports/share:${HOME}/.local/share/flatpak/exports/share"
+    [ -n "${XDG_DATA_DIRS:-}" ] && xdg_data_dirs+=":${XDG_DATA_DIRS}"
+    _run_cmd "Flathub" \
+        "sudo XDG_DATA_DIRS=${xdg_data_dirs} flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo" \
+        "Adding Flathub repository..." || true
+    flatpak remotes --system 2>/dev/null | grep -qx flathub
+}
+
 # ----------------------------------
 # Language helpers
 # ----------------------------------

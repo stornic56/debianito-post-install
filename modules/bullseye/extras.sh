@@ -638,9 +638,11 @@ _cat_general_bullseye() {
         flatpak)
             if ! is_installed "flatpak"; then
                 _run_cmd "Flatpak" "sudo apt install -y flatpak" "Installing Flatpak..."
-                flatpak remote-add --if-not-exists flathub \
-                    https://dl.flathub.org/repo/flathub.flatpakrepo
-                echo -e "${GREEN}Flatpak + Flathub installed.${NC}"
+                if _add_flathub_remote; then
+                    echo -e "${GREEN}Flatpak + Flathub installed.${NC}"
+                else
+                    echo -e "${RED}[-]${NC} Flathub remote could not be added."
+                fi
             else
                 echo "Flatpak already installed."
             fi
@@ -803,9 +805,11 @@ _cat_software_centers_bullseye() {
             _run_cmd "Flatpak" "sudo apt install -y flatpak" "Installing Flatpak..."
         fi
         _run_cmd "Plugin" "sudo apt install -y $bpkg" "Installing $bpkg..."
-        flatpak remote-add --if-not-exists flathub \
-            https://dl.flathub.org/repo/flathub.flatpakrepo
-        echo "Flathub repository added."
+        if _add_flathub_remote; then
+            echo "Flathub repository added."
+        else
+            echo -e "${RED}[-]${NC} Flathub remote could not be added."
+        fi
     fi
 
     echo -e "${GREEN}Software store installed.${NC}"

@@ -74,9 +74,11 @@ and may look visually inconsistent with your current desktop environment."
                 else
                     echo "Flatpak already installed."
                 fi
-                flatpak remote-add --if-not-exists flathub \
-                    https://dl.flathub.org/repo/flathub.flatpakrepo
-                echo "Flathub repository added."
+                if _add_flathub_remote; then
+                    echo "Flathub repository added."
+                else
+                    echo -e "${RED}[-]${NC} Flathub remote could not be added."
+                fi
 
                 if command -v plasma-discover &>/dev/null; then
                     if ! is_installed "plasma-discover-backend-flatpak" 2>/dev/null; then
