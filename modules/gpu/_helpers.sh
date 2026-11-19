@@ -90,8 +90,8 @@ is_amd_legacy_gcn() {
 
 _install_mesa_backports() {
     if [ "$(is_backports_enabled)" != "true" ]; then
-        install_mesa_stable
-        return
+        install_mesa_stable && return 0
+        return 1
     fi
 
     local mesa_pkgs=("mesa-vulkan-drivers" "libgl1-mesa-dri" "libglx-mesa0" "libegl-mesa0" "mesa-va-drivers")
@@ -134,15 +134,24 @@ _install_mesa_backports() {
         [ ${#stable_pkgs[@]} -gt 0 ] && msg+="Some packages only available in stable.\n"
         msg+="Choose version for backports-capable packages:"
         if _confirm_custom "Mesa (Graphics)" "$msg" "Backports" "Stable" 14 70; then
-            _run_cmd "Mesa (backports)" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${bpo_pkgs[*]}" \
-                "Installing Mesa from backports..."
+            if ! _run_cmd "Mesa (backports)" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${bpo_pkgs[*]}" \
+                "Installing Mesa from backports..."; then
+                _msg_red "Mesa" "Mesa installation from backports FAILED."
+                return 1
+            fi
             if [ ${#stable_pkgs[@]} -gt 0 ]; then
-                _run_cmd "Mesa (stable)" "sudo apt install -y ${stable_pkgs[*]}" \
-                    "Installing remaining Mesa packages from stable..."
+                if ! _run_cmd "Mesa (stable)" "sudo apt install -y ${stable_pkgs[*]}" \
+                    "Installing remaining Mesa packages from stable..."; then
+                    _msg_red "Mesa" "Mesa installation (stable remainder) FAILED."
+                    return 1
+                fi
             fi
         else
-            _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
-                "Installing Mesa from stable..."
+            if ! _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
+                "Installing Mesa from stable..."; then
+                _msg_red "Mesa" "Mesa installation FAILED."
+                return 1
+            fi
         fi
     else
         local msg="Mesa provides OpenGL/Vulkan/VA-API acceleration.\n\n"
@@ -151,15 +160,21 @@ _install_mesa_backports() {
         msg+="${comp_line}\n\n"
         msg+="Install Mesa from available repositories?"
         if _confirm "Mesa (Graphics)" "$msg" 14 70; then
-            _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
-                "Installing Mesa..."
+            if ! _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
+                "Installing Mesa..."; then
+                _msg_red "Mesa" "Mesa installation FAILED."
+                return 1
+            fi
         fi
     fi
 }
 
 install_mesa_stable() {
     local mesa_pkgs=("mesa-vulkan-drivers" "libgl1-mesa-dri" "libglx-mesa0" "libegl-mesa0" "mesa-va-drivers")
-    _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" "Installing Mesa from stable..."
+    if ! _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" "Installing Mesa from stable..."; then
+        _msg_red "Mesa" "Mesa installation FAILED."
+        return 1
+    fi
 }
 
 offer_generic_tools() {
@@ -172,9 +187,13 @@ offer_generic_tools() {
     local tool_pkgs
     tool_pkgs=$(pkg_versions nvtop vainfo)
     if _confirm "GPU Tools" "Install monitoring and info tools?\n\n${tool_pkgs}"; then
-        _run_cmd "GPU Tools" "sudo apt install -y nvtop vainfo" "Installing GPU tools..." || true
+        if ! _run_cmd "GPU Tools" "sudo apt install -y nvtop vainfo" "Installing GPU tools..."; then
+            _msg_red "GPU Tools" "GPU tools installation FAILED."
+        fi
         if command -v vainfo &>/dev/null; then
-            vainfo
+            if ! vainfo; then
+                echo -e "${RED}[-]${NC} vainfo failed (VA-API support not available)."
+            fi
             _pause "vainfo output shown above."
         else
             echo -e "${YELLOW}vainfo not available, skipping report.${NC}"

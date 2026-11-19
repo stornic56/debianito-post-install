@@ -71,6 +71,24 @@ wlan0 10.0.0.5/24"
     [ "$output" = "1.2.3" ]
 }
 
+@test "pkg_versions formats pkg-version pairs" {
+    MOCK_APT_CACHE_POLICY_OUTPUT="curl:
+  Installed: 1.2.3-1
+  Candidate: 1.2.3"
+    run pkg_versions curl
+    [ "$status" -eq 0 ]
+    [ "$output" = "curl 1.2.3" ]
+}
+
+@test "pkg_versions shows (none) for a missing package" {
+    MOCK_APT_CACHE_POLICY_OUTPUT="vim:
+  Installed: (none)
+  Candidate: (none)"
+    run pkg_versions vim
+    [ "$status" -eq 0 ]
+    [ "$output" = "vim (none)" ]
+}
+
 # ── _get_backports_version ──────────────────────────────
 @test "_get_backports_version returns the backports version" {
     MOCK_APT_CACHE_MADISON_OUTPUT=" curl | 1.2.3-1 | https://deb.debian.org/debian bookworm/main amd64 Packages

@@ -247,6 +247,16 @@ _get_pkg_version() {
     apt-cache policy "$pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}'
 }
 
+# Format "pkg version" pairs for display in confirmation dialogs.
+# Wraps _get_pkg_version; never fails (missing package shows "(none)").
+pkg_versions() {
+    local p ver
+    for p in "$@"; do
+        ver=$(_get_pkg_version "$p")
+        echo "${p} ${ver:-(none)}"
+    done
+}
+
 # Get the installed version of a package from dpkg
 # Returns: version string or "" if not installed
 _get_installed_version() {

@@ -53,17 +53,26 @@ _install_amd_intel_stack() {
                 for _p in "${mesa_pkgs[@]}"; do
                     [ "$_p" != "mesa-va-drivers" ] && _bpo_list+=("$_p")
                 done
-                _run_cmd "Mesa" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${_bpo_list[*]}" \
-                    "Installing Mesa from backports..."
+                if ! _run_cmd "Mesa" "sudo apt install -y -t ${DEBIAN_CODENAME}-backports ${_bpo_list[*]}" \
+                    "Installing Mesa from backports..."; then
+                    _msg_red "Mesa" "Mesa installation from backports FAILED."
+                    return 1
+                fi
             else
-                _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
-                    "Installing Mesa from stable..."
+                if ! _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
+                    "Installing Mesa from stable..."; then
+                    _msg_red "Mesa" "Mesa installation FAILED."
+                    return 1
+                fi
             fi
         else
             if _confirm "No GPU Detected" \
                 "No dedicated GPU was detected (VM or headless).\n\nInstall Mesa stack?\n\nSource: Debian Stable\nMesa ${ref_ver}\n${comp_line}" 14 70; then
-                _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
-                    "Installing Mesa..."
+                if ! _run_cmd "Mesa" "sudo apt install -y ${mesa_pkgs[*]}" \
+                    "Installing Mesa..."; then
+                    _msg_red "Mesa" "Mesa installation FAILED."
+                    return 1
+                fi
             else
                 echo "Skipping Mesa installation."
                 offer_generic_tools
@@ -126,7 +135,10 @@ _install_amd_intel_stack() {
         fi
     fi
 
-    _install_mesa_backports
+    if ! _install_mesa_backports; then
+        _msg_red "Graphics Stack" "Mesa installation FAILED."
+        return 1
+    fi
 
     local mesa_ver
     mesa_ver=$(dpkg -l libgl1-mesa-dri 2>/dev/null | awk '/^ii/ {print $3; exit}' | sed 's/-.*//')
@@ -159,10 +171,16 @@ _apply_amd_gcn_grub_fix() {
         return
     fi
 
-    sudo cp "$file" "$backup"
+    if ! sudo cp "$file" "$backup"; then
+        _msg_red "AMD GCN" "Could not back up ${file}. Aborting GRUB change."
+        return 1
+    fi
 
     if ! sudo grep -q "amdgpu.si_support=1" "$file"; then
-        sudo sed -i -E "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"([^\"]*)\"/\"${params} \1\"/" "$file"
+        if ! sudo sed -i -E "/^GRUB_CMDLINE_LINUX_DEFAULT=/ s/\"([^\"]*)\"/\"${params} \1\"/" "$file"; then
+            _msg_red "AMD GCN" "Could not update ${file}. Backup kept at ${backup}."
+            return 1
+        fi
     fi
 
     if _confirm "AMD GCN — GRUB" "Parameters added:\n\n  ${params}\n\nRun update-grub now?" 12 65; then
@@ -318,7 +336,9 @@ No NVIDIA driver will be installed." 14 65
     fi
 
     if [ -n "$NVIDIA_DRIVER_MODE" ]; then
-        _configure_nvidia_wayland "$NVIDIA_SELECTED_VERSION"
+        if ! _configure_nvidia_wayland "$NVIDIA_SELECTED_VERSION"; then
+            echo -e "${RED}[-]${NC} Failed to write /etc/modprobe.d/nvidia-wayland.conf"
+        fi
         if _is_hybrid_laptop; then
             echo -e "${CYAN}[INFO] Hybrid GPU (Optimus) detected.${NC}"
             echo -e "PRIME offload is auto-configured by X.Org 1.20.7+ when using X11."

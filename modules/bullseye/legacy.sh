@@ -90,9 +90,13 @@ install_nvidia_bullseye() {
         return 0
     fi
 
-    _run_cmd "NVIDIA" \
+    if ! _run_cmd "NVIDIA" \
         "sudo apt install -y $nv_pkg firmware-misc-nonfree nvidia-settings" \
-        "Installing NVIDIA driver ${gpu_gen}..."
+        "Installing NVIDIA driver ${gpu_gen}..."; then
+        NVIDIA_DRIVER_MODE=""
+        _msg_red "NVIDIA — Bullseye" "NVIDIA driver installation FAILED.\n\nNo NVIDIA driver was installed."
+        return 1
+    fi
 
     local i386_active=false
     dpkg --print-foreign-architectures | grep -q i386 && i386_active=true
@@ -102,8 +106,11 @@ install_nvidia_bullseye() {
         nv32_ver=$(apt-cache policy "$nv32_pkg" 2>/dev/null | awk 'NR==3 {print $2; exit}')
         if [ -n "$nv32_ver" ] && [ "$nv32_ver" != "(none)" ]; then
             echo "Installing 32-bit compatibility for ${nv_pkg}..."
-            _run_cmd "NVIDIA 32-bit" "sudo apt install -y $nv32_pkg" \
-                "Installing NVIDIA 32-bit libraries..."
+            echo "Installing 32-bit compatibility for ${nv_pkg}..."
+            if ! _run_cmd "NVIDIA 32-bit" "sudo apt install -y $nv32_pkg" \
+                "Installing NVIDIA 32-bit libraries..."; then
+                echo -e "${RED}[-]${NC} 32-bit compatibility libraries failed (optional)."
+            fi
         else
             echo "No 32-bit compatibility package available for ${nv_pkg} on Bullseye."
         fi

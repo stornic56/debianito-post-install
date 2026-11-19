@@ -39,7 +39,9 @@ offer_amd_tools() {
         fi
     fi
     if command -v vainfo &>/dev/null; then
-        vainfo
+        if ! vainfo; then
+            echo -e "${RED}[-]${NC} vainfo failed (VA-API support not available)."
+        fi
         _pause "vainfo output shown above."
     else
         echo -e "${YELLOW}vainfo not available, skipping report.${NC}"
@@ -112,7 +114,9 @@ offer_intel_tools() {
             intel_failed=true
         fi
         if command -v vainfo &>/dev/null; then
-            vainfo
+            if ! vainfo; then
+                echo -e "${RED}[-]${NC} vainfo failed (VA-API support not available)."
+            fi
             _pause "vainfo output shown above."
         else
             echo -e "${YELLOW}vainfo not available, skipping report.${NC}"
